@@ -182,7 +182,7 @@ void renderents(void)
   }
 }
 
-void loadsky(char *basename)
+static void loadsky(char *basename)
 {
   static string lastsky = "";
   if (strcmp(lastsky, basename)==0) return;
@@ -270,7 +270,7 @@ void drawhud(int w, int h, int curfps, int nquads, int curvert, bool underwater)
   readmatrices();
   if (editmode) {
     if (cursordepth==1.0f) worldpos = player1->o;
-    edit::cursorupdate();
+    // edit::cursorupdate();
   }
 
   OGL(Disable, GL_DEPTH_TEST);

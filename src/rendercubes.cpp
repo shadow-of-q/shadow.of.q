@@ -5,7 +5,7 @@ namespace cube {
 namespace rr {
 
 vertex *verts = NULL;
-int curvert;
+int curvert = 4;
 int curmaxverts = 10000;
 
 void setarraypointers(void)
@@ -14,8 +14,8 @@ void setarraypointers(void)
   OGL(VertexAttribPointer, ogl::COL, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(vertex),(const void*)offsetof(vertex,r));
   OGL(VertexAttribPointer, ogl::TEX, 2, GL_FLOAT, 0, sizeof(vertex), (const void*)offsetof(vertex,u));
 }
-
 int worldsize(void) { return curvert*sizeof(vertex); }
+#if 0
 void uploadworld(void)
 {
   OGL(BufferSubData, GL_ARRAY_BUFFER, 0, worldsize(), verts);
@@ -355,7 +355,7 @@ void resetcubes(void)
   sbright.r = sbright.g = sbright.b = 255;
   sdark.r = sdark.g = sdark.b = 0;
 }
-
+#endif
 } /* namespace rr */
 } /* namespace cube */
 

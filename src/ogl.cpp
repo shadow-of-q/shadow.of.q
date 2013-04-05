@@ -914,37 +914,37 @@ void drawframe(int w, int h, float curfps)
 
   UNLESS_EMSCRIPTEN(OGL(Enable, GL_TEXTURE_2D));
 
-  int xs, ys;
-  skyoglid = lookuptex(DEFAULT_SKY, xs, ys);
+  // int xs, ys;
+  // skyoglid = lookuptex(DEFAULT_SKY, xs, ys);
+  // rr::resetcubes();
+  //cube::rr::curvert = 0;
+  //strips.setsize(0);
 
-  rr::resetcubes();
-
-  cube::rr::curvert = 0;
-  strips.setsize(0);
-
+#if 0
   world::render(player1->o.x, player1->o.y, player1->o.z,
                 (int)player1->yaw, (int)player1->pitch, (float)fov, w, h);
-  rr::finishstrips();
+#endif
+  // rr::finishstrips();
 
-  bindworldvbo();
-  rr::uploadworld();
+  // bindworldvbo();
+  // rr::uploadworld();
 
   /* render sky */
   if (rendersky) {
-    setupworld();
-    bindshader(COLOR_ONLY);
-    renderstripssky();
-    OGL(DisableVertexAttribArray, COL);
+    // setupworld();
+    //bindshader(COLOR_ONLY);
+    // renderstripssky();
+    //OGL(DisableVertexAttribArray, COL);
     identity();
     rotate(player1->pitch, pitch);
     rotate(player1->yaw, yaw);
     rotate(90.f, vec3f(1.f,0.f,0.f));
     OGL(VertexAttrib3f,COL,1.0f,1.0f,1.0f);
-    OGL(DepthFunc, GL_GREATER);
+    // OGL(DepthFunc, GL_GREATER);
     rr::draw_envbox(14, fog*4/3);
-    OGL(DepthFunc, GL_LESS);
+    // OGL(DepthFunc, GL_LESS);
   }
-
+#if 0
   /* render diffuse objects */
   if (renderworld) {
     transplayer();
@@ -956,6 +956,13 @@ void drawframe(int w, int h, float curfps)
     OGL(DisableVertexAttribArray, COL); /* XXX put it elsewhere */
   } else
     OGL(Clear, GL_COLOR_BUFFER_BIT);
+#else
+  transplayer();
+  overbright(2.f);
+  setupworld();
+  bindshader(DIFFUSETEX|FOG);
+  OGL(DisableVertexAttribArray, COL); /* XXX put it elsewhere */
+#endif
   ogl::xtraverts = 0;
 
   game::renderclients();
@@ -969,6 +976,7 @@ void drawframe(int w, int h, float curfps)
   drawhudgun(fovy, aspect, farplane);
 
   int nquads = 0;
+#if 0
   if (renderwater) {
     overbright(1.f);
     bindshader(watershader);
@@ -982,6 +990,7 @@ void drawframe(int w, int h, float curfps)
     OGL(DisableVertexAttribArray, COL);
     OGL(DisableVertexAttribArray, TEX);
   }
+#endif
 
   if (renderparticles) {
     overbright(2.f);

@@ -153,47 +153,46 @@ void pickup(int n, dynent *d)
     case I_BOOST:   additem(n, d->health,  60);   break;
 
     case I_GREENARMOUR:
-                    // (100h/100g only absorbs 166 damage)
-                    if (d->armourtype==A_YELLOW && d->armour>66) break;
-                    additem(n, d->armour, 20);
-                    break;
+      // (100h/100g only absorbs 166 damage)
+      if (d->armourtype==A_YELLOW && d->armour>66) break;
+      additem(n, d->armour, 20);
+      break;
 
     case I_YELLOWARMOUR:
-                    additem(n, d->armour, 20);
-                    break;
+      additem(n, d->armour, 20);
+      break;
 
     case I_QUAD:
-                    additem(n, d->quadmillis, 60);
-                    break;
+      additem(n, d->quadmillis, 60);
+      break;
 
     case CARROT:
-                    ents[n].spawned = false;
-                    triggertime = lastmillis;
-                    world::trigger(ents[n].attr1, ents[n].attr2, false);  // needs to go over server for client::multiplayer
-                    break;
+      ents[n].spawned = false;
+      triggertime = lastmillis;
+      world::trigger(ents[n].attr1, ents[n].attr2, false);  // needs to go over server for client::multiplayer
+      break;
 
     case TELEPORT:
-                    {
-                      static int lastteleport = 0;
-                      if (lastmillis-lastteleport<500) break;
-                      lastteleport = lastmillis;
-                      teleport(n, d);
-                      break;
-                    };
-
+    {
+      static int lastteleport = 0;
+      if (lastmillis-lastteleport<500) break;
+      lastteleport = lastmillis;
+      teleport(n, d);
+    }
+    break;
     case JUMPPAD:
-                    {
-                      static int lastjumppad = 0;
-                      if (lastmillis-lastjumppad<300) break;
-                      lastjumppad = lastmillis;
-                      vec v((int)(char)ents[n].attr3/10.0f, (int)(char)ents[n].attr2/10.0f, ents[n].attr1/10.0f);
-                      player1->vel.z = 0;
-                      vadd(player1->vel, v);
-                      sound::playc(S_JUMPPAD);
-                      break;
-                    };
-  };
-};
+    {
+      static int lastjumppad = 0;
+      if (lastmillis-lastjumppad<300) break;
+      lastjumppad = lastmillis;
+      vec v((int)(char)ents[n].attr3/10.0f, (int)(char)ents[n].attr2/10.0f, ents[n].attr1/10.0f);
+      player1->vel.z = 0;
+      vadd(player1->vel, v);
+      sound::playc(S_JUMPPAD);
+    }
+    break;
+  }
+}
 
 void checkitems(void)
 {

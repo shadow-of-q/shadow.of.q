@@ -16,7 +16,136 @@ sqr *mmip[LARGEST_FACTOR*2];
 extern bool hasoverbright;
 
 namespace world {
+int findentity(int type, int index)
+{
+  for (int i = index; i<ents.length(); i++)
+    if (ents[i].type==type)
+      return i;
+  loopj(index)
+    if (ents[j].type==type)
+      return j;
+  return -1;
+}
 
+void trigger(int tag, int type, bool savegame)
+{
+  if (!tag)
+    return;
+//  settag(tag, type);
+  if (!savegame && type!=3)
+    sound::play(S_RUMBLE);
+  sprintf_sd(aliasname)("level_trigger_%d", tag);
+  if (cmd::identexists(aliasname))
+    cmd::execute(aliasname);
+  if (type==2)
+   monster::endsp(false);
+}
+
+int closestent(void)
+{
+  // if (edit::noteditmode())
+  //   return -1;
+  int best = 0;
+  float bdist = 99999;
+  loopv(ents) {
+    entity &e = ents[i];
+    if (e.type==NOTUSED) continue;
+    const vec v(float(e.x), float(e.y), float(e.z));
+    vdist(dist, t, player1->o, v);
+    if (dist<bdist) {
+      best = i;
+      bdist = dist;
+    }
+  }
+  return bdist==99999 ? -1 : best;
+}
+
+void entproperty(int prop, int amount)
+{
+  const int e = closestent();
+  if (e < 0) return;
+  switch (prop) {
+    case 0: ents[e].attr1 += amount; break;
+    case 1: ents[e].attr2 += amount; break;
+    case 2: ents[e].attr3 += amount; break;
+    case 3: ents[e].attr4 += amount; break;
+  }
+}
+
+static void delent(void)
+{
+  const int e = closestent();
+  if (e < 0) {
+    console::out("no more entities");
+    return;
+  }
+  const int t = ents[e].type;
+  console::out("%s entity deleted", entnames[t]);
+  ents[e].type = NOTUSED;
+  client::addmsg(1, 10, SV_EDITENT, e, NOTUSED, 0, 0, 0, 0, 0, 0, 0);
+  if (t==LIGHT)
+    calclight();
+}
+
+static int findtype(const char *what)
+{
+  loopi(MAXENTTYPES)
+    if (strcmp(what, entnames[i])==0)
+      return i;
+  console::out("unknown entity type \"%s\"", what);
+  return NOTUSED;
+}
+
+entity *newentity(int x, int y, int z, char *what, int v1, int v2, int v3, int v4)
+{
+  const int type = findtype(what);
+  persistent_entity e = {short(x), short(y), short(z),short(v1),
+    uchar(type), uchar(v2), uchar(v3), uchar(v4)};
+  switch (type) {
+    case LIGHT:
+      if (v1>32) v1 = 32;
+      if (!v1) e.attr1 = 16;
+      if (!v2 && !v3 && !v4) e.attr2 = 255;
+    break;
+    case MAPMODEL:
+      e.attr4 = e.attr3;
+      e.attr3 = e.attr2;
+    case MONSTER:
+    case TELEDEST:
+      e.attr2 = (uchar)e.attr1;
+    case PLAYERSTART:
+      e.attr1 = (int)player1->yaw;
+    break;
+  }
+  client::addmsg(1, 10, SV_EDITENT, ents.length(), type, e.x, e.y, e.z, e.attr1, e.attr2, e.attr3, e.attr4);
+  ents.add(*((entity *)&e)); // unsafe!
+#if 0
+  if (type==LIGHT)
+    calclight();
+#endif
+  return &ents.last();
+}
+
+static void clearents(char *name)
+{
+  int type = findtype(name);
+  if (edit::noteditmode() || client::multiplayer())
+    return;
+  loopv(ents) {
+    entity &e = ents[i];
+    if (e.type==type) e.type = NOTUSED;
+  }
+  if (type==LIGHT) calclight();
+}
+
+int isoccluded(float vx, float vy, float cx, float cy, float csize)
+{
+  return 0;
+}
+
+
+
+#if 0
 /*-------------------------------------------------------------------------
  - world core management routines
  -------------------------------------------------------------------------*/
@@ -173,101 +302,6 @@ void remipmore(block &b, int level)
   remip(bb, level);
 }
 
-int closestent(void)
-{
-  if (edit::noteditmode())
-    return -1;
-  int best = 0;
-  float bdist = 99999;
-  loopv(ents) {
-    entity &e = ents[i];
-    if (e.type==NOTUSED) continue;
-    const vec v(float(e.x), float(e.y), float(e.z));
-    vdist(dist, t, player1->o, v);
-    if (dist<bdist) {
-      best = i;
-      bdist = dist;
-    }
-  }
-  return bdist==99999 ? -1 : best;
-}
-
-void entproperty(int prop, int amount)
-{
-  const int e = closestent();
-  if (e < 0) return;
-  switch (prop) {
-    case 0: ents[e].attr1 += amount; break;
-    case 1: ents[e].attr2 += amount; break;
-    case 2: ents[e].attr3 += amount; break;
-    case 3: ents[e].attr4 += amount; break;
-  }
-}
-
-static void delent(void)
-{
-  const int e = closestent();
-  if (e < 0) {
-    console::out("no more entities");
-    return;
-  }
-  const int t = ents[e].type;
-  console::out("%s entity deleted", entnames[t]);
-  ents[e].type = NOTUSED;
-  client::addmsg(1, 10, SV_EDITENT, e, NOTUSED, 0, 0, 0, 0, 0, 0, 0);
-  if (t==LIGHT)
-    calclight();
-}
-
-static int findtype(const char *what)
-{
-  loopi(MAXENTTYPES)
-    if (strcmp(what, entnames[i])==0)
-      return i;
-  console::out("unknown entity type \"%s\"", what);
-  return NOTUSED;
-}
-
-entity *newentity(int x, int y, int z, char *what, int v1, int v2, int v3, int v4)
-{
-  const int type = findtype(what);
-  persistent_entity e = {short(x), short(y), short(z),short(v1),
-    uchar(type), uchar(v2), uchar(v3), uchar(v4)};
-  switch (type) {
-    case LIGHT:
-      if (v1>32) v1 = 32;
-      if (!v1) e.attr1 = 16;
-      if (!v2 && !v3 && !v4) e.attr2 = 255;
-    break;
-    case MAPMODEL:
-      e.attr4 = e.attr3;
-      e.attr3 = e.attr2;
-    case MONSTER:
-    case TELEDEST:
-      e.attr2 = (uchar)e.attr1;
-    case PLAYERSTART:
-      e.attr1 = (int)player1->yaw;
-    break;
-  }
-  client::addmsg(1, 10, SV_EDITENT, ents.length(), type, e.x, e.y, e.z, e.attr1, e.attr2, e.attr3, e.attr4);
-  ents.add(*((entity *)&e)); // unsafe!
-  if (type==LIGHT)
-    calclight();
-  return &ents.last();
-}
-
-static void clearents(char *name)
-{
-  int type = findtype(name);
-  if (edit::noteditmode() || client::multiplayer())
-    return;
-  loopv(ents) {
-    entity &e = ents[i];
-    if (e.type==type) e.type = NOTUSED;
-  }
-  if (type==LIGHT) calclight();
-}
-
 void scalecomp(uchar &c, int intens)
 {
   int n = c*intens/100;
@@ -290,17 +324,6 @@ void scalelights(int f, int intens)
     }
   }
   calclight();
-}
-
-int findentity(int type, int index)
-{
-  for (int i = index; i<ents.length(); i++)
-    if (ents[i].type==type)
-      return i;
-  loopj(index)
-    if (ents[j].type==type)
-      return j;
-  return -1;
 }
 
 void setup(int factor)
@@ -1112,6 +1135,7 @@ void toptimize(void)
   }
 }
 
+
 // these two are used by getmap/sendmap.. transfers compressed maps directly
 void writemap(char *mname, int msize, uchar *mdata)
 {
@@ -1355,8 +1379,8 @@ void load(const char *mname)
   cmd::execfile(pcfname);
   cmd::execfile(mcfname);
 }
-
 COMMANDN(savemap, save, ARG_1STR);
+
 COMMAND(mapenlarge, ARG_NONE);
 COMMAND(newmap, ARG_1INT);
 COMMANDN(recalc, calclight, ARG_NONE);
@@ -1366,7 +1390,7 @@ COMMAND(entproperty, ARG_2INT);
 COMMAND(trigger, ARG_2INT);
 COMMAND(scalelights, ARG_2INT);
 COMMAND(toggleocull, ARG_NONE);
-
+#endif
 } /* namespace world */
 } /* namespace cube */
 

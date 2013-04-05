@@ -333,7 +333,8 @@ static void updatepos(dynent *d)
 static void changemapserv(const char *name, int mode)
 {
   gamemode = mode;
-  world::load(name);
+
+  // world::load(name);
 }
 
 void localservertoclient(uchar *buf, int len)
@@ -438,7 +439,8 @@ void localservertoclient(uchar *buf, int len)
     }
 
     // Server requests next map
-    case SV_MAPRELOAD: {
+    case SV_MAPRELOAD:
+    {
       server::getint(p);
       sprintf_sd(nextmapalias)("nextmap_%s", game::getclientmap());
       char *map = cmd::getalias(nextmapalias); // look up map in the cycle
@@ -568,12 +570,14 @@ void localservertoclient(uchar *buf, int len)
     case SV_EDITD:
     case SV_EDITE:
     {
+#if 0
       const int x  = server::getint(p);
       const int y  = server::getint(p);
       const int xs = server::getint(p);
       const int ys = server::getint(p);
       const int v  = server::getint(p);
       block b = { x, y, xs, ys };
+
       switch (type) {
         case SV_EDITH: edit::editheightxy(v!=0, server::getint(p), b); break;
         case SV_EDITT: edit::edittexxy(v, server::getint(p), b); break;
@@ -581,6 +585,7 @@ void localservertoclient(uchar *buf, int len)
         case SV_EDITD: edit::setvdeltaxy(v, b); break;
         case SV_EDITE: edit::editequalisexy(v!=0, b); break;
       }
+#endif
       break;
     }
 
@@ -600,8 +605,10 @@ void localservertoclient(uchar *buf, int len)
       ents[i].attr3 = server::getint(p);
       ents[i].attr4 = server::getint(p);
       ents[i].spawned = false;
+#if 0
       if (ents[i].type==LIGHT || to==LIGHT)
         world::calclight();
+#endif
       break;
     }
 
@@ -630,6 +637,7 @@ void localservertoclient(uchar *buf, int len)
       game::timeupdate(server::getint(p));
       break;
 
+#if 0
     // A new map is recieved
     case SV_RECVMAP:
     {
@@ -641,6 +649,7 @@ void localservertoclient(uchar *buf, int len)
       changemapserv(text, gamemode);
       break;
     }
+#endif
 
     // Output text from server
     case SV_SERVMSG:

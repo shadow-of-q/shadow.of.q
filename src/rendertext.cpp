@@ -199,7 +199,6 @@ static void draw_envbox_aux(float s0, float t0, int x0, int y0, int z0,
   verts[3] = vvec<5>(s0, t0, float(x0), float(y0), float(z0));
 
   ogl::bindtexture(GL_TEXTURE_2D, texture);
-  /* XXX bind shader here !!! */
   ogl::immvertices(4*sizeof(vvec<5>), &verts[0][0]);
   ogl::immattrib(ogl::POS0, 3, GL_FLOAT, sizeof(vvec<5>), sizeof(float[2]));
   ogl::immattrib(ogl::TEX, 2, GL_FLOAT, sizeof(vvec<5>), 0);

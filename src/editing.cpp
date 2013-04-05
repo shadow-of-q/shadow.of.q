@@ -11,6 +11,32 @@ extern void perlinarea(block &b, int scale, int seed, int psize);
 
 namespace edit {
 
+VAR(editing,0,0,1);
+
+void toggleedit()
+{
+  if (player1->state==CS_DEAD) return;                 // do not allow dead players to edit to avoid state confusion
+  if (!editmode && !client::allowedittoggle()) return;         // not in most client::multiplayer modes
+  if (!(editmode = !editmode))
+  {
+    // world::settagareas(); // reset triggers to allow quick playtesting
+    game::entinmap(player1); // find spawn closest to current floating pos
+  }
+  else
+  {
+    // world::resettagareas();                                // clear trigger areas to allow them to be edited
+    player1->health = 100;
+    if (m_classicsp) monster::monsterclear();                 // all monsters back at their spawns for editing
+    weapon::projreset();
+  }
+  keyrepeat(editmode);
+  // selset = false;
+  editing = editmode;
+}
+
+COMMANDN(edittoggle, toggleedit, ARG_NONE);
+
+#if 0
 // the current selection, used by almost all editing commands invariant: all
 // code assumes that these are kept inside MINBORD distance of the edge of the
 // map
@@ -36,31 +62,6 @@ int lastx, lasty, lasth;
 
 int lasttype = 0, lasttex = 0;
 sqr rtex;
-
-VAR(editing,0,0,1);
-
-void toggleedit()
-{
-  if (player1->state==CS_DEAD) return;                 // do not allow dead players to edit to avoid state confusion
-  if (!editmode && !client::allowedittoggle()) return;         // not in most client::multiplayer modes
-  if (!(editmode = !editmode))
-  {
-    world::settagareas(); // reset triggers to allow quick playtesting
-    game::entinmap(player1); // find spawn closest to current floating pos
-  }
-  else
-  {
-    world::resettagareas();                                // clear trigger areas to allow them to be edited
-    player1->health = 100;
-    if (m_classicsp) monster::monsterclear();                 // all monsters back at their spawns for editing
-    weapon::projreset();
-  }
-  keyrepeat(editmode);
-  selset = false;
-  editing = editmode;
-}
-
-COMMANDN(edittoggle, toggleedit, ARG_NONE);
 
 void correctsel()                                       // ensures above invariant
 {
@@ -484,7 +485,7 @@ COMMAND(paste, ARG_NONE);
 COMMAND(edittex, ARG_2INT);
 COMMAND(newent, ARG_5STR);
 COMMAND(perlin, ARG_3INT);
-
+#endif
 } /* namespace edit */
 } /* namespace cube */
 

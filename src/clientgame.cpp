@@ -321,9 +321,10 @@ static void attack(bool on)
 {
   if (intermission)
     return;
-  if (editmode)
-    edit::editdrag(on);
-  else if ((player1->attacking = on) != 0)
+//  if (editmode)
+//    edit::editdrag(on);
+//  else
+  if ((player1->attacking = on) != 0)
     respawn();
 }
 COMMAND(attack, ARG_DOWN);
@@ -569,7 +570,7 @@ void renderscores(void)
     menu::manual(0, scorelines.length()+1, teamscores);
   }
 }
-
+#if 0
 #if defined(EMSCRIPTEN)
 static void sendmap(const char *mapname){}
 COMMAND(sendmap, ARG_1STR);
@@ -620,6 +621,7 @@ static void getmap(void)
   console::out("requesting map from server...");
 }
 COMMAND(getmap, ARG_NONE);
+#endif
 #endif
 } /* namespace game */
 } /* namespace cube */

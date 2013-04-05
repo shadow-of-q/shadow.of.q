@@ -98,13 +98,13 @@ static void main_loop(void)
   if (millis-lastmillis<minmillis)
     SDL_Delay(minmillis-(millis-lastmillis));
 #endif
-  world::cleardlights();
+  // world::cleardlights();
   game::updateworld(millis);
   if (!demoplayback)
     server::slice((int)time(NULL), 0);
   static float fps = 30.0f;
   fps = (1000.0f/curtime+fps*50)/51;
-  world::computeraytable(player1->o.x, player1->o.y);
+  // world::computeraytable(player1->o.x, player1->o.y);
   rr::readdepth(scr_w, scr_h);
   SDL_GL_SwapBuffers();
   sound::updatevol();
@@ -176,16 +176,18 @@ static int main(int argc, char **argv)
   fs = 0;
 #endif
 
-  if (SDL_Init(SDL_INIT_TIMER|SDL_INIT_VIDEO|par)<0) fatal("Unable to initialize SDL");
+  if (SDL_Init(SDL_INIT_TIMER|SDL_INIT_VIDEO|par)<0)
+    fatal("Unable to initialize SDL");
 
   log("net");
-  if (enet_initialize()<0) fatal("Unable to initialise network module");
+  if (enet_initialize()<0)
+    fatal("Unable to initialise network module");
 
   game::initclient();
   server::init(dedicated, uprate, sdesc, ip, master, passwd, maxcl);  // never returns if dedicated
 
   log("world");
-  world::empty(7, true);
+  // world::empty(7, true);
 
   log("video: sdl");
   if (SDL_InitSubSystem(SDL_INIT_VIDEO)<0) fatal("Unable to initialize SDL Video");
@@ -235,7 +237,8 @@ static int main(int argc, char **argv)
 
   log("localconnect");
   server::localconnect();
-  client::changemap("metl3");        // if this map is changed, also change depthcorrect()
+  client::changemap("metl3");
+  cmd::execute("loadsky \"socksky/mars\"");
 
   log("mainloop");
 #if defined(EMSCRIPTEN)
