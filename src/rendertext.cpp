@@ -102,22 +102,21 @@ static const short char_coords[96][4] =
   {310,448,363,512}   //~
 };
 
-IF_EMSCRIPTEN(typedef ushort index_type);
-UNLESS_EMSCRIPTEN(typedef uint index_type);
-static const index_type twotriangles[] = {0,1,2,0,2,3};
+IF_EMSCRIPTEN(typedef ushort indextype);
+IF_NOT_EMSCRIPTEN(typedef uint indextype);
+static const indextype twotriangles[] = {0,1,2,0,2,3};
 
 int text_width(const char *str)
 {
   int x = 0;
-  for (int i = 0; str[i] != 0; i++)
-  {
+  for (int i = 0; str[i] != 0; i++) {
     int c = str[i];
     if (c=='\t') { x = (x+PIXELTAB)/PIXELTAB*PIXELTAB; continue; }; 
     if (c=='\f') continue; 
     if (c==' ') { x += FONTH/2; continue; };
     c -= 33;
     if (c<0 || c>=95) continue;
-    int in_width = char_coords[c][2] - char_coords[c][0];
+    const int in_width = char_coords[c][2] - char_coords[c][0];
     x += in_width + 1;
   }
   return x;
@@ -135,19 +134,13 @@ void draw_text(const char *str, int left, int top, int gl_num)
   ogl::bindtexture(GL_TEXTURE_2D, gl_num);
   OGL(VertexAttrib3f,ogl::COL,1.f,1.f,1.f);
 
-  int x = left;
-  int y = top;
-
-  float in_left, in_top, in_right, in_bottom;
-  int in_width, in_height;
-
   /* use a triangle mesh to display the text */
   const size_t len = strlen(str);
-  index_type *indices = (index_type*) alloca(6*len*sizeof(int));
+  indextype *indices = (indextype*) alloca(6*len*sizeof(int));
   vvec<4> *verts = (vvec<4>*) alloca(4*len*sizeof(vvec<4>));
 
   /* traverse the string and build the mesh */
-  int index = 0, vert = 0;
+  int index = 0, vert = 0, x = left, y = top;
   for (int i = 0; str[i] != 0; ++i) {
     int c = str[i];
     if (c=='\t') { x = (x-left+PIXELTAB)/PIXELTAB*PIXELTAB+left; continue; }; 
@@ -156,12 +149,12 @@ void draw_text(const char *str, int left, int top, int gl_num)
     c -= 33;
     if (c<0 || c>=95) continue;
 
-    in_left    = float(char_coords[c][0])   / 512.0f;
-    in_top     = float(char_coords[c][1]+2) / 512.0f;
-    in_right   = float(char_coords[c][2])   / 512.0f;
-    in_bottom  = float(char_coords[c][3]-2) / 512.0f;
-    in_width   = char_coords[c][2] - char_coords[c][0];
-    in_height  = char_coords[c][3] - char_coords[c][1];
+    const float in_left   = float(char_coords[c][0])   / 512.0f;
+    const float in_top    = float(char_coords[c][1]+2) / 512.0f;
+    const float in_right  = float(char_coords[c][2])   / 512.0f;
+    const float in_bottom = float(char_coords[c][3]-2) / 512.0f;
+    const int in_width  = char_coords[c][2] - char_coords[c][0];
+    const int in_height = char_coords[c][3] - char_coords[c][1];
 
     loopj(6) indices[index+j] = vert+twotriangles[j];
     verts[vert+0] = vvec<4>(in_left, in_top,   float(x),         float(y));
@@ -174,23 +167,23 @@ void draw_text(const char *str, int left, int top, int gl_num)
     index += 6;
     vert += 4;
   }
-  enableattribarray(ogl::POS0);
-  enableattribarray(ogl::TEX);
-  disableattribarray(ogl::POS1);
-  disableattribarray(ogl::COL);
+  ogl::enableattribarray(ogl::POS0);
+  ogl::enableattribarray(ogl::TEX);
+  ogl::disableattribarray(ogl::POS1);
+  ogl::disableattribarray(ogl::COL);
   ogl::immvertices(vert*sizeof(float[4]), &verts[0][0]);
   ogl::immattrib(ogl::POS0, 2, GL_FLOAT, sizeof(float[4]), sizeof(float[2]));
   ogl::immattrib(ogl::TEX, 2, GL_FLOAT, sizeof(float[4]), 0);
   ogl::bindshader(ogl::DIFFUSETEX);
-  UNLESS_EMSCRIPTEN(ogl::immdrawelements(GL_TRIANGLES, index, GL_UNSIGNED_INT, indices));
+  IF_NOT_EMSCRIPTEN(ogl::immdrawelements(GL_TRIANGLES, index, GL_UNSIGNED_INT, indices));
   IF_EMSCRIPTEN(ogl::immdrawelements(GL_TRIANGLES, index, GL_UNSIGNED_SHORT, indices));
 }
 
-static void draw_envbox_aux(float s0, float t0, int x0, int y0, int z0,
-                            float s1, float t1, int x1, int y1, int z1,
-                            float s2, float t2, int x2, int y2, int z2,
-                            float s3, float t3, int x3, int y3, int z3,
-                            int texture)
+static void drawenvboxface(float s0, float t0, int x0, int y0, int z0,
+                           float s1, float t1, int x1, int y1, int z1,
+                           float s2, float t2, int x2, int y2, int z2,
+                           float s3, float t3, int x3, int y3, int z3,
+                           int texture)
 {
   vvec<5> verts[4];
   verts[0] = vvec<5>(s3, t3, float(x3), float(y3), float(z3));
@@ -202,7 +195,7 @@ static void draw_envbox_aux(float s0, float t0, int x0, int y0, int z0,
   ogl::immvertices(4*sizeof(vvec<5>), &verts[0][0]);
   ogl::immattrib(ogl::POS0, 3, GL_FLOAT, sizeof(vvec<5>), sizeof(float[2]));
   ogl::immattrib(ogl::TEX, 2, GL_FLOAT, sizeof(vvec<5>), 0);
-  UNLESS_EMSCRIPTEN(ogl::immdrawelements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, twotriangles));
+  IF_NOT_EMSCRIPTEN(ogl::immdrawelements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, twotriangles));
   IF_EMSCRIPTEN(ogl::immdrawelements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, twotriangles));
   ogl::xtraverts += 4;
 }
@@ -215,30 +208,30 @@ void draw_envbox(int t, int w)
   ogl::enableattribarray(ogl::TEX);
   ogl::disableattribarray(ogl::POS1);
   ogl::disableattribarray(ogl::COL);
-  draw_envbox_aux(1.0f, 1.0f, -w, -w,  w,
-                  0.0f, 1.0f,  w, -w,  w,
-                  0.0f, 0.0f,  w, -w, -w,
-                  1.0f, 0.0f, -w, -w, -w, t);
-  draw_envbox_aux(1.0f, 1.0f, +w,  w,  w,
-                  0.0f, 1.0f, -w,  w,  w,
-                  0.0f, 0.0f, -w,  w, -w,
-                  1.0f, 0.0f, +w,  w, -w, t+1);
-  draw_envbox_aux(0.0f, 0.0f, -w, -w, -w,
-                  1.0f, 0.0f, -w,  w, -w,
-                  1.0f, 1.0f, -w,  w,  w,
-                  0.0f, 1.0f, -w, -w,  w, t+2);
-  draw_envbox_aux(1.0f, 1.0f, +w, -w,  w,
-                  0.0f, 1.0f, +w,  w,  w,
-                  0.0f, 0.0f, +w,  w, -w,
-                  1.0f, 0.0f, +w, -w, -w, t+3);
-  draw_envbox_aux(0.0f, 1.0f, -w,  w,  w,
-                  0.0f, 0.0f, +w,  w,  w,
-                  1.0f, 0.0f, +w, -w,  w,
-                  1.0f, 1.0f, -w, -w,  w, t+4);
-  draw_envbox_aux(0.0f, 1.0f, +w,  w, -w,
-                  0.0f, 0.0f, -w,  w, -w,
-                  1.0f, 0.0f, -w, -w, -w,
-                  1.0f, 1.0f, +w, -w, -w, t+5);
+  drawenvboxface(1.0f, 1.0f, -w, -w,  w,
+                 0.0f, 1.0f,  w, -w,  w,
+                 0.0f, 0.0f,  w, -w, -w,
+                 1.0f, 0.0f, -w, -w, -w, t);
+  drawenvboxface(1.0f, 1.0f, +w,  w,  w,
+                 0.0f, 1.0f, -w,  w,  w,
+                 0.0f, 0.0f, -w,  w, -w,
+                 1.0f, 0.0f, +w,  w, -w, t+1);
+  drawenvboxface(0.0f, 0.0f, -w, -w, -w,
+                 1.0f, 0.0f, -w,  w, -w,
+                 1.0f, 1.0f, -w,  w,  w,
+                 0.0f, 1.0f, -w, -w,  w, t+2);
+  drawenvboxface(1.0f, 1.0f, +w, -w,  w,
+                 0.0f, 1.0f, +w,  w,  w,
+                 0.0f, 0.0f, +w,  w, -w,
+                 1.0f, 0.0f, +w, -w, -w, t+3);
+  drawenvboxface(0.0f, 1.0f, -w,  w,  w,
+                 0.0f, 0.0f, +w,  w,  w,
+                 1.0f, 0.0f, +w, -w,  w,
+                 1.0f, 1.0f, -w, -w,  w, t+4);
+  drawenvboxface(0.0f, 1.0f, +w,  w, -w,
+                 0.0f, 0.0f, -w,  w, -w,
+                 1.0f, 0.0f, -w, -w, -w,
+                 1.0f, 1.0f, +w, -w, -w, t+5);
   OGL(DepthMask, GL_TRUE);
 }
 

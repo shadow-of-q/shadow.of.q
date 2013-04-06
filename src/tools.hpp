@@ -4,10 +4,10 @@
 
 #if defined(EMSCRIPTEN)
 #define IF_EMSCRIPTEN(X) X
-#define UNLESS_EMSCRIPTEN(X)
+#define IF_NOT_EMSCRIPTEN(X)
 #else
 #define IF_EMSCRIPTEN(X)
-#define UNLESS_EMSCRIPTEN(X) X
+#define IF_NOT_EMSCRIPTEN(X) X
 #endif /* EMSCRIPTEN */
 
 #ifdef _MSC_VER

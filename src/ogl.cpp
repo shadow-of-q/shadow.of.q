@@ -47,7 +47,7 @@ static const uint glbufferbinding[BUFFER_NUM] = {
   GL_ARRAY_BUFFER,
   GL_ELEMENT_ARRAY_BUFFER
 };
-void bindbuffer(int target, uint buffer)
+void bindbuffer(uint target, uint buffer)
 {
   if (bindedvbo[target] != buffer) {
     OGL(BindBuffer, glbufferbinding[target], buffer);
@@ -222,7 +222,7 @@ static const uint ID_NUM = 2*MAXTEX;
 static GLuint generated_ids[ID_NUM];
 #endif /* EMSCRIPTEN */
 
-void bindtexture(int target, uint id)
+void bindtexture(uint target, uint id)
 {
   if (bindedtexture == id) return;
   bindedtexture = id;
@@ -427,7 +427,7 @@ static GLuint loadshader(GLenum type, const char *source, const char *rulestr)
 static GLuint loadprogram(const char *vertstr, const char *fragstr, uint rules)
 {
   GLuint program = 0;
-  sprintf_sd(rulestr)(UNLESS_EMSCRIPTEN("#version 130\n")
+  sprintf_sd(rulestr)(IF_NOT_EMSCRIPTEN("#version 130\n")
                       IF_EMSCRIPTEN("precision highp float;\n")
                       "#define USE_FOG %i\n"
                       "#define USE_KEYFRAME %i\n"
@@ -497,11 +497,11 @@ static const char uberfrag[] = {
   "#endif\n"
   "uniform float overbright;\n"
   PS_IN " vec4 outcol;\n"
-  UNLESS_EMSCRIPTEN("out vec4 c;\n")
+  IF_NOT_EMSCRIPTEN("out vec4 c;\n")
   "void main() {\n"
   "  vec4 col;\n"
   "#if USE_DIFFUSETEX\n"
-  UNLESS_EMSCRIPTEN("  col = texture(diffuse, texcoord);\n")
+  IF_NOT_EMSCRIPTEN("  col = texture(diffuse, texcoord);\n")
   IF_EMSCRIPTEN("  col = texture2D(diffuse, texcoord);\n")
   "  col *= outcol;\n"
   "#else\n"
@@ -512,7 +512,7 @@ static const char uberfrag[] = {
   "  col.xyz = mix(col.xyz,fogcolor.xyz,factor);\n"
   "#endif\n"
   "  col.xyz *= overbright;\n"
-  UNLESS_EMSCRIPTEN("  c = col;\n")
+  IF_NOT_EMSCRIPTEN("  c = col;\n")
   IF_EMSCRIPTEN("  gl_FragColor = col;\n")
   "}\n"
 };
@@ -997,7 +997,7 @@ void drawframe(int w, int h, float curfps)
   }
 
   overbright(1.f);
-  UNLESS_EMSCRIPTEN(OGL(Disable, GL_TEXTURE_2D));
+  IF_NOT_EMSCRIPTEN(OGL(Disable, GL_TEXTURE_2D));
   rr::drawhud(w, h, int(curfps), nquads, rr::curvert, underwater);
   OGL(Enable, GL_CULL_FACE);
 }

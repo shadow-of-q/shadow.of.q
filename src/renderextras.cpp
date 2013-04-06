@@ -6,12 +6,12 @@ namespace cube {
 // XXX
 const char *entnames[] =
 {
-"none?", "light", "playerstart",
-"shells", "bullets", "rockets", "riflerounds",
-"health", "healthboost", "greenarmour", "yellowarmour", "quaddamage",
-"teleport", "teledest",
-"mapmodel", "monster", "trigger", "jumppad",
-"?", "?", "?", "?", "?"
+  "none?", "light", "playerstart",
+  "shells", "bullets", "rockets", "riflerounds",
+  "health", "healthboost", "greenarmour", "yellowarmour", "quaddamage",
+  "teleport", "teledest",
+  "mapmodel", "monster", "trigger", "jumppad",
+  "?", "?", "?", "?", "?"
 };
 
 namespace rr {
@@ -372,7 +372,6 @@ void drawhud(int w, int h, int curfps, int nquads, int curvert, bool underwater)
 
   OGL(DepthMask, GL_TRUE);
   OGL(Disable, GL_BLEND);
-  UNLESS_EMSCRIPTEN(OGL(Disable, GL_TEXTURE_2D));
   OGL(Enable, GL_DEPTH_TEST);
 }
 

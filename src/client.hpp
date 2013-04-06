@@ -1,7 +1,7 @@
 #ifndef __CUBE_CLIENT_HPP__
 #define __CUBE_CLIENT_HPP__
 
-#include "tools.h"
+#include "tools.hpp"
 #include <cstdio>
 
 namespace cube {
@@ -35,46 +35,46 @@ enum {
   PROTOCOL_VERSION = 122    // bump when protocol changes
 };
 
-static const float DMF = 16.0f;  //<! Quantizes positions 
-static const float DAF = 1.0f;   //<! Quantizes angles
-static const float DVF = 100.0f; //<! Quantizes velocities
+static const float DMF = 16.0f;  /* quantizes positions */
+static const float DAF = 1.0f;   /* quantizes angles */
+static const float DVF = 100.0f; /* quantizes velocities */
 
 struct dynent;
 
 namespace client {
 
-/*! Process any updates from the server */
-void localservertoclient(uchar *buf, int len);
-/*! Connect to the given server */
-void connect(const char *servername);
-/*! Disconned from the current server */
-void disconnect(int onlyclean = 0, int async = 0);
-/*! Send the given message to the server */
-void toserver(const char *text);
-/*! Add a new message to send to the server */
-void addmsg(int rel, int num, int type, ...);
-/*! Is it a multiplayer game? */
-bool multiplayer(void);
-/*! Toggle edit mode (restricted by client code) */
-bool allowedittoggle(void);
-/*! Set the ENetPacket to the server */
-void sendpackettoserv(void *packet);
-/*! Process (ENet) events from the server */
-void gets2c(void);
-/*! Send updates to the server */
-void c2sinfo(const dynent *d);
-/*! Triggers disconnection when invalid message is processed */
-void neterr(const char *s);
-/*! Create a default profile for the client */
-void initclientnet(void);
-/*! Indicate if the map can be started in MP */
-bool netmapstart(void);
-/*! Return our client ID in the game */
-int getclientnum(void);
-/*! Outputs name and team in the given file */
-void writeclientinfo(FILE *f);
-/*! Request map change, server may ignore */
-void changemap(const char *name);
+  /* process any updates from the server */
+  void localservertoclient(uchar *buf, int len);
+  /* connect to the given server */
+  void connect(const char *servername);
+  /* disconned from the current server */
+  void disconnect(int onlyclean = 0, int async = 0);
+  /* send the given message to the server */
+  void toserver(const char *text);
+  /* add a new message to send to the server */
+  void addmsg(int rel, int num, int type, ...);
+  /* is it a multiplayer game? */
+  bool multiplayer(void);
+  /* toggle edit mode (restricted by client code) */
+  bool allowedittoggle(void);
+  /* set the enetpacket to the server */
+  void sendpackettoserv(void *packet);
+  /* process (enet) events from the server */
+  void gets2c(void);
+  /* send updates to the server */
+  void c2sinfo(const dynent *d);
+  /* triggers disconnection when invalid message is processed */
+  void neterr(const char *s);
+  /* create a default profile for the client */
+  void initclientnet(void);
+  /* indicate if the map can be started in mp */
+  bool netmapstart(void);
+  /* return our client id in the game */
+  int getclientnum(void);
+  /* outputs name and team in the given file */
+  void writeclientinfo(FILE *f);
+  /* request map change, server may ignore */
+  void changemap(const char *name);
 
 } /* namespace client */
 } /* namespace cube */

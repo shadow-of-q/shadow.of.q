@@ -49,9 +49,9 @@ void rendermd2(const float *pos0, const float *pos1, float lerp, int n);
 void drawsphere(void);
 
 /* Ensure state tracking */
-enum {ARRAY_BUFFER=0,ELEMENT_ARRAY_BUFFER,BUFFER_NUM};
-void bindbuffer(int target, uint buffer);
-void bindtexture(int target, uint tex);
+enum {ARRAY_BUFFER, ELEMENT_ARRAY_BUFFER, BUFFER_NUM};
+void bindbuffer(uint target, uint buffer);
+void bindtexture(uint target, uint tex);
 void enableattribarray(uint target);
 void disableattribarray(uint target);
 
@@ -62,8 +62,8 @@ void immdrawelements(int mode, int count, int type, const void *indices);
 void immdrawarrays(int mode, int first, int count);
 void immdraw(int mode, int pos, int tex, int col, size_t n, const float *data);
 
-/* matrix interface (mostly OGL like) */
-enum {MODELVIEW=0, PROJECTION=1, MATRIX_MODE=2};
+/* matrix interface */
+enum {MODELVIEW, PROJECTION, MATRIX_MODE};
 void matrixmode(int mode);
 void identity(void);
 void rotate(float angle, const vec3f &axis);

@@ -1,7 +1,7 @@
 #ifndef __CUBE_MATH_HPP__
 #define __CUBE_MATH_HPP__
 
-#include "tools.h"
+#include "tools.hpp"
 #include <cassert>
 #include <cmath>
 #include <cfloat>
