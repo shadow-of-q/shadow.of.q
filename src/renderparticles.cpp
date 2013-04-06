@@ -125,12 +125,13 @@ void render_particles(int time)
   /* render all of them now */
   partbucket[0] = 0;
   loopi(parttypen-1) partbucket[i+1] = partbucket[i]+partbucketsize[i];
-  OGL(DepthMask, GL_FALSE); /* XXX remove that crap */
+  OGL(DepthMask, GL_FALSE);
   OGL(Enable, GL_BLEND);
   OGL(BlendFunc, GL_SRC_ALPHA, GL_SRC_ALPHA);
-  OGL(EnableVertexAttribArray, ogl::POS0);
-  OGL(EnableVertexAttribArray, ogl::COL);
-  OGL(EnableVertexAttribArray, ogl::TEX);
+  ogl::disableattribarray(ogl::POS1);
+  ogl::enableattribarray(ogl::POS0);
+  ogl::enableattribarray(ogl::COL);
+  ogl::enableattribarray(ogl::TEX);
   ogl::bindbuffer(ogl::ARRAY_BUFFER, particlevbo);
   ogl::bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, particleibo);
   OGL(BufferSubData, GL_ARRAY_BUFFER, 0, numrender*sizeof(glparticle[4]), glparts);
@@ -148,15 +149,6 @@ void render_particles(int time)
 
   ogl::bindbuffer(ogl::ARRAY_BUFFER, 0);
   ogl::bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, 0);
-  OGL(DisableVertexAttribArray, ogl::POS0);
-  OGL(DisableVertexAttribArray, ogl::COL);
-  OGL(DisableVertexAttribArray, ogl::TEX);
-
-  /* XXX remove that crap */
-  OGL(DisableVertexAttribArray, ogl::POS0);
-  OGL(DisableVertexAttribArray, ogl::COL);
-  OGL(DisableVertexAttribArray, ogl::TEX);
-
   OGL(Disable, GL_BLEND);
   OGL(DepthMask, GL_TRUE);
 }

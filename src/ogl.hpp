@@ -23,7 +23,8 @@ namespace ogl {
 #undef GL_PROC
 #endif /* EMSCRIPTEN */
 
-enum {POS0=0, POS1=1, TEX=2, NOR=3, COL=4}; /* vertex attributes */
+/* vertex attributes */
+enum {POS0, POS1, TEX, NOR, COL, ATTRIB_NUM};
 
 /* quick, dirty and super simple uber-shader system */
 static const uint COLOR_ONLY = 0;
@@ -38,8 +39,6 @@ void init(int w, int h);
 void clean(void);
 void drawframe(int w, int h, float curfps);
 bool installtex(int id, const char *name, int &xs, int &ys, bool clamp = false);
-void vertf(float v1, float v2, float v3, sqr *ls, float t1, float t2);
-void addstrip(int tex, int start, int n);
 int lookuptex(int tex, int &xs, int &ys);
 
 /* draw helper functions */
@@ -49,10 +48,12 @@ void drawelements(int mode, int count, int type, const void *indices);
 void rendermd2(const float *pos0, const float *pos1, float lerp, int n);
 void drawsphere(void);
 
-/* just to ensure state tracking */
+/* Ensure state tracking */
 enum {ARRAY_BUFFER=0,ELEMENT_ARRAY_BUFFER,BUFFER_NUM};
 void bindbuffer(int target, uint buffer);
 void bindtexture(int target, uint tex);
+void enableattribarray(uint target);
+void disableattribarray(uint target);
 
 /* immediate mode rendering */
 void immvertices(int sz, const void *data);

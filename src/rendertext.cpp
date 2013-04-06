@@ -174,16 +174,16 @@ void draw_text(const char *str, int left, int top, int gl_num)
     index += 6;
     vert += 4;
   }
-  OGL(EnableVertexAttribArray, ogl::POS0);
-  OGL(EnableVertexAttribArray, ogl::TEX);
+  enableattribarray(ogl::POS0);
+  enableattribarray(ogl::TEX);
+  disableattribarray(ogl::POS1);
+  disableattribarray(ogl::COL);
   ogl::immvertices(vert*sizeof(float[4]), &verts[0][0]);
   ogl::immattrib(ogl::POS0, 2, GL_FLOAT, sizeof(float[4]), sizeof(float[2]));
   ogl::immattrib(ogl::TEX, 2, GL_FLOAT, sizeof(float[4]), 0);
   ogl::bindshader(ogl::DIFFUSETEX);
   UNLESS_EMSCRIPTEN(ogl::immdrawelements(GL_TRIANGLES, index, GL_UNSIGNED_INT, indices));
   IF_EMSCRIPTEN(ogl::immdrawelements(GL_TRIANGLES, index, GL_UNSIGNED_SHORT, indices));
-  OGL(DisableVertexAttribArray, ogl::POS0);/* XXX */
-  OGL(DisableVertexAttribArray, ogl::TEX);
 }
 
 static void draw_envbox_aux(float s0, float t0, int x0, int y0, int z0,
@@ -211,6 +211,10 @@ void draw_envbox(int t, int w)
 {
   OGL(DepthMask, GL_FALSE);
   ogl::bindshader(ogl::DIFFUSETEX);
+  ogl::enableattribarray(ogl::POS0);
+  ogl::enableattribarray(ogl::TEX);
+  ogl::disableattribarray(ogl::POS1);
+  ogl::disableattribarray(ogl::COL);
   draw_envbox_aux(1.0f, 1.0f, -w, -w,  w,
                   0.0f, 1.0f,  w, -w,  w,
                   0.0f, 0.0f,  w, -w, -w,

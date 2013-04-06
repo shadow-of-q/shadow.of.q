@@ -21,9 +21,24 @@ union {
   } flags;
   uint any;
 } dirty;
-static GLuint bindedvbo[BUFFER_NUM] = {0,0};
-static GLuint bindedtexture = 0;
+static uint bindedvbo[BUFFER_NUM];
+static uint bindedtexture = 0;
+static uint enabledattribarray[ATTRIB_NUM];
 static struct shader *bindedshader = NULL;
+
+void enableattribarray(uint target) {
+  if (!enabledattribarray[target]) {
+    enabledattribarray[target] = 1;
+    OGL(EnableVertexAttribArray, target);
+  }
+}
+
+void disableattribarray(uint target) {
+  if (enabledattribarray[target]) {
+    enabledattribarray[target] = 0;
+    OGL(DisableVertexAttribArray, target);
+  }
+}
 
 /*--------------------------------------------------------------------------
  - immediate mode and buffer support
@@ -108,27 +123,23 @@ void immdrawelements(int mode, int count, int type, const void *indices)
   drawelements(mode, count, type, fake);
 }
 
-/* XXX remove state crap */
 void immdraw(int mode, int pos, int tex, int col, size_t n, const float *data)
 {
   const int sz = (pos+tex+col)*sizeof(float);
   immvertices(n*sz, data);
   if (pos) {
     immattrib(ogl::POS0, pos, GL_FLOAT, sz, (tex+col)*sizeof(float));
-    OGL(EnableVertexAttribArray, POS0);
+    enableattribarray(POS0);
   }
   if (tex) {
     immattrib(ogl::TEX, tex, GL_FLOAT, sz, col*sizeof(float));
-    OGL(EnableVertexAttribArray, TEX);
+    enableattribarray(TEX);
   }
   if (col) {
     immattrib(ogl::COL, col, GL_FLOAT, sz, 0);
-    OGL(EnableVertexAttribArray, COL);
+    enableattribarray(COL);
   }
   immdrawarrays(mode, 0, n);
-  OGL(DisableVertexAttribArray, TEX);
-  OGL(DisableVertexAttribArray, COL);
-  OGL(DisableVertexAttribArray, POS0);
 }
 
 /*-------------------------------------------------------------------------
@@ -625,15 +636,13 @@ void rendermd2(const float *pos0, const float *pos1, float lerp, int n)
   OGL(VertexAttribPointer, TEX, 2, GL_FLOAT, 0, sizeof(float[5]), pos0);
   OGL(VertexAttribPointer, POS0, 3, GL_FLOAT, 0, sizeof(float[5]), pos0+2);
   OGL(VertexAttribPointer, POS1, 3, GL_FLOAT, 0, sizeof(float[5]), pos1+2);
-  OGL(EnableVertexAttribArray, POS0);
-  OGL(EnableVertexAttribArray, POS1);
-  OGL(EnableVertexAttribArray, TEX);
-  bindshader(FOG|KEYFRAME|DIFFUSETEX);
+  enableattribarray(POS0);
+  enableattribarray(POS1);
+  enableattribarray(TEX);
+  disableattribarray(COL);
+  bindshader(FOG|KEYFRAME|COL|DIFFUSETEX);
   OGL(Uniform1f, bindedshader->udelta, lerp);
   drawarrays(GL_TRIANGLES, 0, n);
-  OGL(DisableVertexAttribArray, POS0);
-  OGL(DisableVertexAttribArray, POS1);
-  OGL(DisableVertexAttribArray, TEX);
 }
 
 /* flush all the states required for the draw call */
@@ -734,13 +743,15 @@ void init(int w, int h)
   dirty.any = ~0x0;
   purgetextures();
   buildsphere(1, 12, 6);
-  loopi(shadern) buildubershader(shaders[i], i);
-  buildshader(watershader, watervert, uberfrag, DIFFUSETEX);
+  loopi(shadern) buildubershader(shaders[i], i); /* build uber-shaders */
+  buildshader(watershader, watervert, uberfrag, DIFFUSETEX); /* build water shader */
   OGLR(watershader.udelta, GetUniformLocation, watershader.program, "delta");
   OGLR(watershader.uduv, GetUniformLocation, watershader.program, "duv");
   OGLR(watershader.udxy, GetUniformLocation, watershader.program, "dxy");
   OGLR(watershader.uhf, GetUniformLocation, watershader.program, "hf");
-  bigbufferinit(bigbuffersize);
+  bigbufferinit(bigbuffersize); /* for immediate mode */
+  loopi(ATTRIB_NUM) enabledattribarray[i] = 0;
+  loopi(BUFFER_NUM) bindedvbo[i] = 0;
 }
 
 void clean(void) { OGL(DeleteBuffers, 1, &spherevbo); }
@@ -754,9 +765,10 @@ void drawsphere(void)
 
 static void setupworld(void)
 {
-  OGL(EnableVertexAttribArray, POS0);
-  OGL(EnableVertexAttribArray, COL);
-  OGL(EnableVertexAttribArray, TEX);
+  enableattribarray(POS0);
+  enableattribarray(COL);
+  enableattribarray(TEX);
+  disableattribarray(POS1);
   rr::setarraypointers();
 }
 
@@ -849,20 +861,17 @@ static void drawhudgun(float fovy, float aspect, int farplane)
   OGL(Disable, GL_CULL_FACE);
 }
 
-/* XXX remove state crap */
 void draw(int mode, int pos, int tex, size_t n, const float *data)
 {
   if (tex) {
-    OGL(EnableVertexAttribArray, TEX);
+    enableattribarray(TEX);
     OGL(VertexAttribPointer, TEX, tex, GL_FLOAT, 0, (pos+tex)*sizeof(float), data);
   }
-  OGL(EnableVertexAttribArray, POS0);
+  enableattribarray(POS0);
   OGL(VertexAttribPointer, POS0, pos, GL_FLOAT, 0, (pos+tex)*sizeof(float), data+tex);
+  disableattribarray(POS1);
+  disableattribarray(COL);
   ogl::drawarrays(mode, 0, n);
-
-  OGL(DisableVertexAttribArray, TEX);
-  OGL(DisableVertexAttribArray, COL);
-  OGL(DisableVertexAttribArray, POS0);
 }
 
 VAR(renderparticles,0,1,1);
@@ -873,8 +882,9 @@ VAR(renderwater,0,1,1);
 /* enforce the gl states */
 static void forceglstate(void)
 {
-  bindbuffer(ARRAY_BUFFER,0);
-  bindbuffer(ELEMENT_ARRAY_BUFFER,0);
+  bindtexture(GL_TEXTURE_2D,0);
+  loopi(BUFFER_NUM) bindbuffer(i,0);
+  loopi(ATTRIB_NUM) disableattribarray(i);
 }
 
 void drawframe(int w, int h, float curfps)
@@ -912,8 +922,6 @@ void drawframe(int w, int h, float curfps)
 
   transplayer();
 
-  UNLESS_EMSCRIPTEN(OGL(Enable, GL_TEXTURE_2D));
-
   // int xs, ys;
   // skyoglid = lookuptex(DEFAULT_SKY, xs, ys);
   // rr::resetcubes();
@@ -931,18 +939,12 @@ void drawframe(int w, int h, float curfps)
 
   /* render sky */
   if (rendersky) {
-    // setupworld();
-    //bindshader(COLOR_ONLY);
-    // renderstripssky();
-    //OGL(DisableVertexAttribArray, COL);
     identity();
     rotate(player1->pitch, pitch);
     rotate(player1->yaw, yaw);
     rotate(90.f, vec3f(1.f,0.f,0.f));
     OGL(VertexAttrib3f,COL,1.0f,1.0f,1.0f);
-    // OGL(DepthFunc, GL_GREATER);
     rr::draw_envbox(14, fog*4/3);
-    // OGL(DepthFunc, GL_LESS);
   }
 #if 0
   /* render diffuse objects */
@@ -953,7 +955,6 @@ void drawframe(int w, int h, float curfps)
     setupworld();
     bindshader(DIFFUSETEX|FOG);
     renderstrips();
-    OGL(DisableVertexAttribArray, COL); /* XXX put it elsewhere */
   } else
     OGL(Clear, GL_COLOR_BUFFER_BIT);
 #else
@@ -961,7 +962,6 @@ void drawframe(int w, int h, float curfps)
   overbright(2.f);
   setupworld();
   bindshader(DIFFUSETEX|FOG);
-  OGL(DisableVertexAttribArray, COL); /* XXX put it elsewhere */
 #endif
   ogl::xtraverts = 0;
 
@@ -982,13 +982,11 @@ void drawframe(int w, int h, float curfps)
     bindshader(watershader);
     OGL(Uniform1f, watershader.udelta, float(lastmillis));
     OGL(Uniform1f, watershader.uhf, hf);
-    OGL(EnableVertexAttribArray, POS0); /* XXX REMOVE! */
-    OGL(EnableVertexAttribArray, COL);
-    OGL(EnableVertexAttribArray, TEX);
+    enableattribarray(POS0);
+    disableattribarray(POS1);
+    enableattribarray(COL);
+    enableattribarray(TEX);
     nquads = rr::renderwater(hf, watershader.udxy, watershader.uduv);
-    OGL(DisableVertexAttribArray, POS0); /* XXX REMOVE! */
-    OGL(DisableVertexAttribArray, COL);
-    OGL(DisableVertexAttribArray, TEX);
   }
 #endif
 

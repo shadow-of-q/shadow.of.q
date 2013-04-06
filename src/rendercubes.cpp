@@ -306,7 +306,10 @@ int renderwater(float hf, uint udxy, uint uduv)
     watery=sy;
   }
 
-  OGL(DisableVertexAttribArray, ogl::COL);
+  ogl::enableattribarray(POS0);
+  ogl::enableattribarray(TEX);
+  ogl::disableattribarray(COL);
+  ogl::disableattribarray(POS1);
   ogl::bindbuffer(ogl::ARRAY_BUFFER, watervbo);
   OGL(VertexAttribPointer, ogl::POS0, 2, GL_FLOAT, 0, sizeof(watervert), (void*) (sizeof(float[2])));
   OGL(VertexAttribPointer, ogl::TEX, 2, GL_FLOAT, 0, sizeof(watervert), NULL);
@@ -320,7 +323,6 @@ int renderwater(float hf, uint udxy, uint uduv)
     ogl::xtraverts += watervertn;
     nquads += watervertn-2;
   }
-  OGL(EnableVertexAttribArray, ogl::COL);
   ogl::bindbuffer(ogl::ARRAY_BUFFER, 0);
   OGL(Disable, GL_BLEND);
   OGL(DepthMask, GL_TRUE);

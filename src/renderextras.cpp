@@ -68,8 +68,11 @@ void dot(int x, int y, float z)
 void blendbox(int x1, int y1, int x2, int y2, bool border)
 {
   OGL(DepthMask, GL_FALSE);
-  UNLESS_EMSCRIPTEN(OGL(Disable, GL_TEXTURE_2D));
   OGL(BlendFunc, GL_ZERO, GL_ONE_MINUS_SRC_COLOR);
+  ogl::disableattribarray(ogl::POS1);
+  ogl::disableattribarray(ogl::COL);
+  ogl::disableattribarray(ogl::TEX);
+  ogl::enableattribarray(ogl::POS0);
   ogl::bindshader(ogl::COLOR_ONLY);
   if (border)
     OGL(VertexAttrib3f, ogl::COL, .5f, .3f, .4f);
@@ -98,7 +101,6 @@ void blendbox(int x1, int y1, int x2, int y2, bool border)
 
   ogl::xtraverts += 8;
   OGL(Enable, GL_BLEND);
-  UNLESS_EMSCRIPTEN(OGL(Enable, GL_TEXTURE_2D));
   OGL(DepthMask, GL_TRUE);
 }
 
@@ -297,7 +299,6 @@ void drawhud(int w, int h, int curfps, int nquads, int curvert, bool underwater)
     dblend -= curtime/3;
     if (dblend<0) dblend = 0;
   }
-  UNLESS_EMSCRIPTEN(OGL(Enable, GL_TEXTURE_2D));
 
   const char *command = console::getcurcommand();
   const char *player = weapon::playerincrosshair();
