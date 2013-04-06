@@ -601,7 +601,7 @@ TINLINE v3 unproject(v3arg win, m44arg model, m44arg proj, const vec4<int> &view
   return v3(out.x/out.w,out.y/out.w,out.z/out.w);
 }
 
-#if 0 // deactivated for now to have vs 10 support
+#if 1// deactivated for now to have vs 10 support
 /* convenient variable size float vector */
 template <int n> struct vvec
 {
