@@ -7,7 +7,7 @@ namespace server {
 
 enum { ST_EMPTY, ST_LOCAL, ST_TCPIP };
 
-struct drawarray                   // server side version of "dynent" type
+struct drawarray // server side version of "dynent" type
 {
   int type;
   ENetPeer *peer;
@@ -21,14 +21,14 @@ static vector<drawarray> clients;
 static int maxclients = 8;
 static string smapname;
 
-struct server_entity            // server side version of "entity" type
+struct server_entity // server side version of "entity" type
 {
   bool spawned;
   int spawnsecs;
 };
 
 static vector<server_entity> sents;
-static bool notgotitems = true;        // true when map has changed and waiting for clients to send item
+static bool notgotitems = true; // true when map has changed and waiting for clients to send item
 static int mode = 0;
 
 void restoreserverstate(vector<entity> &ents)   // hack: called from savegame code, only works in SP
@@ -99,7 +99,7 @@ void disconnect_client(int n, const char *reason)
   enet_peer_disconnect(clients[n].peer);
   clients[n].type = ST_EMPTY;
   send2(true, -1, SV_CDIS, n);
-};
+}
 
 void resetitems() { sents.setsize(0); notgotitems = true; };
 
@@ -126,7 +126,7 @@ bool vote(char *map, int reqmode, int sender)
   }
   if (yes==1 && no==0) return true;  // single player
   sprintf_sd(msg)("%s suggests %s on map %s (set map to vote)",
-      clients[sender].name, game::modestr(reqmode), map);
+    clients[sender].name, game::modestr(reqmode), map);
   sendservmsg(msg);
   if (yes/(float)(yes+no) <= 0.5f) return false;
   sendservmsg("vote passed");
@@ -139,11 +139,11 @@ bool vote(char *map, int reqmode, int sender)
 // expense of lag)
 void process(ENetPacket * packet, int sender)   // sender may be -1
 {
-  if (ENET_NET_TO_HOST_16(*(ushort *)packet->data)!=packet->dataLength)
-  {
+  const ushort len = *(ushort*) packet->data;
+  if (ENET_NET_TO_HOST_16(len)!=packet->dataLength) {
     disconnect_client(sender, "packet length");
     return;
-  };
+  }
 
   uchar *end = packet->data+packet->dataLength;
   uchar *p = packet->data+2;
@@ -153,13 +153,13 @@ void process(ENetPacket * packet, int sender)   // sender may be -1
   while (p<end) switch (type = getint(p)) {
     case SV_TEXT:
       sgetstr();
-      break;
+    break;
     case SV_INITC2S:
       sgetstr();
       strcpy_s(clients[cn].name, text);
       sgetstr();
       getint(p);
-      break;
+    break;
     case SV_MAPCHANGE:
     {
       sgetstr();
@@ -174,8 +174,8 @@ void process(ENetPacket * packet, int sender)   // sender may be -1
       strcpy_s(smapname, text);
       resetitems();
       sender = -1;
-      break;
     }
+    break;
     case SV_ITEMLIST:
     {
       int n;
@@ -185,17 +185,17 @@ void process(ENetPacket * packet, int sender)   // sender may be -1
         sents[n].spawned = true;
       }
       notgotitems = false;
-      break;
     }
+    break;
     case SV_ITEMPICKUP:
     {
       const int n = getint(p);
       pickup(n, getint(p), sender);
-      break;
     }
+    break;
     case SV_PING:
       send2(false, cn, SV_PONG, getint(p));
-      break;
+    break;
     case SV_POS:
     {
       cn = getint(p);
@@ -206,26 +206,24 @@ void process(ENetPacket * packet, int sender)   // sender may be -1
       int size = msgsizelookup(type);
       assert(size!=-1);
       loopi(size-2) getint(p);
-      break;
     }
+    break;
     case SV_SENDMAP:
     {
       sgetstr();
       int mapsize = getint(p);
       sendmaps(sender, text, mapsize, p);
-      return;
     }
+    return;
     case SV_RECVMAP:
       send(sender, recvmap(sender));
-      return;
+    return;
     case SV_EXT:   // allows for new features that require no server updates 
-    {
       for (int n = getint(p); n; n--) getint(p);
-      break;
-    }
+    break;
     default:
     {
-      int size = msgsizelookup(type);
+      const int size = msgsizelookup(type);
       if (size==-1) { disconnect_client(sender, "tag type"); return; };
       loopi(size-1) getint(p);
     }
@@ -365,18 +363,16 @@ void slice(int seconds, unsigned int timeout)   // main server update, called fr
         brec += event.packet->dataLength;
         process(event.packet, (intptr_t)event.peer->data); 
         if (event.packet->referenceCount==0) enet_packet_destroy(event.packet);
-        break;
-
+      break;
       case ENET_EVENT_TYPE_DISCONNECT: 
         if ((intptr_t)event.peer->data<0) break;
         printf("client::disconnected client (%s)\n", clients[(intptr_t)event.peer->data].hostname);
         clients[(intptr_t)event.peer->data].type = ST_EMPTY;
         send2(true, -1, SV_CDIS, (intptr_t)event.peer->data);
         event.peer->data = (void *)-1;
-        break;
+      break;
       default: break;
-    };
-
+    }
     if (numplayers>maxclients)
       disconnect_client(lastconnect, "maxclients reached");
   }

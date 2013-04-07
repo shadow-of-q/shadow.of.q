@@ -255,7 +255,7 @@ static int wx1, wy1, wx2, wy2; /* water bounding rectangle */
 static bool watervbobuilt=false;
 static GLuint watervbo=0u;
 static int watervertn=0, waterlength=0, waterx=0, watery=0;
-typedef vvec<4> watervert;
+typedef vvecf<4> watervert;
 
 VARF(watersubdiv, 1, 4, 64, watervbobuilt = false)
 VARF(waterlevel, -128, -128, 127, if (!edit::noteditmode()) hdr.waterlevel = waterlevel);

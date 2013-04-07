@@ -68,13 +68,13 @@ static void initbuffer(GLuint &bo, int target, int size)
   bindbuffer(target, 0);
 }
 
-static void bigbufferinit(int size)
+static void immbufferinit(int size)
 {
   initbuffer(bigvbo, ARRAY_BUFFER, size);
   initbuffer(bigibo, ELEMENT_ARRAY_BUFFER, size);
 }
 
-VARF(bigbuffersize, 1*MB, 4*MB, 16*MB, bigbufferinit(bigbuffersize));
+VARF(immbuffersize, 1*MB, 4*MB, 16*MB, immbufferinit(immbuffersize));
 
 void immattrib(int attrib, int n, int type, int sz, int offset)
 {
@@ -84,11 +84,11 @@ void immattrib(int attrib, int n, int type, int sz, int offset)
 
 static void immsetdata(int target, int sz, const void *data)
 {
-  assert(sz < bigbuffersize);
+  assert(sz < immbuffersize);
   GLuint &bo = target==ARRAY_BUFFER ? bigvbo : bigibo;
   int &offset = target==ARRAY_BUFFER ? bigvbooffset : bigibooffset;
   int &drawoffset = target==ARRAY_BUFFER ? drawvbooffset : drawibooffset;
-  if (offset+sz > bigbuffersize) {
+  if (offset+sz > immbuffersize) {
     OGL(Flush);
     bindbuffer(target, 0);
     offset = 0u;
@@ -129,15 +129,15 @@ void immdraw(int mode, int pos, int tex, int col, size_t n, const float *data)
   immvertices(n*sz, data);
   if (pos) {
     immattrib(ogl::POS0, pos, GL_FLOAT, sz, (tex+col)*sizeof(float));
-    enableattribarray(POS0);
+    enableattribarrayv(POS0);
   }
   if (tex) {
     immattrib(ogl::TEX, tex, GL_FLOAT, sz, col*sizeof(float));
-    enableattribarray(TEX);
+    enableattribarrayv(TEX);
   }
   if (col) {
     immattrib(ogl::COL, col, GL_FLOAT, sz, 0);
-    enableattribarray(COL);
+    enableattribarrayv(COL);
   }
   immdrawarrays(mode, 0, n);
 }
@@ -346,7 +346,7 @@ static int spherevertn = 0;
 
 static void buildsphere(float radius, int slices, int stacks)
 {
-  vector<vvec<5>> v;
+  vector<vvecf<5>> v;
   loopj(stacks) {
     const float angle0 = M_PI * float(j) / float(stacks);
     const float angle1 = M_PI * float(j+1) / float(stacks);
@@ -364,18 +364,18 @@ static void buildsphere(float radius, int slices, int stacks)
       loopk(start) { /* stick the strips together */
         const float s = 1.f-float(i)/slices, t = 1.f-float(j)/stacks;
         const float x = sin1*sin0, y = sin1*cos0, z = zLow;
-        v.add(vvec<5>(s, t, x, y, z));
+        v.add(vvecf<5>(s, t, x, y, z));
       }
       loopk(end) { /* idem */
         const float s = 1.f-float(i)/slices, t = 1.f-float(j+1)/stacks;
         const float x = sin2*sin0, y = sin2*cos0, z = zHigh;
-        v.add(vvec<5>(s, t, x, y, z));
+        v.add(vvecf<5>(s, t, x, y, z));
       }
       spherevertn += start+end;
     }
   }
 
-  const size_t sz = sizeof(vvec<5>) * v.length();
+  const size_t sz = sizeof(vvecf<5>) * v.length();
   OGL(GenBuffers, 1, &spherevbo);
   ogl::bindbuffer(ARRAY_BUFFER, spherevbo);
   OGL(BufferData, GL_ARRAY_BUFFER, sz, &v[0][0], GL_STATIC_DRAW);
@@ -608,38 +608,14 @@ static void buildubershader(shader &shader, uint rules)
   buildshader(shader, ubervert, uberfrag, rules);
 }
 
-/*--------------------------------------------------------------------------
- - world vbo is just a big vbo that contains all the triangles to render
- -------------------------------------------------------------------------*/
-static GLuint worldvbo[2] = {0u,0u};
-static int worldvbosz[2] = {0,0};
-static int worldvbocurr = 0;
-static void bindworldvbo(void)
-{
-  const int worldsz = rr::worldsize();
-  if (worldvbo[worldvbocurr] == 0u)
-    OGL(GenBuffers, 1, worldvbo+worldvbocurr);
-  OGL(BindBuffer, GL_ARRAY_BUFFER, worldvbo[worldvbocurr]);
-  if (worldvbosz[worldvbocurr] < worldsz) {
-    OGL(BufferData, GL_ARRAY_BUFFER, worldsz, NULL, GL_DYNAMIC_DRAW);
-    worldvbosz[worldvbocurr] = worldsz;
-  }
-}
-static INLINE void switchworldvbo(void)
-{
-  worldvbocurr = (worldvbocurr+1)&2;
-}
-
 /* display the binded md2 model */
 void rendermd2(const float *pos0, const float *pos1, float lerp, int n)
 {
   OGL(VertexAttribPointer, TEX, 2, GL_FLOAT, 0, sizeof(float[5]), pos0);
   OGL(VertexAttribPointer, POS0, 3, GL_FLOAT, 0, sizeof(float[5]), pos0+2);
   OGL(VertexAttribPointer, POS1, 3, GL_FLOAT, 0, sizeof(float[5]), pos1+2);
-  enableattribarray(POS0);
-  enableattribarray(POS1);
-  enableattribarray(TEX);
-  disableattribarray(COL);
+  enableattribarrayv(POS0, POS1, TEX);
+  disableattribarrayv(COL);
   bindshader(FOG|KEYFRAME|COL|DIFFUSETEX);
   OGL(Uniform1f, bindedshader->udelta, lerp);
   drawarrays(GL_TRIANGLES, 0, n);
@@ -648,7 +624,7 @@ void rendermd2(const float *pos0, const float *pos1, float lerp, int n)
 /* flush all the states required for the draw call */
 static void flush(void)
 {
-  if (dirty.any == 0) return; /* fast path */
+  if (dirty.any == 0) return; // fast path
   if (dirty.flags.shader) {
     OGL(UseProgram, bindedshader->program);
     dirty.flags.shader = 0;
@@ -696,7 +672,7 @@ void drawelements(int mode, int count, int type, const void *indices) {
 void init(int w, int h)
 {
 #if !defined(EMSCRIPTEN)
-// On Windows, we directly load from OpenGL 1.1 functions
+// on Windows, we directly load from OpenGL 1.1 functions
 #if defined(__WIN32__)
   #define GL_PROC(FIELD,NAME,PROTOTYPE) FIELD = (PROTOTYPE) NAME;
 #else
@@ -735,10 +711,9 @@ void init(int w, int h)
 #else
   OGL(ClearDepth,1.f);
 #endif
+  enablev(GL_DEPTH_TEST, GL_CULL_FACE);
   OGL(DepthFunc, GL_LESS);
-  OGL(Enable, GL_DEPTH_TEST);
   OGL(CullFace, GL_FRONT);
-  OGL(Enable, GL_CULL_FACE);
   OGL(GetIntegerv, GL_MAX_TEXTURE_SIZE, &glmaxtexsize);
   dirty.any = ~0x0;
   purgetextures();
@@ -749,7 +724,7 @@ void init(int w, int h)
   OGLR(watershader.uduv, GetUniformLocation, watershader.program, "duv");
   OGLR(watershader.udxy, GetUniformLocation, watershader.program, "dxy");
   OGLR(watershader.uhf, GetUniformLocation, watershader.program, "hf");
-  bigbufferinit(bigbuffersize); /* for immediate mode */
+  immbufferinit(immbuffersize); /* for immediate mode */
   loopi(ATTRIB_NUM) enabledattribarray[i] = 0;
   loopi(BUFFER_NUM) bindedvbo[i] = 0;
 }
@@ -765,43 +740,8 @@ void drawsphere(void)
 
 static void setupworld(void)
 {
-  enableattribarray(POS0);
-  enableattribarray(COL);
-  enableattribarray(TEX);
-  disableattribarray(POS1);
-  rr::setarraypointers();
-}
-
-static int skyoglid;
-struct strip { int tex, start, num; };
-static vector<strip> strips;
-
-static void renderstripssky(void)
-{
-  ogl::bindtexture(GL_TEXTURE_2D, skyoglid);
-  loopv(strips)
-    if (strips[i].tex==skyoglid)
-      ogl::drawarrays(GL_TRIANGLE_STRIP, strips[i].start, strips[i].num);
-}
-
-static void renderstrips(void)
-{
-  int lasttex = -1;
-  loopv(strips) if (strips[i].tex!=skyoglid) {
-    if (strips[i].tex!=lasttex) {
-      ogl::bindtexture(GL_TEXTURE_2D, strips[i].tex);
-      lasttex = strips[i].tex;
-    }
-    ogl::drawarrays(GL_TRIANGLE_STRIP, strips[i].start, strips[i].num);
-  }
-}
-
-void addstrip(int tex, int start, int n)
-{
-  strip &s = strips.add();
-  s.tex = tex;
-  s.start = start;
-  s.num = n;
+  enableattribarrayv(POS0, COL, TEX);
+  disableattribarrayv(POS1);
 }
 
 static const vec3f roll(0.f,0.f,1.f);
@@ -838,8 +778,7 @@ static void drawhudgun(float fovy, float aspect, int farplane)
 {
   if (!hudgun) return;
 
-  OGL(Enable, GL_CULL_FACE);
-
+  enablev(GL_CULL_FACE);
   matrixmode(PROJECTION);
   identity();
   perspective(fovy, aspect, 0.3f, farplane);
@@ -857,20 +796,18 @@ static void drawhudgun(float fovy, float aspect, int farplane)
   identity();
   perspective(fovy, aspect, 0.15f, farplane);
   matrixmode(MODELVIEW);
-
-  OGL(Disable, GL_CULL_FACE);
+  disablev(GL_CULL_FACE);
 }
 
 void draw(int mode, int pos, int tex, size_t n, const float *data)
 {
   if (tex) {
-    enableattribarray(TEX);
+    enableattribarrayv(TEX);
     OGL(VertexAttribPointer, TEX, tex, GL_FLOAT, 0, (pos+tex)*sizeof(float), data);
   }
-  enableattribarray(POS0);
+  enableattribarrayv(POS0);
   OGL(VertexAttribPointer, POS0, pos, GL_FLOAT, 0, (pos+tex)*sizeof(float), data+tex);
-  disableattribarray(POS1);
-  disableattribarray(COL);
+  disableattribarrayv(POS1, COL);
   ogl::drawarrays(mode, 0, n);
 }
 
@@ -884,19 +821,11 @@ static void forceglstate(void)
 {
   bindtexture(GL_TEXTURE_2D,0);
   loopi(BUFFER_NUM) bindbuffer(i,0);
-  loopi(ATTRIB_NUM) disableattribarray(i);
+  loopi(ATTRIB_NUM) disableattribarrayv(i);
 }
 
-void drawframe(int w, int h, float curfps)
+static void dofog(bool underwater)
 {
-  const float hf = hdr.waterlevel-0.3f;
-  const bool underwater = player1->o.z<hf;
-  float fovy = (float)fov*h/w;
-  float aspect = w/(float)h;
-
-  forceglstate();
-  switchworldvbo();
-
   fogstartend.x = float((fog+64)/8);
   fogstartend.y = 1.f/(float(fog)-fogstartend[0]);
   fogcolor.x = float(fogcolour>>16)/256.0f;
@@ -905,15 +834,26 @@ void drawframe(int w, int h, float curfps)
   fogcolor.w = 1.f;
   OGL(ClearColor, fogcolor.x, fogcolor.y, fogcolor.z, fogcolor.w);
   if (underwater) {
-    fovy += (float)sin(lastmillis/1000.0)*2.0f;
-    aspect += (float)sin(lastmillis/1000.0+PI)*0.1f;
     fogstartend.x = 0.f;
     fogstartend.y = 1.f/float((fog+96)/8);
   }
-  dirty.flags.fog = 1;
+}
 
+void drawframe(int w, int h, float curfps)
+{
+  const float hf = world::waterlevel()-0.3f;
+  const bool underwater = player1->o.z<hf;
+  float fovy = (float)fov*h/w;
+  float aspect = w/(float)h;
+
+  forceglstate();
+  dofog(underwater);
   OGL(Clear, (player1->outsidemap ? GL_COLOR_BUFFER_BIT : 0) | GL_DEPTH_BUFFER_BIT);
 
+  if (underwater) {
+    fovy += (float)sin(lastmillis/1000.0)*2.0f;
+    aspect += (float)sin(lastmillis/1000.0+PI)*0.1f;
+  }
   const int farplane = fog*5/2;
   matrixmode(PROJECTION);
   identity();
@@ -921,21 +861,6 @@ void drawframe(int w, int h, float curfps)
   matrixmode(MODELVIEW);
 
   transplayer();
-
-  // int xs, ys;
-  // skyoglid = lookuptex(DEFAULT_SKY, xs, ys);
-  // rr::resetcubes();
-  //cube::rr::curvert = 0;
-  //strips.setsize(0);
-
-#if 0
-  world::render(player1->o.x, player1->o.y, player1->o.z,
-                (int)player1->yaw, (int)player1->pitch, (float)fov, w, h);
-#endif
-  // rr::finishstrips();
-
-  // bindworldvbo();
-  // rr::uploadworld();
 
   /* render sky */
   if (rendersky) {
@@ -946,23 +871,10 @@ void drawframe(int w, int h, float curfps)
     OGL(VertexAttrib3f,COL,1.0f,1.0f,1.0f);
     rr::draw_envbox(14, fog*4/3);
   }
-#if 0
-  /* render diffuse objects */
-  if (renderworld) {
-    transplayer();
-    overbright(2.f);
-    bindworldvbo();
-    setupworld();
-    bindshader(DIFFUSETEX|FOG);
-    renderstrips();
-  } else
-    OGL(Clear, GL_COLOR_BUFFER_BIT);
-#else
   transplayer();
   overbright(2.f);
   setupworld();
   bindshader(DIFFUSETEX|FOG);
-#endif
   ogl::xtraverts = 0;
 
   game::renderclients();
@@ -971,24 +883,11 @@ void drawframe(int w, int h, float curfps)
   rr::renderspheres(curtime);
   rr::renderents();
 
-  OGL(Disable, GL_CULL_FACE);
+  disablev(GL_CULL_FACE);
 
   drawhudgun(fovy, aspect, farplane);
 
   int nquads = 0;
-#if 0
-  if (renderwater) {
-    overbright(1.f);
-    bindshader(watershader);
-    OGL(Uniform1f, watershader.udelta, float(lastmillis));
-    OGL(Uniform1f, watershader.uhf, hf);
-    enableattribarray(POS0);
-    disableattribarray(POS1);
-    enableattribarray(COL);
-    enableattribarray(TEX);
-    nquads = rr::renderwater(hf, watershader.udxy, watershader.uduv);
-  }
-#endif
 
   if (renderparticles) {
     overbright(2.f);
@@ -997,9 +896,8 @@ void drawframe(int w, int h, float curfps)
   }
 
   overbright(1.f);
-  IF_NOT_EMSCRIPTEN(OGL(Disable, GL_TEXTURE_2D));
   rr::drawhud(w, h, int(curfps), nquads, rr::curvert, underwater);
-  OGL(Enable, GL_CULL_FACE);
+  enablev(GL_CULL_FACE);
 }
 
 } /* namespace ogl */

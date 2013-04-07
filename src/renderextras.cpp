@@ -18,12 +18,11 @@ namespace rr {
 
 void line(int x1, int y1, float z1, int x2, int y2, float z2)
 {
-  const vvec<3> verts[] =
-  {
-    vvec<3>(float(x1), z1, float(y1)),
-    vvec<3>(float(x1), z1, float(y1)+0.01f),
-    vvec<3>(float(x2), z2, float(y2)),
-    vvec<3>(float(x2), z2, float(y2)+0.01f)
+  const vvecf<3> verts[] = {
+    vvecf<3>(float(x1), z1, float(y1)),
+    vvecf<3>(float(x1), z1, float(y1)+0.01f),
+    vvecf<3>(float(x2), z2, float(y2)),
+    vvecf<3>(float(x2), z2, float(y2)+0.01f)
   };
   ogl::bindshader(ogl::COLOR_ONLY);
   ogl::immdraw(GL_TRIANGLE_STRIP, 3, 0, 0, 4, &verts[0][0]);
@@ -38,12 +37,11 @@ void linestyle(float width, int r, int g, int b)
 
 void box(const block &b, float z1, float z2, float z3, float z4)
 {
-  const vvec<3> verts[] =
-  {
-    vvec<3>(float(b.x),      z1, float(b.y)),
-    vvec<3>(float(b.x+b.xs), z2, float(b.y)),
-    vvec<3>(float(b.x+b.xs), z3, float(b.y+b.ys)),
-    vvec<3>(float(b.x),      z4, float(b.y+b.ys))
+  const vvecf<3> verts[] = {
+    vvecf<3>(float(b.x),      z1, float(b.y)),
+    vvecf<3>(float(b.x+b.xs), z2, float(b.y)),
+    vvecf<3>(float(b.x+b.xs), z3, float(b.y+b.ys)),
+    vvecf<3>(float(b.x),      z4, float(b.y+b.ys))
   };
   ogl::bindshader(ogl::COLOR_ONLY);
   ogl::immdraw(GL_LINE_LOOP, 3, 0, 0, 4, &verts[0][0]);
@@ -53,12 +51,11 @@ void box(const block &b, float z1, float z2, float z3, float z4)
 void dot(int x, int y, float z)
 {
   const float DOF = 0.1f;
-  const vvec<3> verts[] =
-  {
-    vvec<3>(x-DOF, float(z), y-DOF),
-    vvec<3>(x+DOF, float(z), y-DOF),
-    vvec<3>(x+DOF, float(z), y+DOF),
-    vvec<3>(x-DOF, float(z), y+DOF)
+  const vvecf<3> verts[] = {
+    vvecf<3>(x-DOF, float(z), y-DOF),
+    vvecf<3>(x+DOF, float(z), y-DOF),
+    vvecf<3>(x+DOF, float(z), y+DOF),
+    vvecf<3>(x-DOF, float(z), y+DOF)
   };
   ogl::bindshader(ogl::COLOR_ONLY);
   ogl::immdraw(GL_LINE_LOOP, 3, 0, 0, 4, &verts[0][0]);
@@ -69,39 +66,35 @@ void blendbox(int x1, int y1, int x2, int y2, bool border)
 {
   OGL(DepthMask, GL_FALSE);
   OGL(BlendFunc, GL_ZERO, GL_ONE_MINUS_SRC_COLOR);
-  ogl::disableattribarray(ogl::POS1);
-  ogl::disableattribarray(ogl::COL);
-  ogl::disableattribarray(ogl::TEX);
-  ogl::enableattribarray(ogl::POS0);
+  ogl::disableattribarrayv(ogl::POS1, ogl::COL, ogl::TEX);
+  ogl::enableattribarrayv(ogl::POS0);
   ogl::bindshader(ogl::COLOR_ONLY);
   if (border)
     OGL(VertexAttrib3f, ogl::COL, .5f, .3f, .4f);
   else
     OGL(VertexAttrib3f, ogl::COL, 1.f, 1.f, 1.f);
 
-  const vvec<2> verts0[] =
-  {
-    vvec<2>(float(x1), float(y1)),
-    vvec<2>(float(x2), float(y1)),
-    vvec<2>(float(x1), float(y2)),
-    vvec<2>(float(x2), float(y2))
+  const vvecf<2> verts0[] = {
+    vvecf<2>(float(x1), float(y1)),
+    vvecf<2>(float(x2), float(y1)),
+    vvecf<2>(float(x1), float(y2)),
+    vvecf<2>(float(x2), float(y2))
   };
   ogl::immdraw(GL_TRIANGLE_STRIP, 2, 0, 0, 4, &verts0[0][0]);
 
-  OGL(Disable, GL_BLEND);
+  ogl::disablev(GL_BLEND);
   OGL(VertexAttrib3f, ogl::COL, .2f, .7f, .4f);
-  const vvec<2> verts1[] =
-  {
-    vvec<2>(float(x1), float(y1)),
-    vvec<2>(float(x2), float(y1)),
-    vvec<2>(float(x2), float(y2)),
-    vvec<2>(float(x1), float(y2))
+  const vvecf<2> verts1[] = {
+    vvecf<2>(float(x1), float(y1)),
+    vvecf<2>(float(x2), float(y1)),
+    vvecf<2>(float(x2), float(y2)),
+    vvecf<2>(float(x1), float(y2))
   };
   ogl::immdraw(GL_LINE_LOOP, 2, 0, 0, 4, &verts1[0][0]);
 
-  ogl::xtraverts += 8;
-  OGL(Enable, GL_BLEND);
   OGL(DepthMask, GL_TRUE);
+  ogl::enablev(GL_BLEND);
+  ogl::xtraverts += 8;
 }
 
 static const int MAXSPHERES = 50;
@@ -132,8 +125,8 @@ void newsphere(vec &o, float max, int type)
 
 void renderspheres(int time)
 {
+  ogl::enablev(GL_BLEND);
   OGL(DepthMask, GL_FALSE);
-  OGL(Enable, GL_BLEND);
   OGL(BlendFunc, GL_SRC_ALPHA, GL_ONE);
   ogl::bindtexture(GL_TEXTURE_2D, 4);
 
@@ -160,7 +153,7 @@ void renderspheres(int time)
     }
   }
 
-  OGL(Disable, GL_BLEND);
+  ogl::disablev(GL_BLEND);
   OGL(DepthMask, GL_TRUE);
 }
 
@@ -236,11 +229,11 @@ void drawicon(float tx, float ty, int x, int y)
   tx /= 192;
   ty /= 192;
   ogl::bindtexture(GL_TEXTURE_2D, 5);
-  const vvec<4> verts[] = {
-    vvec<4>(tx,   ty,   x,   y),
-    vvec<4>(tx+o, ty,   x+s, y),
-    vvec<4>(tx,   ty+o, x,   y+s),
-    vvec<4>(tx+o, ty+o, x+s, y+s)
+  const vvecf<4> verts[] = {
+    vvecf<4>(tx,   ty,   x,   y),
+    vvecf<4>(tx+o, ty,   x+s, y),
+    vvecf<4>(tx,   ty+o, x,   y+s),
+    vvecf<4>(tx+o, ty+o, x+s, y+s)
   };
   ogl::bindshader(ogl::DIFFUSETEX);
   ogl::immdraw(GL_TRIANGLE_STRIP, 2, 2, 0, 4, &verts[0][0]);
@@ -259,11 +252,10 @@ static void invertperspective(void)
   ogl::loadmatrix(inv);
 }
 
-VARP(crosshairsize, 0, 15, 50);
-
 static int dblend = 0;
 void damageblend(int n) { dblend += n; }
 
+VARP(crosshairsize, 0, 15, 50);
 VAR(hidestats, 0, 0, 1);
 VARP(crosshairfx, 0, 1, 1);
 
@@ -275,20 +267,20 @@ void drawhud(int w, int h, int curfps, int nquads, int curvert, bool underwater)
     // edit::cursorupdate();
   }
 
-  OGL(Disable, GL_DEPTH_TEST);
+  ogl::disablev(GL_DEPTH_TEST);
   invertperspective();
   ogl::pushmatrix();
   ogl::ortho(0.f, float(VIRTW), float(VIRTH), 0.f, -1.f, 1.f);
-  OGL(Enable, GL_BLEND);
+  ogl::enablev(GL_BLEND);
 
   OGL(DepthMask, GL_FALSE);
   if (dblend || underwater) {
     OGL(BlendFunc, GL_ZERO, GL_ONE_MINUS_SRC_COLOR);
-    const vvec<2> verts[] = {
-      vvec<2>(0.f,          0.f),
-      vvec<2>(float(VIRTW), 0.f),
-      vvec<2>(0.f,          float(VIRTH)),
-      vvec<2>(float(VIRTW), float(VIRTH))
+    const vvecf<2> verts[] = {
+      vvecf<2>(0.f,          0.f),
+      vvecf<2>(float(VIRTW), 0.f),
+      vvecf<2>(0.f,          float(VIRTH)),
+      vvecf<2>(float(VIRTW), float(VIRTH))
     };
     if (dblend)
       OGL(VertexAttrib3f,ogl::COL,0.0f,0.9f,0.9f);
@@ -323,16 +315,15 @@ void drawhud(int w, int h, int curfps, int nquads, int curvert, bool underwater)
         OGL(VertexAttrib3f,ogl::COL,1.0f,0.5f,0.0f);
     }
     const float csz = float(crosshairsize);
-    const vvec<4> verts[] = {
-      vvec<4>(0.f, 0.f, float(VIRTW/2) - csz, float(VIRTH/2) - csz),
-      vvec<4>(1.f, 0.f, float(VIRTW/2) + csz, float(VIRTH/2) - csz),
-      vvec<4>(0.f, 1.f, float(VIRTW/2) - csz, float(VIRTH/2) + csz),
-      vvec<4>(1.f, 1.f, float(VIRTW/2) + csz, float(VIRTH/2) + csz)
+    const vvecf<4> verts[] = {
+      vvecf<4>(0.f, 0.f, float(VIRTW/2) - csz, float(VIRTH/2) - csz),
+      vvecf<4>(1.f, 0.f, float(VIRTW/2) + csz, float(VIRTH/2) - csz),
+      vvecf<4>(0.f, 1.f, float(VIRTW/2) - csz, float(VIRTH/2) + csz),
+      vvecf<4>(1.f, 1.f, float(VIRTW/2) + csz, float(VIRTH/2) + csz)
     };
     ogl::bindshader(ogl::DIFFUSETEX);
     ogl::immdraw(GL_TRIANGLE_STRIP, 2, 2, 0, 4, &verts[0][0]);
   }
-
   ogl::popmatrix();
 
   ogl::pushmatrix();
@@ -340,9 +331,11 @@ void drawhud(int w, int h, int curfps, int nquads, int curvert, bool underwater)
   console::render();
 
   if (!hidestats) {
+    const vec &o = player1->o;
     ogl::popmatrix();
     ogl::pushmatrix();
     ogl::ortho(0.f,VIRTW*3.f/2.f,VIRTH*3.f/2.f,0.f,-1.f,1.f);
+    draw_textf("pos %d %d %d", 3100, 2320, 2, int(o.x), int(o.y), int(o.z));
     draw_textf("fps %d", 3200, 2390, 2, curfps);
     draw_textf("wqd %d", 3200, 2460, 2, nquads);
     draw_textf("wvt %d", 3200, 2530, 2, curvert);
@@ -360,7 +353,7 @@ void drawhud(int w, int h, int curfps, int nquads, int curvert, bool underwater)
     ogl::popmatrix();
     ogl::pushmatrix();
     ogl::ortho(0.f, float(VIRTW), float(VIRTH), 0.f, -1.f, 1.f);
-    OGL(Disable, GL_BLEND);
+    ogl::disablev(GL_BLEND);
     drawicon(128, 128, 20, 1650);
     if (player1->armour) drawicon((float)(player1->armourtype*64), 0, 620, 1650);
     int g = player1->gunselect;
@@ -371,8 +364,8 @@ void drawhud(int w, int h, int curfps, int nquads, int curvert, bool underwater)
   }
 
   OGL(DepthMask, GL_TRUE);
-  OGL(Disable, GL_BLEND);
-  OGL(Enable, GL_DEPTH_TEST);
+  ogl::disablev(GL_BLEND);
+  ogl::enablev(GL_DEPTH_TEST);
 }
 
 } /* namespace rr */

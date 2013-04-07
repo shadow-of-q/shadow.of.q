@@ -31,7 +31,7 @@ COMMANDN(conskip, setconskip, ARG_1INT);
 static void line(const char *sf, bool highlight)
 {
   cline cl;
-  cl.cref = conlines.length()>100 ? conlines.pop().cref : newstringbuf("");   // constrain the buffer size
+  cl.cref = conlines.length()>100 ? conlines.pop().cref : newstringbuf("");
   cl.outtime = lastmillis; // for how long to keep line on screen
   conlines.insert(0,cl);
   if (highlight) { // show line in a different colour, for chat etc.
@@ -97,7 +97,7 @@ static void bindkey(char *key, char *action)
 }
 COMMANDN(bind, bindkey, ARG_2STR);
 
-/* turns input to the command line on or off */
+// turns input to the command line on or off
 static void saycommand(const char *init)
 {
   SDL_EnableUNICODE(saycommandon = (init!=NULL));
@@ -107,7 +107,7 @@ static void saycommand(const char *init)
 }
 COMMAND(saycommand, ARG_VARI);
 
-static void mapmsg(char *s) { strn0cpy(hdr.maptitle, s, 128); }
+static void mapmsg(char *s) { strn0cpy(world::maptitle(), s, 128); }
 COMMAND(mapmsg, ARG_1STR);
 
 static void paste()
@@ -158,7 +158,7 @@ COMMAND(history, ARG_1INT);
 
 void keypress(int code, bool isdown, int cooked)
 {
-  if (saycommandon) {                               // keystrokes go to commandline
+  if (saycommandon) { // keystrokes go to commandline
     if (isdown) {
       switch (code) {
         case SDLK_RETURN:
@@ -223,6 +223,6 @@ void writebinds(FILE *f)
       fprintf(f, "bind \"%s\" [%s]\n", keyms[i].name, keyms[i].action);
 }
 
-} /* namespace console */
-} /* namespace cube */
+} // namespace console
+} // namespace cube
 

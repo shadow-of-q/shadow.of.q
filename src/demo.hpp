@@ -5,7 +5,6 @@
 
 namespace cube {
 struct vec;
-extern bool demoplayback;
 namespace demo {
 
 void loadgamerest(void);
@@ -15,9 +14,11 @@ void stop(void);
 void stopifrecording(void);
 void damage(int damage, vec &o);
 void blend(int damage);
+bool playing(void);
+int clientnum(void);
 
-} /* namespace demo */
-} /* namespace cube */
+} // namespace demo
+} // namespace cube
 
-#endif /* __CUBE_DEMO_HPP__ */
+#endif // __CUBE_DEMO_HPP__
 

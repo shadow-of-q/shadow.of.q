@@ -13,15 +13,15 @@ vec sg[SGRAYS];
 
 const static guninfo guns[NUMGUNS] =
 {
-  { S_PUNCH1,    250,  50, 0,   0,  1, "fist"           },
-  { S_SG,       1400,  10, 0,   0, 20, "shotgun"        },  // *SGRAYS
-  { S_CG,        100,  30, 0,   0,  7, "chaingun"       },
-  { S_RLFIRE,    800, 120, 80,  0, 10, "rocketlauncher" },
-  { S_RIFLE,    1500, 100, 0,   0, 30, "rifle"          },
-  { S_FLAUNCH,   200,  20, 50,  4,  1, "fireball"       },
-  { S_ICEBALL,   200,  40, 30,  6,  1, "iceball"        },
-  { S_SLIMEBALL, 200,  30, 160, 7,  1, "slimeball"      },
-  { S_PIGR1,     250,  50, 0,   0,  1, "bite"           },
+  {S_PUNCH1,    250,  50, 0,   0,  1, "fist"          },
+  {S_SG,       1400,  10, 0,   0, 20, "shotgun"       },  // *SGRAYS
+  {S_CG,        100,  30, 0,   0,  7, "chaingun"      },
+  {S_RLFIRE,    800, 120, 80,  0, 10, "rocketlauncher"},
+  {S_RIFLE,    1500, 100, 0,   0, 30, "rifle"         },
+  {S_FLAUNCH,   200,  20, 50,  4,  1, "fireball"      },
+  {S_ICEBALL,   200,  40, 30,  6,  1, "iceball"       },
+  {S_SLIMEBALL, 200,  30, 160, 7,  1, "slimeball"     },
+  {S_PIGR1,     250,  50, 0,   0,  1, "bite"          }
 };
 
 void selectgun(int a, int b, int c)
@@ -92,7 +92,7 @@ bool intersect(dynent *d, vec &from, vec &to)   // if lineseg hits entity boundi
 
 char *playerincrosshair()
 {
-  if (demoplayback) return NULL;
+  if (demo::playing()) return NULL;
   loopv(players)
   {
     dynent *o = players[i];
@@ -341,6 +341,6 @@ void shoot(dynent *d, vec &targ)
   if (d->monsterstate) raydamage(player1, from, to, d, -1);
 }
 
-} /* namespace weapon */
-} /* namespace cube */
+} // namespace weapon
+} // namespace cube
 

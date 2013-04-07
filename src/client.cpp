@@ -14,9 +14,7 @@ static string ctext;
 static vector<ivector> messages; // collect c2s messages conveniently
 static int lastupdate = 0, lastping = 0;
 static string toservermap;
-// after a map change, since server doesn't have map data
-static bool senditemstoserver = false; 
-
+static bool senditemstoserver = false; // after a map change (server doesn't have map)
 static string clientpassword;
 
 int getclientnum(void) { return clientnum; }
@@ -65,11 +63,13 @@ static void newname(const char *name) {
   c2sinit = false;
   strn0cpy(player1->name, name, 16);
 }
+COMMANDN(name, newname, ARG_1STR);
 
 static void newteam(const char *name) {
   c2sinit = false;
   strn0cpy(player1->team, name, 5);
 }
+COMMANDN(team, newteam, ARG_1STR);
 
 void writeclientinfo(FILE *f) {
   fprintf(f, "name \"%s\"\nteam \"%s\"\n", player1->name, player1->team);
@@ -99,6 +99,7 @@ void connect(const char *servername)
     disconnect();
   }
 }
+COMMAND(connect, ARG_1STR);
 
 void disconnect(int onlyclean, int async)
 {
@@ -149,17 +150,21 @@ void trydisconnect()
   console::out("attempting to disconnect...");
   disconnect(0, !disconnecting);
 }
+COMMANDN(disconnect, trydisconnect, ARG_NONE);
 
 void toserver(const char *text)
 {
   console::out("%s:\f %s", player1->name, text);
   strn0cpy(ctext, text, 80);
 }
+COMMANDN(say, toserver, ARG_VARI);
+
 static void echo(char *text) { console::out("%s", text); }
+COMMAND(echo, ARG_VARI);
 
 void addmsg(int rel, int num, int type, ...)
 {
-  if (demoplayback) return;
+  if (demo::playing()) return;
   if (num!=server::msgsizelookup(type)) {
     sprintf_sd(s)("inconsistant msg size for %d (%d != %d)",
       type, num, server::msgsizelookup(type));
@@ -174,9 +179,9 @@ void addmsg(int rel, int num, int type, ...)
   msg.add(rel);
   msg.add(type);
   va_list marker;
-  va_start(marker, type); 
+  va_start(marker, type);
   loopi(num-1) msg.add(va_arg(marker, int));
-  va_end(marker);  
+  va_end(marker); 
 }
 
 void server_err(void)
@@ -185,7 +190,8 @@ void server_err(void)
   disconnect();
 }
 
-void password(char *p) { strcpy_s(clientpassword, p); }
+void password(const char *p) { strcpy_s(clientpassword, p); }
+COMMAND(password, ARG_1STR);
 
 bool netmapstart(void)
 {
@@ -214,10 +220,10 @@ void sendpackettoserv(void *packet)
 
 void c2sinfo(const dynent *d)
 {
-  // We haven't had a welcome message from the server yet
+  // we haven't had a welcome message from the server yet
   if (clientnum<0)
     return;
-  // Don't update faster than 25fps
+  // do not update faster than 25fps
   if (lastmillis-lastupdate<40)
     return;
   ENetPacket *packet = enet_packet_create (NULL, MAXTRANS, 0);
@@ -301,10 +307,9 @@ void c2sinfo(const dynent *d)
     demo::loadgamerest();  // hack
 }
 
-/*! Update the position of other clients in the game in our world don't care
- *  if he's in the scenery or other players, just don't overlap with our
- *  client
- */
+// update the position of other clients in the game in our world don't care
+// if he's in the scenery or other players, just don't overlap with our
+// client
 static void updatepos(dynent *d)
 {
   const float r = player1->radius+d->radius;
@@ -319,7 +324,7 @@ static void updatepos(dynent *d)
   if (fx<r && fy<r && fz<rz && d->state!=CS_DEAD) {
     if (fx<fy)
       d->o.y += dy<0 ? r-fy : -(r-fy);  // push aside
-    else 
+    else
       d->o.x += dx<0 ? r-fx : -(r-fx);
   }
   const int lagtime = lastmillis-d->lastupdate;
@@ -329,12 +334,11 @@ static void updatepos(dynent *d)
   }
 }
 
-/*! Process forced map change from the server */
+// process forced map change from the server
 static void changemapserv(const char *name, int mode)
 {
   gamemode = mode;
-
-  // world::load(name);
+  world::load(name);
 }
 
 void localservertoclient(uchar *buf, int len)
@@ -351,7 +355,6 @@ void localservertoclient(uchar *buf, int len)
   bool mapchanged = false;
 
   while (p<end) switch (type = server::getint(p)) {
-    // Welcome messsage from the server
     case SV_INITS2C: 
     {
       cn = server::getint(p);
@@ -364,9 +367,8 @@ void localservertoclient(uchar *buf, int len)
       }
       toservermap[0] = 0;
       clientnum = cn; // we are now fully connected
-      // We are the first client on this server, set map
-      if (!server::getint(p))
-        strcpy_s(toservermap, game::getclientmap());
+      if (!server::getint(p)) // we are the first client on this server, set map
+      strcpy_s(toservermap, game::getclientmap());
       sgetstr();
       if (text[0] && strcmp(text, clientpassword)) {
         console::out("you need to set the correct password to join this server!");
@@ -375,16 +377,13 @@ void localservertoclient(uchar *buf, int len)
       }
       if (server::getint(p)==1)
         console::out("server is FULL, disconnecting..");
-      break;
     }
-
-    // Position of another client
+    break;
     case SV_POS:
     {
       cn = server::getint(p);
       d = game::getclient(cn);
-      if (!d)
-        return;
+      if (!d) return;
       d->o.x   = server::getint(p)/DMF;
       d->o.y   = server::getint(p)/DMF;
       d->o.z   = server::getint(p)/DMF;
@@ -402,29 +401,21 @@ void localservertoclient(uchar *buf, int len)
       int state = f>>3;
       if (state==CS_DEAD && d->state!=CS_DEAD) d->lastaction = lastmillis;
       d->state = state;
-      if (!demoplayback)
-        updatepos(d);
-      break;
+      if (!demo::playing()) updatepos(d);
     }
-
-    // Sound to play
+    break;
     case SV_SOUND:
       sound::play(server::getint(p), &d->o);
-      break;
-
-    // Text to print on screen
+    break;
     case SV_TEXT:
       sgetstr();
       console::out("%s:\f %s", d->name, text); 
-      break;
-
-    // Map to load
+    break;
     case SV_MAPCHANGE:
       sgetstr();
       changemapserv(text, server::getint(p));
       mapchanged = true;
-      break;
-
+    break;
     case SV_ITEMLIST:
     {
       int n;
@@ -435,20 +426,16 @@ void localservertoclient(uchar *buf, int len)
       while ((n = server::getint(p))!=-1)
         if (mapchanged)
           entities::setspawn(n, true);
-      break;
     }
-
-    // Server requests next map
+    break;
     case SV_MAPRELOAD:
     {
       server::getint(p);
       sprintf_sd(nextmapalias)("nextmap_%s", game::getclientmap());
       char *map = cmd::getalias(nextmapalias); // look up map in the cycle
       changemap(map ? map : game::getclientmap());
-      break;
     }
-
-    // Another client either connected or changed name/team
+    break;
     case SV_INITC2S:
     {
       sgetstr();
@@ -463,18 +450,15 @@ void localservertoclient(uchar *buf, int len)
       sgetstr();
       strcpy_s(d->team, text);
       d->lifesequence = server::getint(p);
-      break;
     }
-
+    break;
     case SV_CDIS:
       cn = server::getint(p);
-      if (!(d = game::getclient(cn)))
-        break;
+      if (!(d = game::getclient(cn))) break;
       console::out("player %s disconnected",
                    d->name[0] ? d->name : "[incompatible client]"); 
       game::zapdynent(players[cn]);
-      break;
-
+    break;
     case SV_SHOT:
     {
       const int gun = server::getint(p);
@@ -488,10 +472,8 @@ void localservertoclient(uchar *buf, int len)
       if (gun==GUN_SG)
         weapon::createrays(s, e);
       weapon::shootv(gun, s, e, d);
-      break;
     }
-
-    // Damage done to a target
+    break;
     case SV_DAMAGE:
     {
       const int target = server::getint(p);
@@ -502,10 +484,8 @@ void localservertoclient(uchar *buf, int len)
           game::selfdamage(damage, cn, d);
       } else
         sound::play(S_PAIN1+rnd(5), &game::getclient(target)->o);
-      break;
     }
-
-    // Somebody died
+    break;
     case SV_DIED:
     {
       const int actor = server::getint(p);
@@ -532,21 +512,15 @@ void localservertoclient(uchar *buf, int len)
       }
       sound::play(S_DIE1+rnd(2), &d->o);
       d->lifesequence++;
-      break;
     }
-
-    // Update frag number for a player
+    break;
     case SV_FRAGS:
       players[cn]->frags = server::getint(p);
-      break;
-
-    // Items has been picked up
+    break;
     case SV_ITEMPICKUP:
       entities::setspawn(server::getint(p), false);
       server::getint(p);
-      break;
-
-    // A new item spawned
+    break;
     case SV_ITEMSPAWN:
     {
       uint i = server::getint(p);
@@ -554,16 +528,11 @@ void localservertoclient(uchar *buf, int len)
       if (i>=(uint)ents.length()) break;
       const vec v(float(ents[i].x), float(ents[i].y), float(ents[i].z));
       sound::play(S_ITEMSPAWN, &v); 
-      break;
     }
-
-    // Server acknowledges that I picked up this item
+    break;
     case SV_ITEMACC:
       entities::realpickup(server::getint(p), player1);
-      break;
-
-    // Coop editing messages, should be extended to include all possible
-    // editing ops
+    break;
     case SV_EDITH:
     case SV_EDITT:
     case SV_EDITS:
@@ -595,7 +564,6 @@ void localservertoclient(uchar *buf, int len)
       uint i = server::getint(p);
       while ((uint)ents.length()<=i)
         ents.add().type = NOTUSED;
-      const int to = ents[i].type;
       ents[i].type = server::getint(p);
       ents[i].x = server::getint(p);
       ents[i].y = server::getint(p);
@@ -606,37 +574,27 @@ void localservertoclient(uchar *buf, int len)
       ents[i].attr4 = server::getint(p);
       ents[i].spawned = false;
 #if 0
+      const int to = ents[i].type;
       if (ents[i].type==LIGHT || to==LIGHT)
         world::calclight();
 #endif
       break;
     }
-
-    // Ping message from the server
     case SV_PING:
       server::getint(p);
-      break;
-
-    // Acknowledges ping
+    break;
     case SV_PONG: 
       addmsg(0, 2, SV_CLIENTPING, player1->ping = (player1->ping*5+lastmillis-server::getint(p))/6);
-      break;
-
-    // Get ping from a particular client
+    break;
     case SV_CLIENTPING:
       players[cn]->ping = server::getint(p);
-      break;
-
-    // New game mode pushed by server
+    break;
     case SV_GAMEMODE:
       nextmode = server::getint(p);
-      break;
-
-    // Time is up on the map
+    break;
     case SV_TIMEUP:
       game::timeupdate(server::getint(p));
-      break;
-
+    break;
 #if 0
     // A new map is recieved
     case SV_RECVMAP:
@@ -650,23 +608,17 @@ void localservertoclient(uchar *buf, int len)
       break;
     }
 #endif
-
-    // Output text from server
     case SV_SERVMSG:
       sgetstr();
       console::out("%s", text);
-      break;
-
-    // So we can messages without breaking previous clients/servers, if
-    // necessary
+    break;
     case SV_EXT:
       for (int n = server::getint(p); n; n--)
         server::getint(p);
-      break;
-
+    break;
     default:
       neterr("type");
-      return;
+    return;
   }
 }
 
@@ -690,38 +642,28 @@ void gets2c(void)
         console::out("connected to server");
         connecting = 0;
         throttle();
-        break;
-
+      break;
       case ENET_EVENT_TYPE_RECEIVE:
         if (disconnecting)
           console::out("attempting to disconnect...");
         else
           localservertoclient(event.packet->data, event.packet->dataLength);
         enet_packet_destroy(event.packet);
-        break;
-
+      break;
       case ENET_EVENT_TYPE_DISCONNECT:
         if (disconnecting)
           disconnect();
         else
           server_err();
-        return;
+      return;
       default:
-        break;
+      break;
     }
 }
 
 void changemap(const char *name) { strcpy_s(toservermap, name); }
-
-COMMAND(echo, ARG_VARI);
-COMMANDN(say, toserver, ARG_VARI);
-COMMAND(connect, ARG_1STR);
-COMMANDN(disconnect, trydisconnect, ARG_NONE);
-COMMAND(password, ARG_1STR);
-COMMANDN(team, newteam, ARG_1STR);
-COMMANDN(name, newname, ARG_1STR);
 COMMANDN(map, changemap, ARG_1STR);
 
-} /* namespace client */
-} /* namespace cube */
+} // namespace client
+} // namespace cube
 

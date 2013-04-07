@@ -120,6 +120,15 @@ namespace cube {
 #define PATHDIV '/'
 #endif
 
+/* Useful for repetitive calls to same functions */
+#define MAKE_VARIADIC(NAME)\
+INLINE void NAME##v(void) {}\
+template <typename First, typename... Rest>\
+INLINE void NAME##v(First first, Rest... rest) {\
+  NAME(first);\
+  NAME##v(rest...);\
+}
+
   /* easy safe strings */
 #define _MAXDEFSTR 260
   typedef char string[_MAXDEFSTR];

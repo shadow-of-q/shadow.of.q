@@ -3,22 +3,6 @@
 #include "cube.h"
 #include <enet/enet.h>
 
-// XXX
-namespace cube {
-namespace game {
-
-  static const char *modenames[] = {
-    "SP", "DMSP", "ffa/default", "coopedit", "ffa/duel", "teamplay",
-    "instagib", "instagib team", "efficiency", "efficiency team",
-    "insta arena", "insta clan arena", "tactics arena", "tactics clan arena",
-  };
-  const char *modestr(int n) {
-    return (n>=-2 && n<12) ? modenames[n+2] : "unknown";
-  }
-
-} /* namespace game */
-} /* namespace cube */
-
 // all network traffic is in 32bit ints, which are then compressed using the
 // following simple scheme (assumes that most values are small).
 namespace cube {
@@ -29,7 +13,7 @@ namespace server {
     if (n<128 && n>-127) { *p++ = n; }
     else if (n<0x8000 && n>=-0x8000) { *p++ = 0x80; *p++ = n; *p++ = n>>8;  }
     else { *p++ = 0x81; *p++ = n; *p++ = n>>8; *p++ = n>>16; *p++ = n>>24; };
-  };
+  }
 
   int getint(uchar *&p)
   {
@@ -38,15 +22,16 @@ namespace server {
     if (c==-128) { int n = *p++; n |= *((char *)p)<<8; p++; return n;}
     else if (c==-127) { int n = *p++; n |= *p++<<8; n |= *p++<<16; return n|(*p++<<24); } 
     else return c;
-  };
+  }
 
   void sendstring(const char *t, uchar *&p)
   {
     while (*t) putint(p, *t++);
     putint(p, 0);
-  };
+  }
 
-  char msgsizesl[] =               // size inclusive message token, 0 for variable or not-checked sizes
+  // size inclusive message token, 0 for variable or not-checked sizes
+  static const char msgsizesl[] =
   {
     SV_INITS2C, 4, SV_INITC2S, 0, SV_POS, 12, SV_TEXT, 0, SV_SOUND, 2, SV_CDIS, 2,
     SV_EDITH, 7, SV_EDITT, 7, SV_EDITS, 6, SV_EDITD, 6, SV_EDITE, 6,
@@ -61,9 +46,9 @@ namespace server {
 
   char msgsizelookup(int msg)
   {
-    for (char *p = msgsizesl; *p>=0; p += 2) if (*p==msg) return p[1];
+    for (const char *p = msgsizesl; *p>=0; p += 2) if (*p==msg) return p[1];
     return -1;
-  };
+  }
 
   string copyname;
   int copysize;
@@ -99,8 +84,18 @@ namespace server {
 
 #ifdef STANDALONE
 void client::localservertoclient(uchar *buf, int len) {};
-void fatal(const char *s, const char *o) { server::cleanup(); printf("servererror: %s\n", s); exit(1); };
-void *alloc(int s) { void *b = calloc(1,s); if (!b) fatal("no memory!"); return b; };
+void fatal(const char *s, const char *o)
+{
+  server::cleanup();
+  printf("servererror: %s\n", s);
+  exit(1);
+}
+void *alloc(int s)
+{
+  void *b = calloc(1,s);
+  if (!b) fatal("no memory!");
+  return b;
+}
 
 int main(int argc, char* argv[])
 {
@@ -117,8 +112,8 @@ int main(int argc, char* argv[])
       case 'p': passwd = a; break;
       case 'c': maxcl  = atoi(a); break;
       default: printf("WARNING: unknown commandline option\n");
-    };
-  };
+    }
+  }
   if (enet_initialize()<0) fatal("Unable to initialise network module");
   server::init(true, uprate, sdesc, ip, master, passwd, maxcl);
   return 0;
@@ -128,6 +123,7 @@ int main(int argc, char* argv[])
 } /* namespace cube */
 
 #ifdef STANDALONE
+#include "clientgame.cpp"
 int main(int argc, char *argv[]) { return cube::main(argc,argv); }
 #endif
 

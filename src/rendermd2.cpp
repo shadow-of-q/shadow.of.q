@@ -126,11 +126,11 @@ void md2::scale(int frame, float scale, int sn)
   const md2_frame *cf = (md2_frame *) ((char*)frames+frameSize*frame);
   const float sc = 16.0f/scale;
 
-  vector<vvec<floatn>> tris;
+  vector<vvecf<floatn>> tris;
   for (int *command = glcommands, i=0; (*command)!=0; ++i) {
     const int moden = *command++;
     const int n = abs(moden);
-    vector<vvec<floatn>> trisv;
+    vector<vvecf<floatn>> trisv;
     loopi(n) {
       const float s = *((const float*)command++);
       const float t = *((const float*)command++);
@@ -139,7 +139,7 @@ void md2::scale(int frame, float scale, int sn)
       const vec v(+(snap(sn, cv[0]*cf->scale[0])+cf->translate[0])/sc,
                   -(snap(sn, cv[1]*cf->scale[1])+cf->translate[1])/sc,
                   +(snap(sn, cv[2]*cf->scale[2])+cf->translate[2])/sc);
-      trisv.add(vvec<floatn>(s,t,v.x,v.z,v.y));
+      trisv.add(vvecf<floatn>(s,t,v.x,v.z,v.y));
     }
     loopi(n-2) { /* just stolen from sauer. XXX use an index buffer */
       if (moden <= 0) { /* fan */
@@ -236,7 +236,6 @@ void rendermodel(const char *mdl, int frame, int range, int tex,
                  float scale, float speed, int snap, int basetime)
 {
   md2 *m = loadmodel(mdl);
-
   if (world::isoccluded(player1->o.x, player1->o.y, x-rad, z-rad, rad*2))
     return;
 
@@ -244,26 +243,12 @@ void rendermodel(const char *mdl, int frame, int range, int tex,
 
   int xs, ys;
   ogl::bindtexture(GL_TEXTURE_2D, tex ? ogl::lookuptex(tex, xs, ys) : FIRSTMDL+m->mdlnum);
-
-  const int ix = (int)x;
-  const int iy = (int)z;
   vec light(1.0f, 1.0f, 1.0f);
-
-  if (!OUTBORD(ix, iy)) {
-    sqr *s = S(ix,iy);
-    const float ll = 256.0f; // 0.96f;
-    const float of = 0.0f; // 0.1f;
-    light.x = s->r/ll+of;
-    light.y = s->g/ll+of;
-    light.z = s->b/ll+of;
-  }
-
   if (teammate) {
     light.x *= 0.6f;
     light.y *= 0.7f;
     light.z *= 1.2f;
   }
-
   m->render(light, frame, range, x, y, z, yaw, pitch, scale, speed, snap, basetime);
 }
 

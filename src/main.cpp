@@ -7,8 +7,7 @@
 
 namespace cube {
 
-void cleanup(char *msg)         // single program exit point;
-{
+void cleanup(char *msg) { // single program exit point;
   demo::stop();
   client::disconnect(true);
   cmd::writecfg();
@@ -22,26 +21,23 @@ void cleanup(char *msg)         // single program exit point;
 #else
     printf("%s",msg);
 #endif
-  };
+  }
   SDL_Quit();
   exit(1);
 }
 
-void quit() // normal exit
-{
+void quit(void) { // normal exit
   browser::writeservercfg();
   cleanup(NULL);
 }
 
-void fatal(const char *s, const char *o)    // failure exit
-{
+void fatal(const char *s, const char *o) { // failure exit
   sprintf_sd(msg)("%s%s (%s)\n", s, o, SDL_GetError());
   cleanup(msg);
   assert(0);
 }
 
-void *alloc(int s) // for some big chunks... most other allocs use the memory pool
-{
+void *alloc(int s) { // for some big chunks... most other allocs use the memory pool
   void *b = calloc(1,s);
   if (!b) fatal("out of memory!");
   return b;
@@ -50,8 +46,7 @@ void *alloc(int s) // for some big chunks... most other allocs use the memory po
 int scr_w = 1024;
 int scr_h = 768;
 
-void screenshot()
-{
+void screenshot(void) {
 #if !defined(EMSCRIPTEN)
   SDL_Surface *image;
   SDL_Surface *temp;
@@ -76,8 +71,7 @@ void screenshot()
 COMMAND(screenshot, ARG_NONE);
 COMMAND(quit, ARG_NONE);
 
-void keyrepeat(bool on)
-{
+void keyrepeat(bool on) {
   SDL_EnableKeyRepeat(on ? SDL_DEFAULT_REPEAT_DELAY : 0, SDL_DEFAULT_REPEAT_INTERVAL);
 }
 
@@ -89,8 +83,7 @@ int islittleendian = 1;
 int framesinmap = 0;
 int ignore = 5;
 
-static void main_loop(void)
-{
+static void main_loop(void) {
   int millis = SDL_GetTicks()*gamespeed/100;
   if (millis-lastmillis>200) lastmillis = millis-200;
   else if (millis-lastmillis<1) lastmillis = millis-1;
@@ -100,7 +93,7 @@ static void main_loop(void)
 #endif
   // world::cleardlights();
   game::updateworld(millis);
-  if (!demoplayback)
+  if (!demo::playing())
     server::slice((int)time(NULL), 0);
   static float fps = 30.0f;
   fps = (1000.0f/curtime+fps*50)/51;
@@ -127,7 +120,10 @@ static void main_loop(void)
         console::keypress(event.key.keysym.sym, event.key.state==SDL_PRESSED, event.key.keysym.unicode);
       break;
       case SDL_MOUSEMOTION:
-        if (ignore) { ignore--; break; };
+        if (ignore) {
+          ignore--;
+          break;
+        }
         game::mousemove(event.motion.xrel, event.motion.yrel);
       break;
       case SDL_MOUSEBUTTONDOWN:
@@ -141,8 +137,7 @@ static void main_loop(void)
   }
 }
 
-static int main(int argc, char **argv)
-{
+static int main(int argc, char **argv) {
   IF_EMSCRIPTEN(emscripten_hide_mouse());
   bool dedicated = false;
   int fs = SDL_FULLSCREEN, par = 0, uprate = 0, maxcl = 4;

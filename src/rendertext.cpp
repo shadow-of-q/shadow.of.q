@@ -137,7 +137,7 @@ void draw_text(const char *str, int left, int top, int gl_num)
   /* use a triangle mesh to display the text */
   const size_t len = strlen(str);
   indextype *indices = (indextype*) alloca(6*len*sizeof(int));
-  vvec<4> *verts = (vvec<4>*) alloca(4*len*sizeof(vvec<4>));
+  vvecf<4> *verts = (vvecf<4>*) alloca(4*len*sizeof(vvecf<4>));
 
   /* traverse the string and build the mesh */
   int index = 0, vert = 0, x = left, y = top;
@@ -157,20 +157,18 @@ void draw_text(const char *str, int left, int top, int gl_num)
     const int in_height = char_coords[c][3] - char_coords[c][1];
 
     loopj(6) indices[index+j] = vert+twotriangles[j];
-    verts[vert+0] = vvec<4>(in_left, in_top,   float(x),         float(y));
-    verts[vert+1] = vvec<4>(in_right,in_top,   float(x+in_width),float(y));
-    verts[vert+2] = vvec<4>(in_right,in_bottom,float(x+in_width),float(y+in_height));
-    verts[vert+3] = vvec<4>(in_left, in_bottom,float(x),         float(y+in_height));
+    verts[vert+0] = vvecf<4>(in_left, in_top,   float(x),         float(y));
+    verts[vert+1] = vvecf<4>(in_right,in_top,   float(x+in_width),float(y));
+    verts[vert+2] = vvecf<4>(in_right,in_bottom,float(x+in_width),float(y+in_height));
+    verts[vert+3] = vvecf<4>(in_left, in_bottom,float(x),         float(y+in_height));
 
     ogl::xtraverts += 4;
     x += in_width + 1;
     index += 6;
     vert += 4;
   }
-  ogl::enableattribarray(ogl::POS0);
-  ogl::enableattribarray(ogl::TEX);
-  ogl::disableattribarray(ogl::POS1);
-  ogl::disableattribarray(ogl::COL);
+  ogl::enableattribarrayv(ogl::POS0, ogl::TEX);
+  ogl::disableattribarrayv(ogl::POS1, ogl::COL);
   ogl::immvertices(vert*sizeof(float[4]), &verts[0][0]);
   ogl::immattrib(ogl::POS0, 2, GL_FLOAT, sizeof(float[4]), sizeof(float[2]));
   ogl::immattrib(ogl::TEX, 2, GL_FLOAT, sizeof(float[4]), 0);
@@ -185,16 +183,16 @@ static void drawenvboxface(float s0, float t0, int x0, int y0, int z0,
                            float s3, float t3, int x3, int y3, int z3,
                            int texture)
 {
-  vvec<5> verts[4];
-  verts[0] = vvec<5>(s3, t3, float(x3), float(y3), float(z3));
-  verts[1] = vvec<5>(s2, t2, float(x2), float(y2), float(z2));
-  verts[2] = vvec<5>(s1, t1, float(x1), float(y1), float(z1));
-  verts[3] = vvec<5>(s0, t0, float(x0), float(y0), float(z0));
+  vvecf<5> verts[4];
+  verts[0] = vvecf<5>(s3, t3, float(x3), float(y3), float(z3));
+  verts[1] = vvecf<5>(s2, t2, float(x2), float(y2), float(z2));
+  verts[2] = vvecf<5>(s1, t1, float(x1), float(y1), float(z1));
+  verts[3] = vvecf<5>(s0, t0, float(x0), float(y0), float(z0));
 
   ogl::bindtexture(GL_TEXTURE_2D, texture);
-  ogl::immvertices(4*sizeof(vvec<5>), &verts[0][0]);
-  ogl::immattrib(ogl::POS0, 3, GL_FLOAT, sizeof(vvec<5>), sizeof(float[2]));
-  ogl::immattrib(ogl::TEX, 2, GL_FLOAT, sizeof(vvec<5>), 0);
+  ogl::immvertices(4*sizeof(vvecf<5>), &verts[0][0]);
+  ogl::immattrib(ogl::POS0, 3, GL_FLOAT, sizeof(vvecf<5>), sizeof(float[2]));
+  ogl::immattrib(ogl::TEX, 2, GL_FLOAT, sizeof(vvecf<5>), 0);
   IF_NOT_EMSCRIPTEN(ogl::immdrawelements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, twotriangles));
   IF_EMSCRIPTEN(ogl::immdrawelements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, twotriangles));
   ogl::xtraverts += 4;
@@ -204,10 +202,8 @@ void draw_envbox(int t, int w)
 {
   OGL(DepthMask, GL_FALSE);
   ogl::bindshader(ogl::DIFFUSETEX);
-  ogl::enableattribarray(ogl::POS0);
-  ogl::enableattribarray(ogl::TEX);
-  ogl::disableattribarray(ogl::POS1);
-  ogl::disableattribarray(ogl::COL);
+  ogl::enableattribarrayv(ogl::POS0, ogl::TEX);
+  ogl::disableattribarrayv(ogl::POS1, ogl::COL);
   drawenvboxface(1.0f, 1.0f, -w, -w,  w,
                  0.0f, 1.0f,  w, -w,  w,
                  0.0f, 0.0f,  w, -w, -w,

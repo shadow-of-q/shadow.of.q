@@ -12,8 +12,7 @@ static bool parinit = false;
 
 VARP(maxparticles, 100, 2000, MAXPARTICLES-500);
 
-static void newparticle(const vec &o, const vec &d, int fade, int type)
-{
+static void newparticle(const vec &o, const vec &d, int fade, int type) {
   if (!parinit) {
     loopi(MAXPARTICLES) {
       particles[i].next = parempty;
@@ -41,28 +40,26 @@ static vec right, up;
 
 void setorient(const vec &r, const vec &u) { right = r; up = u; }
 
-static const struct parttype { float r, g, b; int gr, tex; float sz; } parttypes[] =
-{
-  { 0.7f, 0.6f, 0.3f, 2,  3, 0.06f }, /* yellow: sparks */
-  { 0.5f, 0.5f, 0.5f, 20, 7, 0.15f }, /* grey:   small smoke */
-  { 0.2f, 0.2f, 1.0f, 20, 3, 0.08f }, /* blue:   edit mode entities */
-  { 1.0f, 0.1f, 0.1f, 1,  7, 0.06f }, /* red:    blood spats */
-  { 1.0f, 0.8f, 0.8f, 20, 6, 1.2f  }, /* yellow: fireball1 */
-  { 0.5f, 0.5f, 0.5f, 20, 7, 0.6f  }, /* grey:   big smoke */
-  { 1.0f, 1.0f, 1.0f, 20, 8, 1.2f  }, /* blue:   fireball2 */
-  { 1.0f, 1.0f, 1.0f, 20, 9, 1.2f  }, /* green:  fireball3 */
-  { 1.0f, 0.1f, 0.1f, 0,  7, 0.2f  }, /* red:    demotrack */
+static const struct parttype { float r, g, b; int gr, tex; float sz; } parttypes[] = {
+  { 0.7f, 0.6f, 0.3f, 2,  3, 0.06f }, // yellow: sparks
+  { 0.5f, 0.5f, 0.5f, 20, 7, 0.15f }, // grey:   small smoke
+  { 0.2f, 0.2f, 1.0f, 20, 3, 0.08f }, // blue:   edit mode entities
+  { 1.0f, 0.1f, 0.1f, 1,  7, 0.06f }, // red:    blood spats
+  { 1.0f, 0.8f, 0.8f, 20, 6, 1.2f  }, // yellow: fireball1
+  { 0.5f, 0.5f, 0.5f, 20, 7, 0.6f  }, // grey:   big smoke
+  { 1.0f, 1.0f, 1.0f, 20, 8, 1.2f  }, // blue:   fireball2
+  { 1.0f, 1.0f, 1.0f, 20, 9, 1.2f  }, // green:  fireball3
+  { 1.0f, 0.1f, 0.1f, 0,  7, 0.2f  }, // red:    demotrack
 };
 static const int parttypen = ARRAY_ELEM_N(parttypes);
 
-typedef vvec<8> glparticle; /* TODO use a more compressed format than that */
+typedef vvecf<8> glparticle; // TODO use a more compressed format than that
 static GLuint particleibo = 0u, particlevbo = 0u;
 static const int glindexn = 6*MAXPARTICLES, glvertexn = 4*MAXPARTICLES;
 static glparticle glparts[glvertexn];
 
-static void initparticles(void)
-{
-  /* indices never change we set them once here */
+static void initparticles(void) {
+  // indices never change we set them once here
   const uint16 twotriangles[] = {0,1,2,2,3,1};
   uint16 *indices = new uint16[glindexn];
   OGL(GenBuffers, 1, &particleibo);
@@ -71,23 +68,21 @@ static void initparticles(void)
   OGL(BufferData, GL_ELEMENT_ARRAY_BUFFER, glindexn*sizeof(uint16), indices, GL_STATIC_DRAW);
   ogl::bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, 0);
 
-  /* vertices will be created at each drawing call */
+  // vertices will be created at each drawing call
   OGL(GenBuffers, 1, &particlevbo);
   ogl::bindbuffer(ogl::ARRAY_BUFFER, particlevbo);
   OGL(BufferData, GL_ARRAY_BUFFER, glvertexn*sizeof(glparticle), NULL, GL_DYNAMIC_DRAW);
   ogl::bindbuffer(ogl::ARRAY_BUFFER, 0);
 }
 
-void render_particles(int time)
-{
-  if (demoplayback && demotracking) {
+void render_particles(int time) {
+  if (demo::playing() && demotracking) {
     const vec nom(0, 0, 0);
     newparticle(player1->o, nom, 100000000, 8);
   }
   if (particleibo == 0u) initparticles();
 
-
-  /* bucket sort the particles */
+  // bucket sort the particles
   uint partbucket[parttypen], partbucketsize[parttypen];
   loopi(parttypen) partbucketsize[i] = 0;
   for (particle *p, **pp = &parlist; (p = *pp);) {
@@ -97,16 +92,16 @@ void render_particles(int time)
   partbucket[0] = 0;
   loopi(parttypen-1) partbucket[i+1] = partbucket[i]+partbucketsize[i];
 
-  /* copy the particles to the vertex buffer */
+  // copy the particles to the vertex buffer
   int numrender = 0;
   for (particle *p, **pp = &parlist; (p = *pp);) {
     const uint index = 4*partbucket[p->type]++;
     const parttype *pt = &parttypes[p->type];
     const float sz = pt->sz*particlesize/100.0f;
-    glparts[index+0] = vvec<8>(pt->r, pt->g, pt->b, 0.f, 1.f, p->o.x+(-right.x+up.x)*sz, p->o.z+(-right.y+up.y)*sz, p->o.y+(-right.z+up.z)*sz);
-    glparts[index+1] = vvec<8>(pt->r, pt->g, pt->b, 1.f, 1.f, p->o.x+( right.x+up.x)*sz, p->o.z+( right.y+up.y)*sz, p->o.y+( right.z+up.z)*sz);
-    glparts[index+2] = vvec<8>(pt->r, pt->g, pt->b, 0.f, 0.f, p->o.x+(-right.x-up.x)*sz, p->o.z+(-right.y-up.y)*sz, p->o.y+(-right.z-up.z)*sz);
-    glparts[index+3] = vvec<8>(pt->r, pt->g, pt->b, 1.f, 0.f, p->o.x+( right.x-up.x)*sz, p->o.z+( right.y-up.y)*sz, p->o.y+( right.z-up.z)*sz);
+    glparts[index+0] = vvecf<8>(pt->r, pt->g, pt->b, 0.f, 1.f, p->o.x+(-right.x+up.x)*sz, p->o.z+(-right.y+up.y)*sz, p->o.y+(-right.z+up.z)*sz);
+    glparts[index+1] = vvecf<8>(pt->r, pt->g, pt->b, 1.f, 1.f, p->o.x+( right.x+up.x)*sz, p->o.z+( right.y+up.y)*sz, p->o.y+( right.z+up.z)*sz);
+    glparts[index+2] = vvecf<8>(pt->r, pt->g, pt->b, 0.f, 0.f, p->o.x+(-right.x-up.x)*sz, p->o.z+(-right.y-up.y)*sz, p->o.y+(-right.z-up.z)*sz);
+    glparts[index+3] = vvecf<8>(pt->r, pt->g, pt->b, 1.f, 0.f, p->o.x+( right.x-up.x)*sz, p->o.z+( right.y-up.y)*sz, p->o.y+( right.z-up.z)*sz);
 
     if (numrender++>maxparticles || (p->fade -= time)<0) {
       *pp = p->next;
@@ -122,22 +117,20 @@ void render_particles(int time)
     }
   }
 
-  /* render all of them now */
+  // render all of them now
   partbucket[0] = 0;
   loopi(parttypen-1) partbucket[i+1] = partbucket[i]+partbucketsize[i];
   OGL(DepthMask, GL_FALSE);
-  OGL(Enable, GL_BLEND);
+  ogl::enable(GL_BLEND);
   OGL(BlendFunc, GL_SRC_ALPHA, GL_SRC_ALPHA);
-  ogl::disableattribarray(ogl::POS1);
-  ogl::enableattribarray(ogl::POS0);
-  ogl::enableattribarray(ogl::COL);
-  ogl::enableattribarray(ogl::TEX);
+  ogl::disableattribarrayv(ogl::POS1);
+  ogl::enableattribarrayv(ogl::POS0, ogl::COL, ogl::TEX);
   ogl::bindbuffer(ogl::ARRAY_BUFFER, particlevbo);
   ogl::bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, particleibo);
   OGL(BufferSubData, GL_ARRAY_BUFFER, 0, numrender*sizeof(glparticle[4]), glparts);
-  OGL(VertexAttribPointer, ogl::COL, 3, GL_FLOAT, 0, sizeof(vvec<8>), (const void*)0);
-  OGL(VertexAttribPointer, ogl::TEX, 2, GL_FLOAT, 0, sizeof(vvec<8>), (const void*)sizeof(float[3]));
-  OGL(VertexAttribPointer, ogl::POS0, 3, GL_FLOAT, 0, sizeof(vvec<8>), (const void*)sizeof(float[5]));
+  OGL(VertexAttribPointer, ogl::COL, 3, GL_FLOAT, 0, sizeof(vvecf<8>), (const void*)0);
+  OGL(VertexAttribPointer, ogl::TEX, 2, GL_FLOAT, 0, sizeof(vvecf<8>), (const void*)sizeof(float[3]));
+  OGL(VertexAttribPointer, ogl::POS0, 3, GL_FLOAT, 0, sizeof(vvecf<8>), (const void*)sizeof(float[5]));
   loopi(parttypen) {
     if (partbucketsize[i] == 0) continue;
     const parttype *pt = &parttypes[i];
@@ -149,12 +142,11 @@ void render_particles(int time)
 
   ogl::bindbuffer(ogl::ARRAY_BUFFER, 0);
   ogl::bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, 0);
-  OGL(Disable, GL_BLEND);
+  ogl::disable(GL_BLEND);
   OGL(DepthMask, GL_TRUE);
 }
 
-void particle_splash(int type, int num, int fade, const vec &p)
-{
+void particle_splash(int type, int num, int fade, const vec &p) {
   loopi(num) {
     const int radius = type==5 ? 50 : 150;
     int x, y, z;
@@ -168,8 +160,7 @@ void particle_splash(int type, int num, int fade, const vec &p)
   }
 }
 
-void particle_trail(int type, int fade, vec &s, vec &e)
-{
+void particle_trail(int type, int fade, vec &s, vec &e) {
   vdist(d, v, s, e);
   vdiv(v, d*2+0.1f);
   vec p = s;
@@ -180,6 +171,6 @@ void particle_trail(int type, int fade, vec &s, vec &e)
   }
 }
 
-} /* namespace rr */
-} /* namespace cube */
+} // namespace rr
+} // namespace cube
 

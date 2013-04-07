@@ -8,13 +8,13 @@ enum { ID_VAR, ID_COMMAND, ID_ALIAS };
 
 struct Ident
 {
-  int type;           // one of ID_* above
+  int type; // one of ID_* above
   const char *name;
-  int min, max;       // ID_VAR
-  int *storage;       // ID_VAR
-  void (*fun)();      // ID_VAR, ID_COMMAND
-  int narg;           // ID_VAR, ID_COMMAND
-  char *action;       // ID_ALIAS
+  int min, max; // ID_VAR
+  int *storage; // ID_VAR
+  void (*fun)(); // ID_VAR, ID_COMMAND
+  int narg; // ID_VAR, ID_COMMAND
+  char *action; // ID_ALIAS
   bool persist;
 };
 
@@ -28,7 +28,7 @@ static char *exchangestr(char *o, const char *n)
   return newstring(n);
 }
 
-/*! Contains ALL vars/commands/aliases */
+// contains ALL vars/commands/aliases
 static hashtable<Ident> *idents = NULL;
 
 void alias(const char *name, const char *action)
@@ -75,7 +75,7 @@ bool addcommand(const char *name, void (*fun)(), int narg)
   return false;
 }
 
-/*! Parse any nested set of () or [] */
+// parse any nested set of () or []
 static char *parseexp(char *&p, int right) 
 {
   int left = *p++;
@@ -90,13 +90,13 @@ static char *parseexp(char *&p, int right)
   char *s = newstring(word, p-word-1);
   if (left=='(') {
     string t;
-    itoa(t, execute(s));   // evaluate () exps directly, and substitute result
+    itoa(t, execute(s)); // evaluate () exps directly, and substitute result
     s = exchangestr(s, t);
   }
   return s;
 }
 
-/*! Parse single argument, including expressions */
+// parse single argument, including expressions
 static char *parseword(char *&p)
 {
   p += strspn(p, " \t\r");
@@ -117,7 +117,7 @@ static char *parseword(char *&p)
   return newstring(word, p-word);
 }
 
-/*! Find value of ident referenced with $ in exp */
+// find value of ident referenced with $ in exp
 static char *lookup(char *n)
 {
   Ident *id = idents->access(n+1);
@@ -129,8 +129,9 @@ static char *lookup(char *n)
   return n;
 }
 
-int execute(char *p, bool isdown)
+int execute(const char *pp, bool isdown)
 {
+  char *p = (char*)pp;
   const int MAXWORDS = 25; // limit, remove
   char *w[MAXWORDS];
   int val = 0;
@@ -317,13 +318,13 @@ void writecfg(void)
 
 COMMAND(writecfg, ARG_NONE);
 
-// below the commands that implement a small imperative language. thanks to
-// the semantics of () and [] expressions, any control construct can be
-// defined trivially.
+// below the commands that implement a small imperative language. thanks to the
+// semantics of () and [] expressions, any control construct can be defined
+// trivially.
 static void intset(const char *name, int v) { string b; itoa(b, v); alias(name, b); }
 static void ifthen(char *cond, char *thenp, char *elsep) { execute(cond[0]!='0' ? thenp : elsep); }
 static void loopa(char *times, char *body) { int t = atoi(times); loopi(t) { intset("i", i); execute(body); } }
-static void whilea(char *cond, char *body) { while (execute(cond)) execute(body); }    // can't get any simpler than this :)
+static void whilea(char *cond, char *body) { while (execute(cond)) execute(body); } // can't get any simpler than this :)
 static void onrelease(bool on, char *body) { if (!on) execute(body); }
 
 static void concat(char *s) { alias("s", s); }
@@ -353,14 +354,14 @@ static void at(char *s, char *pos)
   concat(s);
 }
 
-COMMANDN(loop, loopa, ARG_2STR);
+COMMAND(at, ARG_2STR);
 COMMANDN(while, whilea, ARG_2STR);
+COMMANDN(loop, loopa, ARG_2STR);
 COMMANDN(if, ifthen, ARG_3STR); 
 COMMAND(onrelease, ARG_DWN1);
 COMMAND(exec, ARG_1STR);
 COMMAND(concat, ARG_VARI);
 COMMAND(concatword, ARG_VARI);
-COMMAND(at, ARG_2STR);
 COMMAND(listlen, ARG_1EST);
 
 static int add(int a, int b)   { return a+b; } COMMANDN(+, add, ARG_2EXP);
@@ -375,6 +376,6 @@ static int rndn(int a)         { return a>0 ? rnd(a) : 0; }  COMMANDN(rnd, rndn,
 static int explastmillis()     { return lastmillis; }  COMMANDN(millis, explastmillis, ARG_1EXP);
 static int strcmpa(char *a, char *b) { return strcmp(a,b)==0; }  COMMANDN(strcmp, strcmpa, ARG_2EST);
 
-} /* namespace cmd */
-} /* namespace cube */
+} // namespace cmd
+} // namespace cube
 

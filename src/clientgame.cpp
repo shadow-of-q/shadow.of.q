@@ -1,11 +1,10 @@
+#if !defined(STANDALONE)
 #include "cube.h"
 #include <enet/enet.h>
-
-
 namespace cube {
 
-dynent *player1 = cube::game::newdynent();          // our client
-dvector players;                        // other clients
+dynent *player1 = cube::game::newdynent(); // our client
+dvector players; // other clients
 int lastmillis = 0;
 int nextmode = 0;  // nextmode becomes gamemode after next map load
 int curtime = 10;
@@ -27,18 +26,16 @@ COMMAND(mode, ARG_1INT);
 static bool intermission = false;
 static string clientmap;
 
-const char *getclientmap() { return clientmap; }
+const char *getclientmap(void) { return clientmap; }
 
-/* creation of scoreboard pseudo-menu */
+// creation of scoreboard pseudo-menu
 static bool scoreson = false;
-static void showscores(bool on)
-{
+static void showscores(bool on) {
   scoreson = on;
   menu::set(((int)on)-1);
 }
 
-void resetmovement(dynent *d)
-{
+void resetmovement(dynent *d) {
   d->k_left = false;
   d->k_right = false;
   d->k_up = false;
@@ -48,9 +45,8 @@ void resetmovement(dynent *d)
   d->move = 0;
 }
 
-/* reset player state not persistent accross spawns */
-static void spawnstate(dynent *d)
-{
+// reset player state not persistent accross spawns
+static void spawnstate(dynent *d) {
   resetmovement(d);
   d->vel.x = d->vel.y = d->vel.z = 0;
   d->onfloor = false;
@@ -99,8 +95,7 @@ static void spawnstate(dynent *d)
     d->ammo[GUN_SG] = 5;
 }
 
-dynent *newdynent(void)
-{
+dynent *newdynent(void) {
   dynent *d = (dynent*) gp()->alloc(sizeof(dynent));
   d->o.x = 0;
   d->o.y = 0;
@@ -128,15 +123,13 @@ dynent *newdynent(void)
   return d;
 }
 
-static void respawnself(void)
-{
+static void respawnself(void) {
   spawnplayer(player1);
   showscores(false);
 }
 COMMAND(showscores, ARG_DOWN);
 
-void arenacount(dynent *d, int &alive, int &dead, char *&lastteam, bool &oneteam)
-{
+void arenacount(dynent *d, int &alive, int &dead, char *&lastteam, bool &oneteam) {
   if (d->state!=CS_DEAD) {
     alive++;
     if (lastteam && strcmp(lastteam, d->team))
@@ -149,8 +142,7 @@ void arenacount(dynent *d, int &alive, int &dead, char *&lastteam, bool &oneteam
 static int arenarespawnwait = 0;
 static int arenadetectwait  = 0;
 
-void arenarespawn()
-{
+void arenarespawn(void) {
   if (arenarespawnwait) {
     if (arenarespawnwait<lastmillis) {
       arenarespawnwait = 0;
@@ -179,28 +171,24 @@ void arenarespawn()
   }
 }
 
-void zapdynent(dynent *&d)
-{
-  if (d)
-    gp()->dealloc(d, sizeof(dynent));
+void zapdynent(dynent *&d) {
+  if (d) gp()->dealloc(d, sizeof(dynent));
   d = NULL;
 }
 
-static void otherplayers(void)
-{
+static void otherplayers(void) {
   loopv(players) if (players[i]) {
     const int lagtime = lastmillis-players[i]->lastupdate;
     if (lagtime>1000 && players[i]->state==CS_ALIVE) {
       players[i]->state = CS_LAGGED;
       continue;
     }
-    if (lagtime && players[i]->state != CS_DEAD && (!demoplayback || i!=democlientnum))
+    if (lagtime && players[i]->state != CS_DEAD && (!demo::playing() || i!=demo::clientnum()))
       physics::moveplayer(players[i], 2, false); // use physics to extrapolate player position
   }
 }
 
-static void respawn(void)
-{
+static void respawn(void) {
   if (player1->state==CS_DEAD) {
     player1->attacking = false;
     if (m_arena) {
@@ -218,15 +206,13 @@ static void respawn(void)
 
 static int sleepwait = 0;
 static string sleepcmd;
-static void sleepf(char *msec, char *cmd)
-{
+static void sleepf(char *msec, char *cmd) {
   sleepwait = atoi(msec)+lastmillis;
   strcpy_s(sleepcmd, cmd);
 }
 COMMANDN(sleep, sleepf, ARG_2STR);
 
-void updateworld(int millis)
-{
+void updateworld(int millis) {
   if (lastmillis) {
     curtime = millis - lastmillis;
     if (sleepwait && lastmillis>sleepwait) {
@@ -239,7 +225,7 @@ void updateworld(int millis)
       arenarespawn();
     weapon::moveprojectiles((float)curtime);
     demo::playbackstep();
-    if (!demoplayback) {
+    if (!demo::playing()) {
       if (client::getclientnum()>=0)
         weapon::shoot(player1, worldpos); // only shoot when connected to server
       // do this first, so we have most accurate information when our player
@@ -247,7 +233,7 @@ void updateworld(int millis)
       client::gets2c();
     }
     otherplayers();
-    if (!demoplayback) {
+    if (!demo::playing()) {
       monster::monsterthink();
       if (player1->state==CS_DEAD) {
         if (lastmillis-player1->lastaction<2000) {
@@ -266,8 +252,7 @@ void updateworld(int millis)
   lastmillis = millis;
 }
 
-void entinmap(dynent *d)
-{
+void entinmap(dynent *d) {
   loopi(100) { // try max 100 times
     float dx = (rnd(21)-10)/10.0f*i;  // increasing distance
     float dy = (rnd(21)-10)/10.0f*i;
@@ -284,19 +269,19 @@ void entinmap(dynent *d)
 static int spawncycle = -1;
 static int fixspawn = 2;
 
-void spawnplayer(dynent *d)
-{
+void spawnplayer(dynent *d) {
   const int r = fixspawn-->0 ? 4 : rnd(10)+1;
   loopi(r) spawncycle = world::findentity(PLAYERSTART, spawncycle+1);
   if (spawncycle!=-1) {
     d->o.x = ents[spawncycle].x;
     d->o.y = ents[spawncycle].y;
-    d->o.z = ents[spawncycle].z;
+    //d->o.z = ents[spawncycle].z; // XXX just put it in the z=0 plane
+    d->o.z = 0.f;
     d->yaw = ents[spawncycle].attr1;
     d->pitch = 0;
     d->roll = 0;
   } else {
-    d->o.x = d->o.y = (float)ssize/2;
+    d->o.x = d->o.y = 0.f;
     d->o.z = 4;
   }
   entinmap(d);
@@ -317,8 +302,7 @@ DIRECTION(left,     strafe,  1, k_left,  k_right);
 DIRECTION(right,    strafe, -1, k_right, k_left);
 #undef DIRECTION
 
-static void attack(bool on)
-{
+static void attack(bool on) {
   if (intermission)
     return;
 //  if (editmode)
@@ -334,8 +318,7 @@ static void jumpn(bool on) {
 }
 COMMANDN(jump, jumpn, ARG_DOWN);
 
-void fixplayer1range(void)
-{
+void fixplayer1range(void) {
   const float MAXPITCH = 90.0f;
   if (player1->pitch>MAXPITCH) player1->pitch = MAXPITCH;
   if (player1->pitch<-MAXPITCH) player1->pitch = -MAXPITCH;
@@ -343,17 +326,15 @@ void fixplayer1range(void)
   while (player1->yaw>=360.0f) player1->yaw -= 360.0f;
 }
 
-void mousemove(int dx, int dy)
-{
+void mousemove(int dx, int dy) {
+  const float SENSF = 33.0f; // try match quake sens
   if (player1->state==CS_DEAD || intermission) return;
-  const float SENSF = 33.0f;     // try match quake sens
   player1->yaw += (dx/SENSF)*(sensitivity/(float)sensitivityscale);
   player1->pitch -= (dy/SENSF)*(sensitivity/(float)sensitivityscale)*(invmouse ? -1 : 1);
   fixplayer1range();
 }
 
-void selfdamage(int damage, int actor, dynent *act)
-{
+void selfdamage(int damage, int actor, dynent *act) {
   if (player1->state!=CS_ALIVE || editmode || intermission)
     return;
   rr::damageblend(damage);
@@ -398,8 +379,7 @@ void selfdamage(int damage, int actor, dynent *act)
     sound::play(S_PAIN6);
 }
 
-void timeupdate(int timeremain)
-{
+void timeupdate(int timeremain) {
   if (!timeremain) {
     intermission = true;
     player1->attacking = false;
@@ -410,8 +390,7 @@ void timeupdate(int timeremain)
     console::out("time remaining: %d minutes", timeremain);
 }
 
-dynent *getclient(int cn)
-{
+dynent *getclient(int cn) {
   if (cn<0 || cn>=MAXCLIENTS) {
     client::neterr("clientnum");
     return NULL;
@@ -421,14 +400,12 @@ dynent *getclient(int cn)
   return players[cn] ? players[cn] : (players[cn] = newdynent());
 }
 
-void initclient()
-{
+void initclient(void) {
   clientmap[0] = 0;
   client::initclientnet();
 }
 
-void startmap(const char *name)
-{
+void startmap(const char *name) {
   if (client::netmapstart() && m_sp) {
     gamemode = 0;
     console::out("coop sp not supported yet");
@@ -457,15 +434,13 @@ void startmap(const char *name)
 static const int frame[] = { 178, 184, 190, 137, 183, 189, 197, 164, 46, 51, 54, 32, 0,  0, 40, 1,  162, 162, 67, 168 };
 static const int range[] = { 6,   6,   8,   28,  1,   1,   1,   1,   8,  19, 4,  18, 40, 1, 6,  15, 1,   1,   1,  1   };
 
-void renderclient(dynent *d, bool team, const char *mdlname, bool hellpig, float scale)
-{
+void renderclient(dynent *d, bool team, const char *mdlname, bool hellpig, float scale) {
   int n = 3;
   float speed = 100.0f;
   float mz = d->o.z-d->eyeheight+1.55f*scale;
   int cast = (int) (uintptr_t) d;
   int basetime = -(((int)cast)&0xFFF);
-  if (d->state==CS_DEAD)
-  {
+  if (d->state==CS_DEAD) {
     int r;
     if (hellpig) {
       n = 2;
@@ -485,18 +460,12 @@ void renderclient(dynent *d, bool team, const char *mdlname, bool hellpig, float
     }
     if (mz<-1000) return;
   }
-  else if (d->state==CS_EDITING)
-    n = 16;
-  else if (d->state==CS_LAGGED)
-    n = 17;
-  else if (d->monsterstate==M_ATTACKING)
-    n = 8;
-  else if (d->monsterstate==M_PAIN)
-    n = 10;
-  else if ((!d->move && !d->strafe) || !d->moving)
-    n = 12;
-  else if (!d->onfloor && d->timeinair>100)
-    n = 18;
+  else if (d->state==CS_EDITING) n = 16;
+  else if (d->state==CS_LAGGED) n = 17;
+  else if (d->monsterstate==monster::M_ATTACKING) n = 8;
+  else if (d->monsterstate==monster::M_PAIN) n = 10;
+  else if ((!d->move && !d->strafe) || !d->moving) n = 12;
+  else if (!d->onfloor && d->timeinair>100) n = 18;
   else {
     n = 14;
     speed = 1200/d->maxspeed*scale;
@@ -511,33 +480,31 @@ void renderclient(dynent *d, bool team, const char *mdlname, bool hellpig, float
   rr::rendermodel(mdlname, frame[n], range[n], 0, 1.5f, d->o.x, mz, d->o.y, d->yaw+90, d->pitch/2, team, scale, speed, 0, basetime);
 }
 
-void renderclients(void)
-{
+void renderclients(void) {
   dynent *d;
-  loopv(players) if ((d = players[i]) && (!demoplayback || i!=democlientnum))
-    renderclient(d, isteam(player1->team, d->team), "monster/ogro", false, 1.f);
-};
+  loopv(players)
+    if ((d = players[i]) && (!demo::playing() || i!=demo::clientnum()))
+      renderclient(d, isteam(player1->team, d->team), "monster/ogro", false, 1.f);
+}
 
 struct sline { string s; };
 static vector<sline> scorelines;
 
-void renderscore(dynent *d)
-{
+void renderscore(dynent *d) {
   sprintf_sd(lag)("%d", d->plag);
   sprintf_sd(name) ("(%s)", d->name);
   sprintf_s(scorelines.add().s)("%d\t%s\t%d\t%s\t%s",
             d->frags, d->state==CS_LAGGED ? "LAG" : lag,
             d->ping, d->team, d->state==CS_DEAD ? name : d->name);
   menu::manual(0, scorelines.length()-1, scorelines.last().s);
-};
+}
 
 static const int maxteams = 4;
 static char *teamname[maxteams];
 static int teamscore[maxteams], teamsused;
 static string teamscores;
 
-void addteamscore(dynent *d)
-{
+void addteamscore(dynent *d) {
   if (!d) return;
   loopi(teamsused) if (strcmp(teamname[i], d->team)==0) {
     teamscore[i] += d->frags;
@@ -546,13 +513,12 @@ void addteamscore(dynent *d)
   if (teamsused==maxteams) return;
   teamname[teamsused] = d->team;
   teamscore[teamsused++] = d->frags;
-};
+}
 
-void renderscores(void)
-{
+void renderscores(void) {
   if (!scoreson) return;
   scorelines.setsize(0);
-  if (!demoplayback) renderscore(player1);
+  if (!demo::playing()) renderscore(player1);
   loopv(players) if (players[i])
     renderscore(players[i]);
   menu::sort(0, scorelines.length());
@@ -560,7 +526,7 @@ void renderscores(void)
     teamsused = 0;
     loopv(players)
       addteamscore(players[i]);
-    if (!demoplayback) addteamscore(player1);
+    if (!demo::playing()) addteamscore(player1);
     teamscores[0] = 0;
     loopj(teamsused) {
       sprintf_sd(sc)("[ %s: %d ]", teamname[j], teamscore[j]);
@@ -623,6 +589,18 @@ static void getmap(void)
 COMMAND(getmap, ARG_NONE);
 #endif
 #endif
-} /* namespace game */
-} /* namespace cube */
+} // namespace game
+} // namespace cube
+#endif // !defined(STANDALONE)
+
+namespace cube {
+namespace game {
+static const char *modenames[] = {
+  "SP", "DMSP", "ffa/default", "coopedit", "ffa/duel", "teamplay",
+  "instagib", "instagib team", "efficiency", "efficiency team",
+  "insta arena", "insta clan arena", "tactics arena", "tactics clan arena",
+};
+const char *modestr(int n) { return (n>=-2 && n<12) ? modenames[n+2] : "unknown"; }
+} // namespace game
+} // namespace cube
 

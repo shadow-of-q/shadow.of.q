@@ -4,9 +4,9 @@
 namespace cube {
 
 // XXX move that into the namespace
-enum                            // static entity types
+enum                          // static entity types
 {
-  NOTUSED = 0,                // entity slot not in use in map
+  NOTUSED,                    // entity slot not in use in map
   LIGHT,                      // lightsource, attr1 = radius, attr2 = intensity
   PLAYERSTART,                // attr1 = angle
   I_SHELLS, I_BULLETS, I_ROCKETS, I_ROUNDS,
@@ -23,7 +23,7 @@ enum                            // static entity types
 };
 
 // XXX move that to namespace?
-enum { GUN_FIST = 0, GUN_SG, GUN_CG, GUN_RL, GUN_RIFLE, GUN_FIREBALL, GUN_ICEBALL, GUN_SLIMEBALL, GUN_BITE, NUMGUNS };
+enum { GUN_FIST, GUN_SG, GUN_CG, GUN_RL, GUN_RIFLE, GUN_FIREBALL, GUN_ICEBALL, GUN_SLIMEBALL, GUN_BITE, NUMGUNS };
 
 enum { A_BLUE, A_GREEN, A_YELLOW };     // armour types... take 20/40/60 % off
 
@@ -42,7 +42,7 @@ struct entity : persistent_entity
 
 struct mapmodelinfo { int rad, h, zoff, snap; const char *name; };
 
-/*! Players & Monsters */
+/* players & monsters */
 struct dynent
 {
   vec o, vel;                         // origin, velocity

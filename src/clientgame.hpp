@@ -21,45 +21,45 @@ extern vec worldpos;          // current target of the crosshair in the world
 
 namespace game {
 
-/*! Apply mouse movement to player1 */
+// apply mouse movement to player1
 void mousemove(int dx, int dy); 
-/*! Main game update loop */
+// main game update loop
 void updateworld(int millis);
-/*! Create a new client */
+// create a new client
 void initclient(void);
-/*! place at random spawn. also used by monsters! */
+// place at random spawn. also used by monsters
 void spawnplayer(dynent *d);
-/*! Damage arriving from the network, monsters, yourself, ends up here */
+// damage arriving from the network, monsters, yourself, ends up here
 void selfdamage(int damage, int actor, dynent *act);
-/*! Create a new blank player or monster */
+// create a new blank player or monster
 dynent *newdynent(void);
-/*! Get the map currently used by the client */
+// get the map currently used by the client
 const char *getclientmap(void);
-/*! Return the name of the mode currently played */
+// return the name of the mode currently played
 const char *modestr(int n);
-/*! Free the entity */
+// free the entity
 void zapdynent(dynent *&d);
-/*! Get entity for drawarray cn */
+// get entity for drawarray cn
 dynent *getclient(int cn);
-/*! Useful for timi limited modes */
+// useful for timi limited modes
 void timeupdate(int timeremain);
-/*! Set the entity as not moving anymore */
+// set the entity as not moving anymore
 void resetmovement(dynent *d);
-/*! Properly clamp angle values (raw,pitch,yaw) */
+// properly clamp angle values (raw,pitch,yaw)
 void fixplayer1range(void);
-/* Brute force but effective way to find a free spawn spot in the map */
+// brute force but effective way to find a free spawn spot in the map
 void entinmap(dynent *d);
-/* Called just after a map load */
+// called just after a map load
 void startmap(const char *name);
-/*! Render all the clients */
+// render all the clients
 void renderclients(void);
-/*! Render the client */
+// render the client
 void renderclient(dynent *d, bool team, const char *mdlname, bool hellpig, float scale);
-/*! Render the score on screen */
+// render the score on screen
 void renderscores(void);
 
-} /* namespace game */
-} /* namespace cube */
+} // namespace game
+} // namespace cube
 
-#endif /* __CUBE_GAME_HPP__ */
+#endif // __CUBE_GAME_HPP__
 
