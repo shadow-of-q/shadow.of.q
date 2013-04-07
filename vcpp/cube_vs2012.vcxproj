@@ -36,7 +36,6 @@
     <ClCompile Include="..\src\rendermd2.cpp" />
     <ClCompile Include="..\src\renderparticles.cpp" />
     <ClCompile Include="..\src\rendertext.cpp" />
-    <ClCompile Include="..\src\rndmap.cpp" />
     <ClCompile Include="..\src\server.cpp" />
     <ClCompile Include="..\src\serverbrowser.cpp" />
     <ClCompile Include="..\src\serverms.cpp" />

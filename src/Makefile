@@ -23,7 +23,6 @@ CLIENT_OBJS= \
 	rendermd2.o \
 	renderparticles.o \
 	rendertext.o \
-	rndmap.o \
 	demo.o \
 	server.o \
 	serverbrowser.o \
