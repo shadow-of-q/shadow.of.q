@@ -6,13 +6,13 @@ namespace rr {
 
 static const int MAXPARTICLES = 10500;
 static const int NUMPARTCUTOFF = 20;
-struct particle { vec o, d; int fade, type; int millis; particle *next; };
+struct particle { vec3f o, d; int fade, type; int millis; particle *next; };
 static particle particles[MAXPARTICLES], *parlist = NULL, *parempty = NULL;
 static bool parinit = false;
 
 VARP(maxparticles, 100, 2000, MAXPARTICLES-500);
 
-static void newparticle(const vec &o, const vec &d, int fade, int type) {
+static void newparticle(const vec3f &o, const vec3f &d, int fade, int type) {
   if (!parinit) {
     loopi(MAXPARTICLES) {
       particles[i].next = parempty;
@@ -27,7 +27,7 @@ static void newparticle(const vec &o, const vec &d, int fade, int type) {
     p->d = d;
     p->fade = fade;
     p->type = type;
-    p->millis = lastmillis;
+    p->millis = game::lastmillis();
     p->next = parlist;
     parlist = p;
   }
@@ -36,9 +36,9 @@ static void newparticle(const vec &o, const vec &d, int fade, int type) {
 VAR(demotracking, 0, 0, 1);
 VARP(particlesize, 20, 100, 500);
 
-static vec right, up;
+static vec3f right, up;
 
-void setorient(const vec &r, const vec &u) { right = r; up = u; }
+void setorient(const vec3f &r, const vec3f &u) { right = r; up = u; }
 
 static const struct parttype { float r, g, b; int gr, tex; float sz; } parttypes[] = {
   { 0.7f, 0.6f, 0.3f, 2,  3, 0.06f }, // yellow: sparks
@@ -77,8 +77,8 @@ static void initparticles(void) {
 
 void render_particles(int time) {
   if (demo::playing() && demotracking) {
-    const vec nom(0, 0, 0);
-    newparticle(player1->o, nom, 100000000, 8);
+    const vec3f nom(0, 0, 0);
+    newparticle(game::player1->o, nom, 100000000, 8);
   }
   if (particleibo == 0u) initparticles();
 
@@ -98,6 +98,7 @@ void render_particles(int time) {
     const uint index = 4*partbucket[p->type]++;
     const parttype *pt = &parttypes[p->type];
     const float sz = pt->sz*particlesize/100.0f;
+    // XXX use vec3f
     glparts[index+0] = vvecf<8>(pt->r, pt->g, pt->b, 0.f, 1.f, p->o.x+(-right.x+up.x)*sz, p->o.z+(-right.y+up.y)*sz, p->o.y+(-right.z+up.z)*sz);
     glparts[index+1] = vvecf<8>(pt->r, pt->g, pt->b, 1.f, 1.f, p->o.x+( right.x+up.x)*sz, p->o.z+( right.y+up.y)*sz, p->o.y+( right.z+up.z)*sz);
     glparts[index+2] = vvecf<8>(pt->r, pt->g, pt->b, 0.f, 0.f, p->o.x+(-right.x-up.x)*sz, p->o.z+(-right.y-up.y)*sz, p->o.y+(-right.z-up.z)*sz);
@@ -108,8 +109,8 @@ void render_particles(int time) {
       p->next = parempty;
       parempty = p;
     } else {
-      if (pt->gr) p->o.z -= ((lastmillis-p->millis)/3.0f)*curtime/(pt->gr*10000);
-      vec a = p->d;
+      if (pt->gr) p->o.z -= ((game::lastmillis()-p->millis)/3.0f)*game::curtime()/(pt->gr*10000);
+      vec3f a = p->d;
       vmul(a,time);
       vdiv(a,20000.0f);
       vadd(p->o, a);
@@ -146,7 +147,7 @@ void render_particles(int time) {
   OGL(DepthMask, GL_TRUE);
 }
 
-void particle_splash(int type, int num, int fade, const vec &p) {
+void particle_splash(int type, int num, int fade, const vec3f &p) {
   loopi(num) {
     const int radius = type==5 ? 50 : 150;
     int x, y, z;
@@ -155,18 +156,18 @@ void particle_splash(int type, int num, int fade, const vec &p) {
       y = rnd(radius*2)-radius;
       z = rnd(radius*2)-radius;
     } while (x*x+y*y+z*z>radius*radius);
-    vec d = vec(float(x), float(y), float(z));
+    vec3f d = vec3f(float(x), float(y), float(z));
     newparticle(p, d, rnd(fade*3), type);
   }
 }
 
-void particle_trail(int type, int fade, vec &s, vec &e) {
+void particle_trail(int type, int fade, vec3f &s, vec3f &e) {
   vdist(d, v, s, e);
   vdiv(v, d*2+0.1f);
-  vec p = s;
+  vec3f p = s;
   loopi(int(d)*2) {
     vadd(p, v);
-    const cube::vec d(float(rnd(12)-5), float(rnd(11)-5), float(rnd(11)-5));
+    const cube::vec3f d(float(rnd(12)-5), float(rnd(11)-5), float(rnd(11)-5));
     newparticle(p, d, rnd(fade)+fade, type);
   }
 }

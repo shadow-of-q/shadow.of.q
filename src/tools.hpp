@@ -1,14 +1,12 @@
 // generic useful stuff for any C++ program
-#ifndef __CUBE_TOOLS_HPP__
-#define __CUBE_TOOLS_HPP__
-
+#pragma once
 #if defined(EMSCRIPTEN)
 #define IF_EMSCRIPTEN(X) X
 #define IF_NOT_EMSCRIPTEN(X)
 #else
 #define IF_EMSCRIPTEN(X)
 #define IF_NOT_EMSCRIPTEN(X) X
-#endif /* EMSCRIPTEN */
+#endif // EMSCRIPTEN
 
 #ifdef _MSC_VER
 #undef NOINLINE
@@ -82,7 +80,7 @@ namespace cube {
 
 #define rnd(max) (rand()%(max))
 #define rndreset() (srand(1))
-#define rndtime() {loopi(lastmillis&0xF) rnd(i+1);}
+#define rndtime() {loopi(lastmillis()()&0xF) rnd(i+1);}
 #define loop(v,m) for(int v = 0; v<(m); v++)
 #define loopi(m) loop(i,m)
 #define loopj(m) loop(j,m)
@@ -91,7 +89,7 @@ namespace cube {
 #define loopv(v)    for(int i = 0; i<(v).length(); ++i)
 #define loopvrev(v) for(int i = (v).length()-1; i>=0; --i)
 
-  /* integer types */
+  // integer types
 #if defined(__MSVC__)
   typedef          __int64  int64;
   typedef unsigned __int64 uint64;
@@ -120,7 +118,7 @@ namespace cube {
 #define PATHDIV '/'
 #endif
 
-/* Useful for repetitive calls to same functions */
+// useful for repetitive calls to same functions
 #define MAKE_VARIADIC(NAME)\
 INLINE void NAME##v(void) {}\
 template <typename First, typename... Rest>\
@@ -129,7 +127,16 @@ INLINE void NAME##v(First first, Rest... rest) {\
   NAME##v(rest...);\
 }
 
-  /* easy safe strings */
+// global variable setter / getter
+#define GLOBAL_VAR(NAME,VARNAME,TYPE)\
+  TYPE NAME(void) { return VARNAME; }\
+  void set##NAME(TYPE x) { VARNAME = x; }
+
+#define GLOBAL_VAR_DECL(NAME,TYPE)\
+  extern TYPE NAME(void);\
+  extern void set##NAME(TYPE x);
+
+  // easy safe strings
 #define _MAXDEFSTR 260
   typedef char string[_MAXDEFSTR];
 
@@ -159,7 +166,7 @@ INLINE void NAME##v(First first, Rest... rest) {\
 #define sprintf_sd(d) string d; sprintf_s(d)
 #define sprintf_sdlv(d,last,fmt) string d; { va_list ap; va_start(ap, last); formatstring(d, fmt, ap); va_end(ap); }
 #define sprintf_sdv(d,fmt) sprintf_sdlv(d,fmt,fmt)
-#define ATOI(s) strtol(s, NULL, 0) /* supports hexadecimal numbers */
+#define ATOI(s) strtol(s, NULL, 0) // supports hexadecimal numbers
 
 #define fast_f2nat(val) ((int)(val))
 
@@ -342,24 +349,24 @@ INLINE void NAME##v(First first, Rest... rest) {\
 
 #define ARRAY_ELEM_N(X) (sizeof(X) / sizeof(X[0]))
 
-  /* simplistic vector ops XXX remove */
-#define dotprod(u,v) ((u).x * (v).x + (u).y * (v).y + (u).z * (v).z)
+// simplistic vector ops XXX remove
 #define vmul(u,f)    { (u).x *= (f); (u).y *= (f); (u).z *= (f); }
 #define vdiv(u,f)    { (u).x /= (f); (u).y /= (f); (u).z /= (f); }
 #define vadd(u,v)    { (u).x += (v).x; (u).y += (v).y; (u).z += (v).z; };
 #define vsub(u,v)    { (u).x -= (v).x; (u).y -= (v).y; (u).z -= (v).z; };
-#define vdist(d,v,e,s) vec v = s; vsub(v,e); float d = (float)sqrt(dotprod(v,v));
+#define vdist(d,v,e,s) vec3f v = s; vsub(v,e); float d = (float)sqrt(dot(v,v));
 #define vreject(v,u,max) ((v).x>(u).x+(max) || (v).x<(u).x-(max) || (v).y>(u).y+(max) || (v).y<(u).y-(max))
 #define vlinterp(v,f,u,g) { (v).x = (v).x*f+(u).x*g; (v).y = (v).y*f+(u).y*g; (v).z = (v).z*f+(u).z*g; }
-
-  /* XXX REMOVE */
-  struct vec {
+#if 0
+  // XXX REMOVE
+  struct vec3f {
     INLINE vec(void) {}
     INLINE vec(float x, float y, float z) : x(x),y(y),z(z) {}
     float x, y, z;
   };
+#endif
 
-  /* vertex array format */
+  // vertex array format
   struct vertex { float u, v, x, y, z; uchar r, g, b, a; };
   typedef vector<char *> cvector;
   typedef vector<int> ivector;
@@ -371,8 +378,7 @@ INLINE void NAME##v(First first, Rest... rest) {\
   static const int KB = 1024;
   static const int MB = KB*KB;
 
-} /* namespace cube */
+} // namespace cube
 
 #include "math.hpp"
-#endif /* __CUBE_TOOLS_HPP__ */
 

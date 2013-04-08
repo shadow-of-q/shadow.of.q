@@ -1,6 +1,4 @@
-#ifndef __QBE_PROTOS_HPP__
-#define __QBE_PROTOS_HPP__
-
+#pragma once
 #include "command.hpp"
 #include "console.hpp"
 #include "menu.hpp"
@@ -24,6 +22,4 @@
   #define _WINDOWS
   #define ZLIB_DLL
 #endif
-
-#endif /* __QBE_PROTOS_HPP__ */
 

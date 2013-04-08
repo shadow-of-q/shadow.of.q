@@ -1,5 +1,5 @@
-#ifndef __CUBE_CONSOLE_HPP__
-#define __CUBE_CONSOLE_HPP__
+#pragma once
+#include <cstdio>
 
 // handle user-typed commands
 namespace cube {
@@ -18,6 +18,4 @@ void writebinds(FILE *f);
 
 } // namespace console
 } // namespace cube
-
-#endif // __CUBE_CONSOLE_HPP__
 

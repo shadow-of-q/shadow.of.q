@@ -1,27 +1,31 @@
-#ifndef __CUBE_GAME_HPP__
-#define __CUBE_GAME_HPP__
+#pragma once
+#include "entities.hpp"
+#include "tools.hpp"
 
 namespace cube {
-
-// XXX move that to namespace ? Or use functions?
-extern int lastmillis;          // last time
-extern int curtime;             // current frame time
-extern int gamemode, nextmode;
-extern vec worldpos;          // current target of the crosshair in the world
-
-#define m_noitems     (gamemode>=4)
-#define m_noitemsrail (gamemode<=5)
-#define m_arena       (gamemode>=8)
-#define m_tarena      (gamemode>=10)
-#define m_teammode    (gamemode&1 && gamemode>2)
-#define m_sp          (gamemode<0)
-#define m_dmsp        (gamemode==-1)
-#define m_classicsp   (gamemode==-2)
-#define isteam(a,b)   (m_teammode && strcmp(a, b)==0)
-
 namespace game {
 
-// apply mouse movement to player1
+#define m_noitems     (game::mode()>=4)
+#define m_noitemsrail (game::mode()<=5)
+#define m_arena       (game::mode()>=8)
+#define m_tarena      (game::mode()>=10)
+#define m_teammode    (game::mode()&1 && game::mode()>2)
+#define m_sp          (game::mode()<0)
+#define m_dmsp        (game::mode()==-1)
+#define m_classicsp   (game::mode()==-2)
+#define isteam(a,b)   (m_teammode && strcmp(a, b)==0)
+
+// get / set current game mode
+GLOBAL_VAR_DECL(mode,int);
+// get / set the next game mode to be set (changed when map changes)
+GLOBAL_VAR_DECL(nextmode,int);
+// get / set current target of the crosshair in the world
+GLOBAL_VAR_DECL(worldpos,const vec3f&);
+// get / set last time
+GLOBAL_VAR_DECL(lastmillis,int);
+// get / set current frame time
+GLOBAL_VAR_DECL(curtime,int);
+// apply mouse movement to player
 void mousemove(int dx, int dy); 
 // main game update loop
 void updateworld(int millis);
@@ -54,12 +58,10 @@ void startmap(const char *name);
 // render all the clients
 void renderclients(void);
 // render the client
-void renderclient(dynent *d, bool team, const char *mdlname, bool hellpig, float scale);
+void renderclient(dynent *d, bool team, const char *name, bool hellpig, float scale);
 // render the score on screen
 void renderscores(void);
 
 } // namespace game
 } // namespace cube
-
-#endif // __CUBE_GAME_HPP__
 

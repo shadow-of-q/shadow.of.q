@@ -5,21 +5,18 @@
 namespace cube {
 namespace browser {
 
-struct ResolverThread
-{
+struct ResolverThread {
   SDL_Thread *thread;
   char *query;
   int starttime;
 };
 
-struct ResolverResult
-{
+struct ResolverResult {
   char *query;
   ENetAddress address;
 };
 
-struct ServerInfo
-{
+struct ServerInfo {
   string name;
   string full;
   string map;
@@ -35,8 +32,7 @@ static SDL_mutex *resolvermutex = NULL;
 static SDL_sem *resolversem = NULL;
 static int resolverlimit = 1000;
 
-static int resolverloop(void * data)
-{
+static int resolverloop(void * data) {
   ResolverThread *rt = (ResolverThread *) data;
   for (;;) {
     SDL_SemWait(resolversem);
@@ -46,9 +42,9 @@ static int resolverloop(void * data)
       continue;
     }
     rt->query = resolverqueries.pop();
-    rt->starttime = lastmillis;
+    rt->starttime = game::lastmillis();
     SDL_UnlockMutex(resolvermutex);
-    ENetAddress address = { ENET_HOST_ANY, CUBE_SERVINFO_PORT };
+    ENetAddress address = {ENET_HOST_ANY, CUBE_SERVINFO_PORT};
     enet_address_set_host(&address, rt->query);
     SDL_LockMutex(resolvermutex);
     ResolverResult &rr = ResolverResults.add();
@@ -61,8 +57,7 @@ static int resolverloop(void * data)
   return 0;
 }
 
-static void resolverinit(int threads, int limit)
-{
+static void resolverinit(int threads, int limit) {
   resolverlimit = limit;
   resolversem = SDL_CreateSemaphore(0);
   resolvermutex = SDL_CreateMutex();
@@ -76,8 +71,7 @@ static void resolverinit(int threads, int limit)
   }
 }
 
-static void resolverstop(ResolverThread &rt, bool restart)
-{
+static void resolverstop(ResolverThread &rt, bool restart) {
   SDL_LockMutex(resolvermutex);
   SDL_KillThread(rt.thread);
   rt.query = NULL;
@@ -87,8 +81,7 @@ static void resolverstop(ResolverThread &rt, bool restart)
     SDL_UnlockMutex(resolvermutex);
 }
 
-static void resolverclear(void)
-{
+static void resolverclear(void) {
   SDL_LockMutex(resolvermutex);
   resolverqueries.setsize(0);
   ResolverResults.setsize(0);
@@ -100,16 +93,14 @@ static void resolverclear(void)
   SDL_UnlockMutex(resolvermutex);
 }
 
-static void resolverquery(char *name)
-{
+static void resolverquery(char *name) {
   SDL_LockMutex(resolvermutex);
   resolverqueries.add(name);
   SDL_SemPost(resolversem);
   SDL_UnlockMutex(resolvermutex);
 }
 
-static bool resolvercheck(char **name, ENetAddress *address)
-{
+static bool resolvercheck(char **name, ENetAddress *address) {
   SDL_LockMutex(resolvermutex);
   if (!ResolverResults.empty()) {
     ResolverResult &rr = ResolverResults.pop();
@@ -121,7 +112,7 @@ static bool resolvercheck(char **name, ENetAddress *address)
   loopv(ResolverThreads) {
     ResolverThread &rt = ResolverThreads[i];
       if (rt.query) {
-        if (lastmillis - rt.starttime > resolverlimit) {
+        if (game::lastmillis() - rt.starttime > resolverlimit) {
           resolverstop(rt, true);
           *name = rt.query;
           SDL_UnlockMutex(resolvermutex);
@@ -139,8 +130,7 @@ static int lastinfo = 0;
 
 const char *getservername(int n) { return servers[n].name; }
 
-void addserver(const char *servername)
-{
+void addserver(const char *servername) {
   loopv(servers) if (strcmp(servers[i].name, servername)==0) return;
   ServerInfo &si = servers.insert(0, ServerInfo());
   strcpy_s(si.name, servername);
@@ -156,8 +146,7 @@ void addserver(const char *servername)
   si.address.port = CUBE_SERVINFO_PORT;
 }
 
-static void pingservers(void)
-{
+static void pingservers(void) {
   ENetBuffer buf;
   uchar ping[MAXTRANS];
   uchar *p;
@@ -165,16 +154,15 @@ static void pingservers(void)
     ServerInfo &si = servers[i];
     if (si.address.host == ENET_HOST_ANY) continue;
     p = ping;
-    server::putint(p, lastmillis);
+    server::putint(p, game::lastmillis());
     buf.data = ping;
     buf.dataLength = p - ping;
     enet_socket_send(pingsock, &si.address, &buf, 1);
   }
-  lastinfo = lastmillis;
+  lastinfo = game::lastmillis();
 }
 
-static void checkresolver(void)
-{
+static void checkresolver(void) {
   char *name = NULL;
   ENetAddress addr = {ENET_HOST_ANY, CUBE_SERVINFO_PORT};
   while (resolvercheck(&name, &addr)) {
@@ -190,8 +178,7 @@ static void checkresolver(void)
   }
 }
 
-static void checkpings(void)
-{
+static void checkpings(void) {
   enet_uint32 events = ENET_SOCKET_WAIT_RECEIVE;
   ENetBuffer buf;
   ENetAddress addr;
@@ -205,7 +192,7 @@ static void checkpings(void)
       ServerInfo &si = servers[i];
       if (addr.host == si.address.host) {
         p = ping;
-        si.ping = lastmillis - server::getint(p);
+        si.ping = game::lastmillis() - server::getint(p);
         si.protocol = server::getint(p);
         if (si.protocol!=PROTOCOL_VERSION) si.ping = 9998;
         si.mode = server::getint(p);
@@ -221,17 +208,15 @@ static void checkpings(void)
   }
 }
 
-static int sicompare(const ServerInfo *a, const ServerInfo *b)
-{
+static int sicompare(const ServerInfo *a, const ServerInfo *b) {
   return a->ping>b->ping ? 1 :
     (a->ping<b->ping ? -1 : strcmp(a->name, b->name));
 }
 
-void refreshservers(void)
-{
+void refreshservers(void) {
   checkresolver();
   checkpings();
-  if (lastmillis - lastinfo >= 5000) pingservers();
+  if (game::lastmillis() - lastinfo >= 5000) pingservers();
   servers.sort((void *)sicompare);
   int maxmenu = 16;
   loopv(servers) {
@@ -253,8 +238,7 @@ void refreshservers(void)
   }
 }
 
-static void servermenu(void)
-{
+static void servermenu(void) {
   if (pingsock == ENET_SOCKET_NULL) {
     pingsock = enet_socket_create(ENET_SOCKET_TYPE_DATAGRAM, NULL);
     resolverinit(1, 1000);
@@ -265,8 +249,7 @@ static void servermenu(void)
   menu::set(1);
 }
 
-static void updatefrommaster(void)
-{
+static void updatefrommaster(void) {
   const int MAXUPD = 32000;
   uchar buf[MAXUPD];
   uchar *reply = server::retrieveservers(buf, MAXUPD);
@@ -281,8 +264,7 @@ static void updatefrommaster(void)
   servermenu();
 }
 
-void writeservercfg(void)
-{
+void writeservercfg(void) {
   FILE *f = fopen("servers.cfg", "w");
   if (!f) return;
   fprintf(f, "// servers connected to are added here automatically\n\n");
@@ -294,6 +276,6 @@ COMMAND(addserver, ARG_1STR);
 COMMAND(servermenu, ARG_NONE);
 COMMAND(updatefrommaster, ARG_NONE);
 
-} /* namespace browser */
-} /* namespace cube */
+} // namespace browser
+} // namespace cube
 

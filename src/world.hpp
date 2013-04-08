@@ -1,17 +1,12 @@
-#ifndef __CUBE_WORLD_HPP__
-#define __CUBE_WORLD_HPP__
+#pragma once
+#include "entities.hpp"
+#include "tools.hpp"
 
 namespace cube {
 
-struct vec;
-struct dynent;
-struct entity;
+struct block { int x, y, xs, ys; };
 
-struct block
-{
-  int x, y, xs, ys;
-};
-
+// XXX move it to NS
 enum {
   MAPVERSION = 5, // bump if map format changes, see worldio.cpp
   SMALLEST_FACTOR = 6, // determines number of mips there can be
@@ -32,7 +27,7 @@ void resettagareas(void);
 // set for playing
 void settagareas(void);
 // create a new entity
-entity *newentity(int x, int y, int z, char *what, int v1, int v2, int v3, int v4);
+game::entity *newentity(int x, int y, int z, char *what, int v1, int v2, int v3, int v4);
 // save the world as .cgz file
 void save(const char *fname);
 // load the world from .cgz file
@@ -48,6 +43,4 @@ char *maptitle(void);
 
 } // namespace world
 } // namespace cube
-
-#endif // __CUBE_WORLD_HPP__
 

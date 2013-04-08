@@ -11,7 +11,7 @@ extern int islittleendian;
 namespace demo {
 
 static gzFile f = NULL;
-static dvector playerhistory;
+static game::dvector playerhistory;
 static bool demorecording = false;
 static bool demoloading = false;
 static bool demoplayback = false;
@@ -21,7 +21,7 @@ static void start(void);
 
 static void gzput(int i) { gzputc(f, i); }
 static void gzputi(int i) { gzwrite(f, &i, sizeof(int)); }
-static void gzputv(vec &v) { gzwrite(f, &v, sizeof(vec)); }
+static void gzputv(vec3f &v) { gzwrite(f, &v, sizeof(vec3f)); }
 static void gzcheck(int a, int b) {
   if (a!=b) fatal("savegame file corrupt (short)");
 }
@@ -34,7 +34,7 @@ static int gzgeti(void) {
   gzcheck(gzread(f, &i, sizeof(int)), sizeof(int));
   return i;
 }
-static void gzgetv(vec &v) { gzcheck(gzread(f, &v, sizeof(vec)), sizeof(vec)); }
+static void gzgetv(vec3f &v) { gzcheck(gzread(f, &v, sizeof(vec3f)), sizeof(vec3f)); }
 
 bool playing(void) { return demoplayback; }
 int clientnum(void) { return democlientnum; }
@@ -61,19 +61,19 @@ static void savestate(char *fn) {
   gzwrite(f, (void *)"CUBESAVE", 8);
   gzputc(f, islittleendian);
   gzputi(SAVEGAMEVERSION);
-  gzputi(sizeof(dynent));
+  gzputi(sizeof(game::dynent));
   gzwrite(f, (const voidp) game::getclientmap(), _MAXDEFSTR);
-  gzputi(gamemode);
-  gzputi(ents.length());
-  loopv(ents) gzputc(f, ents[i].spawned);
-  gzwrite(f, player1, sizeof(dynent));
-  dvector &monsters = monster::getmonsters();
+  gzputi(game::mode());
+  gzputi(game::ents.length());
+  loopv(game::ents) gzputc(f, game::ents[i].spawned);
+  gzwrite(f, game::player1, sizeof(game::dynent));
+  game::dvector &monsters = game::getmonsters();
   gzputi(monsters.length());
-  loopv(monsters) gzwrite(f, monsters[i], sizeof(dynent));
-  gzputi(players.length());
-  loopv(players) {
-    gzput(players[i]==NULL);
-    gzwrite(f, players[i], sizeof(dynent));
+  loopv(monsters) gzwrite(f, monsters[i], sizeof(game::dynent));
+  gzputi(game::players.length());
+  loopv(game::players) {
+    gzput(game::players[i]==NULL);
+    gzwrite(f, game::players[i], sizeof(game::dynent));
   }
 }
 
@@ -99,10 +99,10 @@ static void loadstate(char *fn) {
   gzread(f, buf, 8);
   if (strncmp(buf, "CUBESAVE", 8)) goto out;
   if (gzgetc(f)!=islittleendian) goto out;     // not supporting save->load accross incompatible architectures simpifies things a LOT
-  if (gzgeti()!=SAVEGAMEVERSION || gzgeti()!=sizeof(dynent)) goto out;
+  if (gzgeti()!=SAVEGAMEVERSION || gzgeti()!=sizeof(game::dynent)) goto out;
   string mapname;
   gzread(f, mapname, _MAXDEFSTR);
-  nextmode = gzgeti();
+  game::setnextmode(gzgeti());
   client::changemap(mapname); // continue below once map has been loaded and client & server have updated
   return;
 out:
@@ -123,33 +123,33 @@ static void loadgameout(void) {
 
 void loadgamerest(void) {
   if (demoplayback || !f) return;
-  if (gzgeti()!=ents.length()) return loadgameout();
-  loopv(ents) {
-    ents[i].spawned = gzgetc(f)!=0;
-    if (ents[i].type==CARROT && !ents[i].spawned)
-      world::trigger(ents[i].attr1, ents[i].attr2, true);
+  if (gzgeti()!=game::ents.length()) return loadgameout();
+  loopv(game::ents) {
+    game::ents[i].spawned = gzgetc(f)!=0;
+    if (game::ents[i].type==game::CARROT && !game::ents[i].spawned)
+      world::trigger(game::ents[i].attr1, game::ents[i].attr2, true);
   }
-  server::restoreserverstate(ents);
+  server::restoreserverstate(game::ents);
 
-  gzread(f, player1, sizeof(dynent));
-  player1->lastaction = lastmillis;
+  gzread(f, game::player1, sizeof(game::dynent));
+  game::player1->lastaction = game::lastmillis();
 
   int nmonsters = gzgeti();
-  dvector &monsters = monster::getmonsters();
+  game::dvector &monsters = game::getmonsters();
   if (nmonsters!=monsters.length()) return loadgameout();
   loopv(monsters) {
-    gzread(f, monsters[i], sizeof(dynent));
-    monsters[i]->enemy = player1; // lazy, could save id of enemy instead
-    monsters[i]->lastaction = monsters[i]->trigger = lastmillis+500; // also lazy, but no real noticable effect on game
+    gzread(f, monsters[i], sizeof(game::dynent));
+    monsters[i]->enemy = game::player1; // lazy, could save id of enemy instead
+    monsters[i]->lastaction = monsters[i]->trigger = game::lastmillis()+500; // also lazy, but no real noticable effect on game
     if (monsters[i]->state==CS_DEAD) monsters[i]->lastaction = 0;
   }
-  monster::restoremonsterstate();
+  game::restoremonsterstate();
 
   int nplayers = gzgeti();
   loopi(nplayers) if (!gzget()) {
-    dynent *d = game::getclient(i);
+    game::dynent *d = game::getclient(i);
     assert(d);
-    gzread(f, d, sizeof(dynent));
+    gzread(f, d, sizeof(game::dynent));
   }
 
   console::out("savegame restored");
@@ -160,7 +160,7 @@ void loadgamerest(void) {
 static int starttime = 0;
 static int playbacktime = 0;
 static int ddamage, bdamage;
-static vec dorig;
+static vec3f dorig;
 
 static void record(char *name) {
   if (m_sp) {
@@ -174,30 +174,30 @@ static void record(char *name) {
   gzputi(cn);
   console::out("started recording demo to %s", fn);
   demorecording = true;
-  starttime = lastmillis;
+  starttime = game::lastmillis();
   ddamage = bdamage = 0;
 }
 COMMAND(record, ARG_1STR);
 
-void damage(int damage, vec &o) { ddamage = damage; dorig = o; }
+void damage(int damage, vec3f &o) { ddamage = damage; dorig = o; }
 void blend(int damage) { bdamage = damage; }
 
 void incomingdata(uchar *buf, int len, bool extras) {
   if (!demorecording) return;
-  gzputi(lastmillis-starttime);
+  gzputi(game::lastmillis()-starttime);
   gzputi(len);
   gzwrite(f, buf, len);
   gzput(extras);
   if (extras) {
-    gzput(player1->gunselect);
-    gzput(player1->lastattackgun);
-    gzputi(player1->lastaction-starttime);
-    gzputi(player1->gunwait);
-    gzputi(player1->health);
-    gzputi(player1->armour);
-    gzput(player1->armourtype);
-    loopi(NUMGUNS) gzput(player1->ammo[i]);
-    gzput(player1->state);
+    gzput(game::player1->gunselect);
+    gzput(game::player1->lastattackgun);
+    gzputi(game::player1->lastaction-starttime);
+    gzputi(game::player1->gunwait);
+    gzputi(game::player1->health);
+    gzputi(game::player1->armour);
+    gzput(game::player1->armourtype);
+    loopi(game::NUMGUNS) gzput(game::player1->ammo[i]);
+    gzput(game::player1->state);
     gzputi(bdamage);
     bdamage = 0;
     gzputi(ddamage);
@@ -214,9 +214,9 @@ static void demo(char *name) {
 COMMAND(demo, ARG_1STR);
 
 static void stopreset(void) {
-  console::out("demo stopped (%d msec elapsed)", lastmillis-starttime);
+  console::out("demo stopped (%d msec elapsed)", game::lastmillis()-starttime);
   stop();
-  loopv(players) game::zapdynent(players[i]);
+  loopv(game::players) game::zapdynent(game::players[i]);
   client::disconnect(0, 0);
 }
 
@@ -236,41 +236,43 @@ static void readdemotime() {
 static void start(void) {
   democlientnum = gzgeti();
   demoplayback = true;
-  starttime = lastmillis;
+  starttime = game::lastmillis();
   console::out("now playing demo");
-  dynent *d = game::getclient(democlientnum);
+  game::dynent *d = game::getclient(democlientnum);
   assert(d);
-  *d = *player1;
+  *d = *game::player1;
   readdemotime();
 }
 
 VAR(demodelaymsec, 0, 120, 500);
 
 // spline interpolation
-static void catmulrom(vec &z, vec &a, vec &b, vec &c, float s, vec &dest) {
-  vec t1 = b, t2 = c;
-  vsub(t1, z); vmul(t1, 0.5f)
-  vsub(t2, a); vmul(t2, 0.5f);
+static void catmulrom(vec3f &z, vec3f &a, vec3f &b, vec3f &c, float s, vec3f &dest) {
+  vec3f t1 = b, t2 = c;
+  t1 -= z;
+  t1 *= 0.5f;
+  t2 -= a;
+  t2 *= 0.5f;
 
   const float s2 = s*s;
   const float s3 = s*s2;
 
   dest = a;
-  vec t = b;
+  vec3f t = b;
 
-  vmul(dest, 2*s3 - 3*s2 + 1);
-  vmul(t,   -2*s3 + 3*s2);     vadd(dest, t);
-  vmul(t1,     s3 - 2*s2 + s); vadd(dest, t1);
-  vmul(t2,     s3 -   s2);     vadd(dest, t2);
+  dest *= 2.f*s3 - 3.f*s2 + 1.f;
+  t    *= -2.f*s3 + 3.f*s2;     dest += t;
+  t1   *= s3 - 2.f*s2 + s; dest += t1;
+  t2   *= s3 -   s2;     dest += t2;
 }
 
-static void fixwrap(dynent *a, dynent *b) {
+static void fixwrap(game::dynent *a, game::dynent *b) {
   while (b->yaw-a->yaw>180)  a->yaw += 360;
   while (b->yaw-a->yaw<-180) a->yaw -= 360;
 }
 
 void playbackstep(void) {
-  while (demoplayback && lastmillis>=playbacktime) {
+  while (demoplayback && game::lastmillis()>=playbacktime) {
     int len = gzgeti();
     if (len<1 || len>MAXTRANS) {
       console::out("error: huge packet during demo play (%d)", len);
@@ -281,7 +283,7 @@ void playbackstep(void) {
     gzread(f, buf, len);
     client::localservertoclient(buf, len);  // update game state
 
-    dynent *target = players[democlientnum];
+    game::dynent *target = game::players[democlientnum];
     assert(target);
 
     int extras;
@@ -293,7 +295,7 @@ void playbackstep(void) {
       target->health = gzgeti();
       target->armour = gzgeti();
       target->armourtype = gzget();
-      loopi(NUMGUNS) target->ammo[i] = gzget();
+      loopi(game::NUMGUNS) target->ammo[i] = gzget();
       target->state = gzget();
       target->lastmove = playbacktime;
       if ((bdamage = gzgeti()) != 0) rr::damageblend(bdamage);
@@ -306,7 +308,7 @@ void playbackstep(void) {
 
     // insert latest copy of player into history
     if (extras && (playerhistory.empty() || playerhistory.last()->lastupdate!=playbacktime)) {
-      dynent *d = game::newdynent();
+      game::dynent *d = game::newdynent();
       *d = *target;
       d->lastupdate = playbacktime;
       playerhistory.add(d);
@@ -320,25 +322,25 @@ void playbackstep(void) {
   }
 
   if (demoplayback) {
-    int itime = lastmillis-demodelaymsec;
+    int itime = game::lastmillis()-demodelaymsec;
     loopvrev(playerhistory) if (playerhistory[i]->lastupdate<itime) { // find 2 positions in history that surround interpolation time point
-      dynent *a = playerhistory[i];
-      dynent *b = a;
+      game::dynent *a = playerhistory[i];
+      game::dynent *b = a;
       if (i+1<playerhistory.length()) b = playerhistory[i+1];
-      *player1 = *b;
+      *game::player1 = *b;
       if (a!=b) { // interpolate pos & angles
-        dynent *c = b;
+        game::dynent *c = b;
         if (i+2<playerhistory.length()) c = playerhistory[i+2];
-        dynent *z = a;
+        game::dynent *z = a;
         if (i-1>=0) z = playerhistory[i-1];
         float bf = (itime-a->lastupdate)/(float)(b->lastupdate-a->lastupdate);
-        fixwrap(a, player1);
-        fixwrap(c, player1);
-        fixwrap(z, player1);
+        fixwrap(a, game::player1);
+        fixwrap(c, game::player1);
+        fixwrap(z, game::player1);
         vdist(dist, v, z->o, c->o);
         if (dist<16) { // if teleport or spawn, dont't interpolate
-          catmulrom(z->o, a->o, b->o, c->o, bf, player1->o);
-          catmulrom(*(vec *)&z->yaw, *(vec *)&a->yaw, *(vec *)&b->yaw, *(vec *)&c->yaw, bf, *(vec *)&player1->yaw);
+          catmulrom(z->o, a->o, b->o, c->o, bf, game::player1->o);
+          catmulrom(*(vec3f *)&z->yaw, *(vec3f *)&a->yaw, *(vec3f *)&b->yaw, *(vec3f *)&c->yaw, bf, *(vec3f *)&game::player1->yaw);
         }
         game::fixplayer1range();
       }

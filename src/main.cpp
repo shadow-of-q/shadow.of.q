@@ -43,8 +43,8 @@ void *alloc(int s) { // for some big chunks... most other allocs use the memory 
   return b;
 }
 
-int scr_w = 1024;
-int scr_h = 768;
+int scr_w = 640;
+int scr_h = 480;
 
 void screenshot(void) {
 #if !defined(EMSCRIPTEN)
@@ -59,13 +59,13 @@ void screenshot(void) {
         memcpy(dest, (char *)image->pixels+3*scr_w*(scr_h-1-idx), 3*scr_w);
         endianswap(dest, 3, scr_w);
       }
-      sprintf_sd(buf)("screenshots/screenshot_%d.bmp", lastmillis);
+      sprintf_sd(buf)("screenshots/screenshot_%d.bmp", game::lastmillis());
       SDL_SaveBMP(temp, path(buf));
       SDL_FreeSurface(temp);
     }
     SDL_FreeSurface(image);
   }
-#endif /* EMSCRIPTEN */
+#endif // EMSCRIPTEN
 }
 
 COMMAND(screenshot, ARG_NONE);
@@ -80,33 +80,24 @@ VARP(minmillis, 0, 5, 1000);
 VARF(grabmouse, 0, 0, 1, {SDL_WM_GrabInput(grabmouse ? SDL_GRAB_ON : SDL_GRAB_OFF);});
 
 int islittleendian = 1;
-int framesinmap = 0;
 int ignore = 5;
 
 static void main_loop(void) {
   int millis = SDL_GetTicks()*gamespeed/100;
-  if (millis-lastmillis>200) lastmillis = millis-200;
-  else if (millis-lastmillis<1) lastmillis = millis-1;
+  if (millis-game::lastmillis()>200) game::setlastmillis(millis-200);
+  else if (millis-game::lastmillis()<1) game::setlastmillis(millis-1);
 #if !defined(EMSCRIPTEN)
-  if (millis-lastmillis<minmillis)
-    SDL_Delay(minmillis-(millis-lastmillis));
+  if (millis-game::lastmillis()<minmillis)
+    SDL_Delay(minmillis-(millis-game::lastmillis()));
 #endif
-  // world::cleardlights();
   game::updateworld(millis);
   if (!demo::playing())
     server::slice((int)time(NULL), 0);
   static float fps = 30.0f;
-  fps = (1000.0f/curtime+fps*50)/51;
-  // world::computeraytable(player1->o.x, player1->o.y);
+  fps = (1000.0f/game::curtime()+fps*50)/51;
   rr::readdepth(scr_w, scr_h);
   SDL_GL_SwapBuffers();
   sound::updatevol();
-  /* cheap hack to get rid of initial sparklies when triple buffering */
-  if (framesinmap++<5) {
-    player1->yaw += 5;
-    ogl::drawframe(scr_w, scr_h, fps);
-    player1->yaw -= 5;
-  }
   ogl::drawframe(scr_w, scr_h, fps);
   SDL_Event event;
   int lasttype = 0, lastbut = 0;
@@ -247,7 +238,7 @@ static int main(int argc, char **argv) {
   return 1;
 }
 
-} /* namespace cube */
+} // namespace cube
 
 int main(int argc, char **argv) {
   return cube::main(argc, argv);

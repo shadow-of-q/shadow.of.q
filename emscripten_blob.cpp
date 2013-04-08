@@ -16,7 +16,6 @@
 #include "src/rendermd2.cpp"
 #include "src/renderparticles.cpp"
 #include "src/rendertext.cpp"
-#include "src/rndmap.cpp"
 #include "src/demo.cpp"
 #include "src/server.cpp"
 #include "src/serverbrowser.cpp"

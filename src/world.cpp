@@ -13,8 +13,9 @@ const int ssize = 1024;
 extern bool hasoverbright;
 
 namespace world {
-int findentity(int type, int index)
-{
+using namespace game;
+
+int findentity(int type, int index) {
   for (int i = index; i<ents.length(); i++)
     if (ents[i].type==type) return i;
   loopj(index) if (ents[j].type==type) return j;
@@ -47,7 +48,7 @@ void trigger(int tag, int type, bool savegame)
   if (cmd::identexists(aliasname))
     cmd::execute(aliasname);
   if (type==2)
-   monster::endsp(false);
+   endsp(false);
 }
 
 int closestent(void)
@@ -58,7 +59,7 @@ int closestent(void)
   loopv(ents) {
     entity &e = ents[i];
     if (e.type==NOTUSED) continue;
-    const vec v(float(e.x), float(e.y), float(e.z));
+    const vec3f v(float(e.x), float(e.y), float(e.z));
     vdist(dist, t, player1->o, v);
     if (dist<bdist) {
       best = i;
@@ -158,7 +159,7 @@ void setnames(const char *name)
     strcpy_s(mapname, name);
   }
   sprintf_s(cgzname)("packages/%s/%s.cgz",      pakname, mapname);
-  sprintf_s(bakname)("packages/%s/%s_%d.BAK",   pakname, mapname, lastmillis);
+  sprintf_s(bakname)("packages/%s/%s_%d.BAK",   pakname, mapname, lastmillis());
   sprintf_s(pcfname)("packages/%s/package.cfg", pakname);
   sprintf_s(mcfname)("packages/%s/%s.cfg",      pakname, mapname);
   path(cgzname);
@@ -173,7 +174,7 @@ void backup(char *name, char *backupname)
 
 void save(const char *mname)
 {
-  if (!*mname) mname = game::getclientmap();
+  if (!*mname) mname = getclientmap();
   setnames(mname);
   backup(cgzname, bakname);
   gzFile f = gzopen(cgzname, "wb9");
@@ -237,9 +238,9 @@ void load(const char *mname)
 
   int xs, ys;
   loopi(256) ogl::lookuptex(i, xs, ys);
-  console::out("read map %s (%d milliseconds)", cgzname, SDL_GetTicks()-lastmillis);
+  console::out("read map %s (%d milliseconds)", cgzname, SDL_GetTicks()-lastmillis());
   console::out("%s", hdr.maptitle);
-  game::startmap(mname);
+  startmap(mname);
   loopl(256) {
     sprintf_sd(aliasname)("level_trigger_%d", l);
     if (cmd::identexists(aliasname))

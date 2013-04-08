@@ -1,12 +1,10 @@
-#ifndef __CUBE_CLIENT_HPP__
-#define __CUBE_CLIENT_HPP__
-
+#pragma once
+#include "entities.hpp"
 #include "tools.hpp"
-#include <cstdio>
 
 namespace cube {
 
-// XXX move that into namespace?
+// XXX move that into network namespace
 // network messages codes, c2s, c2c, s2c
 enum {
   SV_INITS2C, SV_INITC2S, SV_POS, SV_TEXT, SV_SOUND, SV_CDIS,
@@ -32,8 +30,6 @@ static const float DMF = 16.0f;// quantizes positions
 static const float DAF = 1.0f; // quantizes angles
 static const float DVF = 100.0f; // quantizes velocities
 
-struct dynent;
-
 namespace client {
 
 // process any updates from the server
@@ -55,7 +51,7 @@ void sendpackettoserv(void *packet);
 // process (enet) events from the server
 void gets2c(void);
 // send updates to the server
-void c2sinfo(const dynent *d);
+void c2sinfo(const game::dynent *d);
 // triggers disconnection when invalid message is processed
 void neterr(const char *s);
 // create a default profile for the client
@@ -71,6 +67,4 @@ void changemap(const char *name);
 
 } // namespace client
 } // namespace cube
-
-#endif // __CUBE_CLIENT_HPP__
 

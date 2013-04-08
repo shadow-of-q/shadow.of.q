@@ -5,8 +5,7 @@ namespace cube {
 namespace menu {
 
 struct mitem { char *text; char *action; };
-struct gmenu
-{
+struct gmenu {
   const char *name;
   vector<mitem> items;
   int mwidth;
@@ -18,24 +17,21 @@ static int vmenu = -1;
 static ivector menustack;
 static string empty = "";
 
-void set(int menu)
-{
+void set(int menu) {
   if ((vmenu = menu)>=1)
-    game::resetmovement(player1);
+    game::resetmovement(game::player1);
   if (vmenu==1)
     menus[1].menusel = 0;
 }
 
-static void show(char *name)
-{
+static void show(char *name) {
   loopv(menus) if (i>1 && strcmp(menus[i].name, name)==0) {
     set(i);
     return;
   }
 }
 
-static int compare(mitem *a, mitem *b)
-{
+static int compare(mitem *a, mitem *b) {
   const int x = atoi(a->text);
   const int y = atoi(b->text);
   if (x>y) return -1;
@@ -43,13 +39,12 @@ static int compare(mitem *a, mitem *b)
   return 0;
 }
 
-void sort(int start, int num)
-{
-  qsort(&menus[0].items[start], num, sizeof(mitem),(int (__cdecl *)(const void *,const void *))compare);
+void sort(int start, int num) {
+  qsort(&menus[0].items[start], num,
+    sizeof(mitem),(int (__cdecl *)(const void *,const void *))compare);
 }
 
-bool render(void)
-{
+bool render(void) {
   if (vmenu<0) {
     menustack.setsize(0);
     return false;
@@ -87,31 +82,27 @@ bool render(void)
   return true;
 }
 
-void newm(const char *name)
-{
+void newm(const char *name) {
   gmenu &menu = menus.add();
   menu.name = newstring(name);
   menu.menusel = 0;
 }
 
-void manual(int m, int n, char *text)
-{
+void manual(int m, int n, char *text) {
   if (!n) menus[m].items.setsize(0);
   mitem &mitem = menus[m].items.add();
   mitem.text = text;
   mitem.action = empty;
 }
 
-void item(char *text, char *action)
-{
+void item(char *text, char *action) {
   gmenu &menu = menus.last();
   mitem &mi = menu.items.add();
   mi.text = newstring(text);
   mi.action = action[0] ? newstring(action) : mi.text;
 }
 
-bool key(int code, bool isdown)
-{
+bool key(int code, bool isdown) {
   if (vmenu<=0) return false;
   int menusel = menus[vmenu].menusel;
   if (isdown) {

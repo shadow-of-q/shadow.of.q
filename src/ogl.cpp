@@ -750,10 +750,12 @@ static const vec3f yaw(0.f,1.f,0.f);
 static void transplayer(void)
 {
   identity();
-  rotate(player1->roll,roll);
-  rotate(player1->pitch,pitch);
-  rotate(player1->yaw,yaw);
-  translate(vec3f(-player1->o.x, (player1->state==CS_DEAD ? player1->eyeheight-0.2f : 0)-player1->o.z, -player1->o.y));
+  rotate(game::player1->roll,roll);
+  rotate(game::player1->pitch,pitch);
+  rotate(game::player1->yaw,yaw);
+  translate(vec3f(-game::player1->o.x,
+            (game::player1->state==CS_DEAD ? game::player1->eyeheight-0.2f : 0)-game::player1->o.z,
+            -game::player1->o.y));
 }
 
 VARP(fov, 10, 105, 120);
@@ -771,7 +773,9 @@ static const char *hudgunnames[] = {
 
 static void drawhudmodel(int start, int end, float speed, int base)
 {
-  rr::rendermodel(hudgunnames[player1->gunselect], start, end, 0, 1.0f, player1->o.x, player1->o.z, player1->o.y, player1->yaw+90, player1->pitch, false, 1.0f, speed, 0, base);
+  rr::rendermodel(hudgunnames[game::player1->gunselect], start, end, 0, 1.0f,
+    game::player1->o.x, game::player1->o.z, game::player1->o.y,
+    game::player1->yaw+90, game::player1->pitch, false, 1.0f, speed, 0, base);
 }
 
 static void drawhudgun(float fovy, float aspect, int farplane)
@@ -784,11 +788,11 @@ static void drawhudgun(float fovy, float aspect, int farplane)
   perspective(fovy, aspect, 0.3f, farplane);
   matrixmode(MODELVIEW);
 
-  const int rtime = weapon::reloadtime(player1->gunselect);
-  if (player1->lastaction &&
-      player1->lastattackgun==player1->gunselect &&
-      lastmillis-player1->lastaction<rtime)
-    drawhudmodel(7, 18, rtime/18.0f, player1->lastaction);
+  const int rtime = game::reloadtime(game::player1->gunselect);
+  if (game::player1->lastaction &&
+      game::player1->lastattackgun==game::player1->gunselect &&
+      game::lastmillis()-game::player1->lastaction<rtime)
+    drawhudmodel(7, 18, rtime/18.0f, game::player1->lastaction);
   else
     drawhudmodel(6, 1, 100, 0);
 
@@ -842,17 +846,17 @@ static void dofog(bool underwater)
 void drawframe(int w, int h, float curfps)
 {
   const float hf = world::waterlevel()-0.3f;
-  const bool underwater = player1->o.z<hf;
+  const bool underwater = game::player1->o.z<hf;
   float fovy = (float)fov*h/w;
   float aspect = w/(float)h;
 
   forceglstate();
   dofog(underwater);
-  OGL(Clear, (player1->outsidemap ? GL_COLOR_BUFFER_BIT : 0) | GL_DEPTH_BUFFER_BIT);
+  OGL(Clear, (game::player1->outsidemap ? GL_COLOR_BUFFER_BIT : 0) | GL_DEPTH_BUFFER_BIT);
 
   if (underwater) {
-    fovy += (float)sin(lastmillis/1000.0)*2.0f;
-    aspect += (float)sin(lastmillis/1000.0+PI)*0.1f;
+    fovy += (float)sin(game::lastmillis()/1000.0)*2.0f;
+    aspect += (float)sin(game::lastmillis()/1000.0+PI)*0.1f;
   }
   const int farplane = fog*5/2;
   matrixmode(PROJECTION);
@@ -865,8 +869,8 @@ void drawframe(int w, int h, float curfps)
   /* render sky */
   if (rendersky) {
     identity();
-    rotate(player1->pitch, pitch);
-    rotate(player1->yaw, yaw);
+    rotate(game::player1->pitch, pitch);
+    rotate(game::player1->yaw, yaw);
     rotate(90.f, vec3f(1.f,0.f,0.f));
     OGL(VertexAttrib3f,COL,1.0f,1.0f,1.0f);
     rr::draw_envbox(14, fog*4/3);
@@ -878,9 +882,9 @@ void drawframe(int w, int h, float curfps)
   ogl::xtraverts = 0;
 
   game::renderclients();
-  monster::monsterrender();
-  entities::renderentities();
-  rr::renderspheres(curtime);
+  game::monsterrender();
+  game::renderentities();
+  rr::renderspheres(game::curtime());
   rr::renderents();
 
   disablev(GL_CULL_FACE);
@@ -892,7 +896,7 @@ void drawframe(int w, int h, float curfps)
   if (renderparticles) {
     overbright(2.f);
     bindshader(DIFFUSETEX);
-    rr::render_particles(curtime);
+    rr::render_particles(game::curtime());
   }
 
   overbright(1.f);

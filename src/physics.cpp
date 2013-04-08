@@ -6,9 +6,8 @@
 
 namespace cube {
 namespace physics {
-
-  bool plcollide(dynent *d, dynent *o, float &headspace, float &hi, float &lo) // collide with player or monster
-  {
+  // collide with player or monster
+  bool plcollide(game::dynent *d, game::dynent *o, float &headspace, float &hi, float &lo) {
     if (o->state!=CS_ALIVE) return true;
     const float r = o->radius+d->radius;
     if (fabs(o->o.x-d->o.x)<r && fabs(o->o.y-d->o.y)<r) {
@@ -26,20 +25,18 @@ namespace physics {
   }
 
   // collide with a map model
-  static void mmcollide(dynent *d, float &hi, float &lo)
-  {
-    loopv(ents) {
-      entity &e = ents[i];
-      if (e.type!=MAPMODEL) continue;
-      mapmodelinfo &mmi = rr::getmminfo(e.attr2);
+  static void mmcollide(game::dynent *d, float &hi, float &lo) {
+    loopv(game::ents) {
+      game::entity &e = game::ents[i];
+      if (e.type != game::MAPMODEL) continue;
+      game::mapmodelinfo &mmi = rr::getmminfo(e.attr2);
       if (!&mmi || !mmi.h) continue;
       const float r = mmi.rad+d->radius;
       if (fabs(e.x-d->o.x)<r && fabs(e.y-d->o.y)<r) {
         const float mmz = mmi.zoff+e.attr3;
         if (d->o.z-d->eyeheight<mmz) {
           if (mmz<hi) hi = mmz;
-        }
-        else if (mmz+mmi.h>lo)
+        } else if (mmz+mmi.h>lo)
           lo = mmz+mmi.h;
       }
     }
@@ -48,19 +45,20 @@ namespace physics {
   // all collision happens here.  // spawn is a dirty side effect used in
   // spawning. drop & rise are supplied by the physics below to indicate
   // gravity/push for current mini-timestep
-  bool collide(dynent *d, bool spawn, float drop, float rise)
-  {
+  bool collide(game::dynent *d, bool spawn, float drop, float rise) {
     float hi = 127, lo = 0;
     if (hi-lo < d->eyeheight+d->aboveeye) return false;
 
     float headspace = 10;
-    loopv(players) { // collide with other players
-      dynent *o = players[i];
+    loopv(game::players) { // collide with other players
+      game::dynent *o = game::players[i];
       if (!o || o==d) continue;
       if (!plcollide(d, o, headspace, hi, lo)) return false;
     }
-    if (d!=player1) if (!plcollide(d, player1, headspace, hi, lo)) return false;
-    dvector &v = monster::getmonsters();
+    if (d!=game::player1)
+      if (!plcollide(d, game::player1, headspace, hi, lo))
+        return false;
+    auto &v = game::getmonsters();
     // this loop can be a performance bottleneck with many monster on a slow
     // cpu, should replace with a blockmap but seems mostly fast enough
     loopv(v) if (!vreject(d->o, v[i]->o, 7.0f) && d!=v[i] && !plcollide(d, v[i], headspace, hi, lo)) return false;
@@ -91,33 +89,31 @@ namespace physics {
     return true;
   }
 
-  float rad(float x) { return x*3.14159f/180; };
+  static float rad(float x) { return x*3.14159f/180; };
 
   VARP(maxroll, 0, 3, 20);
 
-  int physicsfraction = 0, physicsrepeat = 0;
-  const int MINFRAMETIME = 20; // physics always simulated at 50fps or better
+  static int physicsfraction = 0, physicsrepeat = 0;
+  static const int MINFRAMETIME = 20; // physics always simulated at 50fps or better
 
-  void physicsframe(void) // optimally schedule physics frames inside the graphics frames
-  {
-    if (curtime>=MINFRAMETIME) {
-      int faketime = curtime+physicsfraction;
+  void physicsframe(void) { // optimally schedule physics frames inside the graphics frames
+    if (game::curtime()>=MINFRAMETIME) {
+      int faketime = game::curtime()+physicsfraction;
       physicsrepeat = faketime/MINFRAMETIME;
       physicsfraction = faketime-physicsrepeat*MINFRAMETIME;
     } else
       physicsrepeat = 1;
   }
 
-  // main physics routine, moves a player/monster for a curtime step.  moveres
+  // main physics routine, moves a player/monster for a curtime() step.  moveres
   // indicated the physics precision (which is lower for monsters and
   // client::multiplayer prediction). local is false for client::multiplayer
   // prediction
-  void moveplayer(dynent *pl, int moveres, bool local, int curtime)
-  {
+  void moveplayer(game::dynent *pl, int moveres, bool local, int curtime) {
     const bool water = world::waterlevel()>pl->o.z-0.5f;
     const bool floating = (editmode && local) || pl->state==CS_EDITING;
 
-    vec d; // vector of direction we ideally want to move in
+    vec3f d; // vector of direction we ideally want to move in
     d.x = (float)(pl->move*cos(rad(pl->yaw-90)));
     d.y = (float)(pl->move*sin(rad(pl->yaw-90)));
     d.z = 0;
@@ -144,13 +140,10 @@ namespace physics {
     pl->blocked = false;
     pl->moving = true;
 
-    if (floating)                // just apply velocity
-    {
+    if (floating) {                // just apply velocity
       vadd(pl->o, d);
       if (pl->jumpnext) { pl->jumpnext = false; pl->vel.z = 2;    }
-    }
-    else                        // apply velocity with collision
-    {
+    } else {                        // apply velocity with collision
       if (pl->onfloor || water) {
         if (pl->jumpnext) {
           pl->jumpnext = false;
@@ -174,8 +167,7 @@ namespace physics {
       const float drop = dropf*curtime/gravity/100/moveres;   // at high fps, gravity kicks in too fast
       const float rise = speed/moveres/1.2f;                  // extra smoothness when lifting up stairs
 
-      loopi(moveres)                                          // discrete steps collision detection & sliding
-      {
+      loopi(moveres) { // discrete steps collision detection & sliding
         // try move forward
         pl->o.x += f*d.x;
         pl->o.y += f*d.y;
@@ -197,27 +189,12 @@ namespace physics {
         if (collide(pl, false, drop, rise)) { d.y = d.x = 0; continue; };
         pl->o.z -= f*d.z;
         break;
-      };
-    };
-
-    // detect wether player is outside map, used for skipping zbuffer clear mostly
-#if 0 // XXX no more map
-    if (pl->o.x < 0 || pl->o.x >= ssize || pl->o.y <0 || pl->o.y > ssize)
-    {
-      pl->outsidemap = true;
+      }
     }
-    else
-    {
-      sqr *s = S((int)pl->o.x, (int)pl->o.y);
-      pl->outsidemap = SOLID(s)
-        || pl->o.z < s->floor - (s->type==FHF ? s->vdelta/4 : 0)
-        || pl->o.z > s->ceil  + (s->type==CHF ? s->vdelta/4 : 0);
-    };
-#else
-      pl->outsidemap = false;
-#endif
-    // automatically apply smooth roll when strafing
 
+    pl->outsidemap = false;
+
+    // automatically apply smooth roll when strafing
     if (pl->strafe==0)
       pl->roll = pl->roll/(1+(float)sqrt((float)curtime)/25);
     else {
@@ -232,11 +209,13 @@ namespace physics {
     pl->inwater = water;
   }
 
-  void moveplayer(dynent *pl, int moveres, bool local)
-  {
-    loopi(physicsrepeat) moveplayer(pl, moveres, local, i ? curtime/physicsrepeat : curtime-curtime/physicsrepeat*(physicsrepeat-1));
+  void moveplayer(game::dynent *pl, int moveres, bool local) {
+    loopi(physicsrepeat)
+      moveplayer(pl, moveres, local,
+        i ? game::curtime()/physicsrepeat :
+            game::curtime()-game::curtime()/physicsrepeat*(physicsrepeat-1));
   }
 
-} /* namespace physics */
-} /* namespace cube */
+} // namespace physics
+} // namespace cube
 

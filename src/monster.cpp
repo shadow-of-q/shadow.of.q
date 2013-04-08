@@ -2,7 +2,7 @@
 #include "cube.h"
 
 namespace cube {
-namespace monster {
+namespace game {
 
 static dvector monsters;
 static int nextmonster, spawnremain, numkilled, monstertotal, mtimestart;
@@ -10,8 +10,7 @@ static int nextmonster, spawnremain, numkilled, monstertotal, mtimestart;
 VARF(skill, 1, 3, 10, console::out("skill is now %d", skill));
 
 dvector &getmonsters(void) { return monsters; };
-void restoremonsterstate(void) // for savegames
-{
+void restoremonsterstate(void) { // for savegames
   loopv(monsters)
   if (monsters[i]->state==CS_DEAD)
     numkilled++;
@@ -35,13 +34,12 @@ struct monstertype { // see docs for how these values modify behaviour
   {GUN_SLIMEBALL, 15, 100, 1, 0,   200, 400, 2, 13, 10, S_PAIND, S_DEATHD, "a goblin",    "monster/goblin" },
 };
 
-dynent *basicmonster(int type, int yaw, int state, int trigger, int move)
-{
+dynent *basicmonster(int type, int yaw, int state, int trigger, int move) {
   if (type>=NUMMONSTERTYPES) {
     console::out("warning: unknown monster in spawn: %d", type);
     type = 0;
   }
-  dynent *m = game::newdynent();
+  dynent *m = newdynent();
   const monstertype *t = &monstertypes[m->mtype = type];
   m->eyeheight = 2.0f;
   m->aboveeye = 1.9f;
@@ -49,8 +47,8 @@ dynent *basicmonster(int type, int yaw, int state, int trigger, int move)
   m->eyeheight *= t->bscale/10.0f;
   m->aboveeye *= t->bscale/10.0f;
   m->monsterstate = state;
-  if (state!=M_SLEEP) game::spawnplayer(m);
-  m->trigger = lastmillis+trigger;
+  if (state!=M_SLEEP) spawnplayer(m);
+  m->trigger = lastmillis()+trigger;
   m->targetyaw = m->yaw = (float)yaw;
   m->move = move;
   m->enemy = player1;
@@ -69,8 +67,7 @@ dynent *basicmonster(int type, int yaw, int state, int trigger, int move)
 }
 
 // spawn a random monster according to freq distribution in DMSP
-void spawnmonster(void)
-{
+void spawnmonster(void) {
   int n = rnd(TOTMFREQ), type;
   for (int i = 0; ; i++)
     if ((n -= monstertypes[i].freq)<0) {
@@ -82,31 +79,29 @@ void spawnmonster(void)
 
 // called after map start of when toggling edit mode to reset/spawn all monsters
 // to initial statexi
-void monsterclear(void)
-{
+void monsterclear(void) {
   loopv(monsters) gp()->dealloc(monsters[i], sizeof(dynent));
   monsters.setsize(0);
   numkilled = 0;
   monstertotal = 0;
   spawnremain = 0;
   if (m_dmsp) {
-    nextmonster = mtimestart = lastmillis+10000;
-    monstertotal = spawnremain = gamemode<0 ? skill*10 : 0;
+    nextmonster = mtimestart = lastmillis()+10000;
+    monstertotal = spawnremain = mode()<0 ? skill*10 : 0;
   } else if (m_classicsp) {
-    mtimestart = lastmillis;
+    mtimestart = lastmillis();
     loopv(ents) if (ents[i].type==MONSTER) {
       dynent *m = basicmonster(ents[i].attr2, ents[i].attr1, M_SLEEP, 100, 0);
       m->o.x = ents[i].x;
       m->o.y = ents[i].y;
       m->o.z = ents[i].z;
-      game::entinmap(m);
+      entinmap(m);
       monstertotal++;
     }
   }
 }
 
-bool enemylos(dynent *m, vec &v)
-{
+bool enemylos(dynent *m, vec3f &v) {
   // no occlusion, return the target itself
   v = m->enemy->o;
   return true;
@@ -118,32 +113,31 @@ bool enemylos(dynent *m, vec &v)
 // environment etc., and transition to the next state. Transition timeframes are
 // parametrized by difficulty level (skill), faster transitions means quicker
 // decision making means tougher AI.
-void transition(dynent *m, int state, int moving, int n, int r) // n = at skill 0, n/2 = at skill 10, r = added random factor
-{
+// n = at skill 0, n/2 = at skill 10, r = added random factor
+void transition(dynent *m, int state, int moving, int n, int r) {
   m->monsterstate = state;
   m->move = moving;
   n = n*130/100;
-  m->trigger = lastmillis+n-skill*(n/16)+rnd(r+1);
+  m->trigger = lastmillis()+n-skill*(n/16)+rnd(r+1);
 }
 
-void normalise(dynent *m, float angle)
-{
+void normalise(dynent *m, float angle) {
   while (m->yaw<angle-180.0f) m->yaw += 360.0f;
   while (m->yaw>angle+180.0f) m->yaw -= 360.0f;
 }
 
-void monsteraction(dynent *m) // main AI thinking routine, called every frame for every monster
-{
+// main AI thinking routine, called every frame for every monster
+void monsteraction(dynent *m) {
   if (m->enemy->state==CS_DEAD) {
     m->enemy = player1;
     m->anger = 0;
   }
   normalise(m, m->targetyaw);
   if (m->targetyaw>m->yaw) { // slowly turn monster towards his target
-    m->yaw += curtime*0.5f;
+    m->yaw += curtime()*0.5f;
     if (m->targetyaw<m->yaw) m->yaw = m->targetyaw;
   } else {
-    m->yaw -= curtime*0.5f;
+    m->yaw -= curtime()*0.5f;
     if (m->targetyaw>m->yaw) m->yaw = m->targetyaw;
   }
 
@@ -154,7 +148,7 @@ void monsteraction(dynent *m) // main AI thinking routine, called every frame fo
     m->blocked = false;
     if (!rnd(20000/monstertypes[m->mtype].speed)) // try to jump over obstackle (rare)
       m->jumpnext = true;
-    else if (m->trigger<lastmillis && (m->monsterstate!=M_HOME || !rnd(5)))  // search for a way around (common)
+    else if (m->trigger<lastmillis() && (m->monsterstate!=M_HOME || !rnd(5)))  // search for a way around (common)
     {
       m->targetyaw += 180+rnd(180); // patented "random walk" AI pathfinding (tm) ;)
       transition(m, M_SEARCH, 1, 400, 1000);
@@ -163,17 +157,14 @@ void monsteraction(dynent *m) // main AI thinking routine, called every frame fo
 
   const float enemyyaw = -(float)atan2(m->enemy->o.x - m->o.x, m->enemy->o.y - m->o.y)/PI*180+180;
 
-  switch (m->monsterstate)
-  {
+  switch (m->monsterstate) {
     case M_PAIN:
     case M_ATTACKING:
     case M_SEARCH:
-      if (m->trigger<lastmillis) transition(m, M_HOME, 1, 100, 200);
+      if (m->trigger<lastmillis()) transition(m, M_HOME, 1, 100, 200);
     break;
-
-    case M_SLEEP: // state classic sp monster start in, wait for visual contact
-    {
-      vec target;
+    case M_SLEEP: { // state classic sp monster start in, wait for visual contact
+      vec3f target;
       if (editmode || !enemylos(m, target)) return; // skip running physics
       normalise(m, enemyyaw);
       float angle = (float)fabs(enemyyaw-m->yaw);
@@ -189,18 +180,18 @@ void monsteraction(dynent *m) // main AI thinking routine, called every frame fo
     break;
 
     case M_AIMING: // this state is the delay between wanting to shoot and actually firing
-      if (m->trigger<lastmillis) {
+      if (m->trigger<lastmillis()) {
         m->lastaction = 0;
         m->attacking = true;
-        weapon::shoot(m, m->attacktarget);
+        shoot(m, m->attacktarget);
         transition(m, M_ATTACKING, 0, 600, 0);
       }
     break;
 
     case M_HOME: // monster has visual contact, heads straight for player and may want to shoot at any time
       m->targetyaw = enemyyaw;
-      if (m->trigger<lastmillis) {
-        vec target;
+      if (m->trigger<lastmillis()) {
+        vec3f target;
         if (!enemylos(m, target)) // no visual contact anymore, let monster get as close as possible then search for player
           transition(m, M_HOME, 1, 800, 500);
         else  { // the closer the monster is the more likely he wants to shoot
@@ -216,8 +207,7 @@ void monsteraction(dynent *m) // main AI thinking routine, called every frame fo
   physics::moveplayer(m, 1, false); // use physics to move monster
 }
 
-void monsterpain(dynent *m, int damage, dynent *d)
-{
+void monsterpain(dynent *m, int damage, dynent *d) {
   if (d->monsterstate) { // a monster hit us
     if (m!=d) { // guard for RL guys shooting themselves :)
       m->anger++; // don't attack straight away, first get angry
@@ -232,7 +222,7 @@ void monsterpain(dynent *m, int damage, dynent *d)
   transition(m, M_PAIN, 0, monstertypes[m->mtype].pain,200);      // in this state monster won't attack
   if ((m->health -= damage)<=0) {
     m->state = CS_DEAD;
-    m->lastaction = lastmillis;
+    m->lastaction = lastmillis();
     numkilled++;
     player1->frags = numkilled;
     sound::play(monstertypes[m->mtype].diesound, &m->o);
@@ -242,20 +232,18 @@ void monsterpain(dynent *m, int damage, dynent *d)
     sound::play(monstertypes[m->mtype].painsound, &m->o);
 }
 
-void endsp(bool allkilled)
-{
+void endsp(bool allkilled) {
   console::out(allkilled ? "you have cleared the map!" : "you reached the exit!");
-  console::out("score: %d kills in %d seconds", numkilled, (lastmillis-mtimestart)/1000);
+  console::out("score: %d kills in %d seconds", numkilled, (lastmillis()-mtimestart)/1000);
   monstertotal = 0;
   server::startintermission();
 }
 
-void monsterthink(void)
-{
-  if (m_dmsp && spawnremain && lastmillis>nextmonster) {
+void monsterthink(void) {
+  if (m_dmsp && spawnremain && lastmillis()>nextmonster) {
     if (spawnremain--==monstertotal)
       console::out("The invasion has begun!");
-    nextmonster = lastmillis+1000;
+    nextmonster = lastmillis()+1000;
     spawnmonster();
   }
 
@@ -265,9 +253,9 @@ void monsterthink(void)
   loopv(ents) { // equivalent of player entity touch, but only teleports are used
     entity &e = ents[i];
     if (e.type!=TELEPORT) continue;
-    vec v(float(e.x), float(e.y), 0.f);
+    vec3f v(float(e.x), float(e.y), 0.f);
     loopv(monsters) if (monsters[i]->state==CS_DEAD) {
-      if (lastmillis-monsters[i]->lastaction<2000) {
+      if (lastmillis()-monsters[i]->lastaction<2000) {
         monsters[i]->move = 0;
         physics::moveplayer(monsters[i], 1, false);
       }
@@ -275,7 +263,7 @@ void monsterthink(void)
       v.z += monsters[i]->eyeheight;
       vdist(dist, t, monsters[i]->o, v);
       v.z -= monsters[i]->eyeheight;
-      if (dist<4) entities::teleport((int)(&e-&ents[0]), monsters[i]);
+      if (dist<4) game::teleport((int)(&e-&ents[0]), monsters[i]);
     }
   }
 
@@ -283,12 +271,11 @@ void monsterthink(void)
     monsteraction(monsters[i]);
 }
 
-void monsterrender(void)
-{
+void monsterrender(void) {
   loopv(monsters)
-    game::renderclient(monsters[i], false, monstertypes[monsters[i]->mtype].mdlname, monsters[i]->mtype==5, monstertypes[monsters[i]->mtype].mscale/10.0f);
+    renderclient(monsters[i], false, monstertypes[monsters[i]->mtype].mdlname, monsters[i]->mtype==5, monstertypes[monsters[i]->mtype].mscale/10.0f);
 }
 
-} /* namespace monster */
-} /* namespace cube */
+} // namespace game
+} // namespace cube
 

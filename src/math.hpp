@@ -1,6 +1,4 @@
-#ifndef __CUBE_MATH_HPP__
-#define __CUBE_MATH_HPP__
-
+#pragma once
 #include "tools.hpp"
 #include <cassert>
 #include <cmath>
@@ -8,10 +6,9 @@
 
 namespace cube {
 
-/* polymorphic constant values */
+// polymorphic constant values
 #define CONSTANT_TYPE(TYPE,VALUE,NUM)\
-static const struct TYPE\
-{\
+static const struct TYPE {\
   INLINE TYPE(){}\
   INLINE operator double(void) const { return NUM; }\
   INLINE operator float (void) const { return NUM; }\
@@ -29,7 +26,7 @@ CONSTANT_TYPE(onetype,one,1);
 CONSTANT_TYPE(twotype,two,2);
 #undef CONSTANT_TYPE
 
-/* make the code terser */
+// make the code terser
 #define op operator
 #define v2 vec2<T>
 #define v3 vec3<T>
@@ -46,7 +43,7 @@ CONSTANT_TYPE(twotype,two,2);
 #define TINLINE template <typename T> INLINE
 #define UINLINE template <typename U> INLINE
 
-/* all useful math functions */
+// all useful math functions
 INLINE int abs    (int x)   {return ::abs(x);}
 INLINE float sign (float x) {return x<0?-1.0f:1.0f;}
 INLINE float rcp  (float x) {return 1.0f/x;}
@@ -91,9 +88,8 @@ TINLINE T rad2deg (T x) {return x * T(5.72957795130823208768e1f);}
 TINLINE T sin2cos (T x) {return sqrt(max(T(zero),T(one)-x*x));}
 TINLINE T cos2sin (T x) {return sin2cos(x);}
 
-/* 2d vector */
-template<typename T> struct vec2
-{
+// 2d vector
+template<typename T> struct vec2 {
   T x, y;
   typedef T scalar;
   INLINE vec2(void) {}
@@ -148,9 +144,8 @@ TINLINE v2 select (bool s, v2arg t, v2arg f) {
   return v2(select(s,t.x,f.x), select(s,t.y,f.y));
 }
 
-/* 3d vector */
-template<typename T> struct vec3
-{
+// 3d vector
+template<typename T> struct vec3 {
   T x, y, z;
   typedef T scalar;
   INLINE vec3(void) {}
@@ -209,9 +204,8 @@ TINLINE v3 cross(v3arg a, v3arg b) {
   return v3(a.y*b.z-a.z*b.y, a.z*b.x-a.x*b.z, a.x*b.y-a.y*b.x);
 }
 
-/* 4d vector */
-template<typename T> struct vec4
-{
+// 4d vector
+template<typename T> struct vec4 {
   T x, y, z, w;
   typedef T scalar;
   INLINE vec4(void) {}
@@ -268,9 +262,8 @@ TINLINE v4 select (bool s, v4arg t, v4arg f) {
   return v4(select(s,t.x,f.x), select(s,t.y,f.y), select(s,t.z,f.z), select(s,t.w,f.w));
 }
 
-/* 3x3 matrix (linear transformation) */
-template<typename T> struct mat3x3
-{
+// 3x3 matrix (linear transformation)
+template<typename T> struct mat3x3 {
   vec3<T> vx,vy,vz;
   INLINE mat3x3(void) {}
   INLINE mat3x3(const mat3x3 &m) {vx = m.vx; vy = m.vy; vz = m.vz;}
@@ -310,9 +303,9 @@ template<typename T> struct mat3x3
   static INLINE mat3x3 rotate(v3arg _u, T r) {
     const v3 u = normalize(_u);
     const T s = sin(r), c = cos(r);
-    return mat3x3(u.x*u.x+(1-u.x*u.x)*c,u.x*u.y*(1-c)-u.z*s,  u.x*u.z*(1-c)+u.y*s,
-                  u.x*u.y*(1-c)+u.z*s,  u.y*u.y+(1-u.y*u.y)*c,u.y*u.z*(1-c)-u.x*s,
-                  u.x*u.z*(1-c)-u.y*s,  u.y*u.z*(1-c)+u.x*s,  u.z*u.z+(1-u.z*u.z)*c);
+    return mat3x3(u.x*u.x+(one-u.x*u.x)*c,u.x*u.y*(one-c)-u.z*s,  u.x*u.z*(one-c)+u.y*s,
+                  u.x*u.y*(one-c)+u.z*s,  u.y*u.y+(one-u.y*u.y)*c,u.y*u.z*(one-c)-u.x*s,
+                  u.x*u.z*(one-c)-u.y*s,  u.y*u.z*(one-c)+u.x*s,  u.z*u.z+(one-u.z*u.z)*c);
   }
 };
 
@@ -343,9 +336,8 @@ TINLINE m33 frame(v3arg N) {
   return m33(dx,dy,N);
 }
 
-/* 4x3 matrix (affine transformation) */
-template<typename T> struct mat4x3
-{
+// 4x3 matrix (affine transformation)
+template<typename T> struct mat4x3 {
   mat3x3<T> l;
   vec3<T> p;
   INLINE mat4x3(void) {}
@@ -388,9 +380,8 @@ TINLINE v3 xfmpoint (m43arg m, v3arg p) {return xfmpoint(m.l,p) + m.p;}
 TINLINE v3 xfmvector(m43arg m, v3arg v) {return xfmvector(m.l,v);}
 TINLINE v3 xfmnormal(m43arg m, v3arg n) {return xfmnormal(m.l,n);}
 
-/* 4x4 matrix (homogenous transformation) */
-template<typename T> struct mat4x4
-{
+// 4x4 matrix (homogenous transformation)
+template<typename T> struct mat4x4 {
   vec4<T> vx,vy,vz,vw;
   INLINE mat4x4(void) {}
   INLINE mat4x4(m44arg m) {vx=m.vx; vy=m.vy; vz=m.vz; vw=m.vw;}
@@ -477,7 +468,6 @@ TINLINE v4 op/ (v4arg v, m44arg m) {return v * m.inverse();}
 TINLINE m44 op/ (m44arg m, m44arg n) {return m * n.inverse();}
 TINLINE bool op== (m44arg m, m44arg n) {return (m.vx==n.x) && (m.vy==n.y) && (m.vz==n.z) && (m.vw==n.w);}
 TINLINE bool op!= (m44arg m, m44arg n) {return (m.vx!=n.x) || (m.vy!=n.y) || (m.vz!=n.z) || (m.vw!=n.w);}
-
 TINLINE m44 m44::inverse(void) const {
   m44 inv;
   inv.vx.x = vy.y*vz.z*vw.w - vy.y*vz.w*vw.z - vz.y*vy.z*vw.w
@@ -519,8 +509,7 @@ TINLINE m44 translate(m44arg m, v3arg v) {
   dst.vw = m.vx*v.x + m.vy*v.y + m.vz*v.z + m.vw;
   return dst;
 }
-TINLINE m44 lookat(v3arg eye, v3arg center, v3arg up)
-{
+TINLINE m44 lookat(v3arg eye, v3arg center, v3arg up) {
   const v3 f = normalize(center - eye);
   const v3 u = normalize(up);
   const v3 s = normalize(cross(f, u));
@@ -531,8 +520,7 @@ TINLINE m44 lookat(v3arg eye, v3arg center, v3arg up)
   dst.vx.z =-f.x; dst.vy.z =-f.y; dst.vz.z =-f.z;
   return translate(dst, -eye);
 }
-TINLINE m44 perspective(T fovy, T aspect, T znear, T zfar)
-{
+TINLINE m44 perspective(T fovy, T aspect, T znear, T zfar) {
   const T range = tan(deg2rad(fovy / T(two))) * znear;
   const T left = -range * aspect;
   const T right = range * aspect;
@@ -546,8 +534,7 @@ TINLINE m44 perspective(T fovy, T aspect, T znear, T zfar)
   dst.vw.z = -(T(two) * zfar * znear) / (zfar - znear);
   return dst;
 }
-TINLINE m44 rotate(m44arg m, T angle, v3arg v)
-{
+TINLINE m44 rotate(m44arg m, T angle, v3arg v) {
   m44 rot(zero), dst(zero);
   const T a = deg2rad(angle);
   const T c = cos(a);
@@ -569,8 +556,7 @@ TINLINE m44 rotate(m44arg m, T angle, v3arg v)
   dst.vw = m.vw;
   return dst;
 }
-TINLINE m44 ortho(T left, T right, T bottom, T top, T znear, T zfar)
-{
+TINLINE m44 ortho(T left, T right, T bottom, T top, T znear, T zfar) {
   m44 dst(one);
   dst.vx.x = T(two) / (right - left);
   dst.vy.y = T(two) / (top - bottom);
@@ -580,8 +566,7 @@ TINLINE m44 ortho(T left, T right, T bottom, T top, T znear, T zfar)
   dst.vw.z = - (zfar + znear) / (zfar - znear);
   return dst;
 }
-TINLINE m44 scale(m44arg m, v3arg v)
-{
+TINLINE m44 scale(m44arg m, v3arg v) {
   m44 dst;
   dst.vx = m.vx * v.x;
   dst.vy = m.vy * v.y;
@@ -589,8 +574,7 @@ TINLINE m44 scale(m44arg m, v3arg v)
   dst.vw = m.vw;
   return dst;
 }
-TINLINE v3 unproject(v3arg win, m44arg model, m44arg proj, const vec4<int> &viewport)
-{
+TINLINE v3 unproject(v3arg win, m44arg model, m44arg proj, const vec4<int> &viewport) {
   const m44 p = proj*model;
   const m44 final = p.inverse();
   v4 in(win.x, win.y, win.z, T(one));
@@ -601,9 +585,8 @@ TINLINE v3 unproject(v3arg win, m44arg model, m44arg proj, const vec4<int> &view
   return v3(out.x/out.w,out.y/out.w,out.z/out.w);
 }
 
-/* convenient variable size float vector */
-template <typename U, int n> struct vvec
-{
+// convenient variable size static vector
+template <typename U, int n> struct vvec {
   template <typename... T> INLINE vvec(T... args) { this->set(0,args...); }
   template <typename First, typename... Rest>
   INLINE void set(int index, First first, Rest... rest) {
@@ -616,7 +599,7 @@ template <typename U, int n> struct vvec
   U v[n];
 };
 
-/* commonly used types */
+// commonly used types
 typedef mat3x3<float> mat3x3f;
 typedef mat3x3<double> mat3x3d;
 typedef mat4x3<mat3x3f> mat4x3f;
@@ -653,8 +636,5 @@ template <int n> using vveci = vvec<int,n>;
 #undef m33arg
 #undef m43arg
 #undef m44arg
-
-} /* namespace cube */
-
-#endif /* __CUBE_MATH_HPP__ */
+} // namespace cube
 

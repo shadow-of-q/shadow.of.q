@@ -1,30 +1,25 @@
-#ifndef __CUBE_SOUND_HPP__
-#define __CUBE_SOUND_HPP__
-
+#pragma once
 #include <cstdlib>
-
+#include "tools.hpp"
 
 namespace cube {
-
-struct vec; // 3D vector
-
 namespace sound {
 
-/*! Init the sound module */
+// init the sound module
 void init(void);
-/*! Stop the sound module */
+// stop the sound module
 void clean(void);
-/*! Play sound n at given location */
-void play(int n, const vec *loc = NULL);
-/*! Play sound n and send message to the server */
+// play sound n at given location
+void play(int n, const vec3f *loc = NULL);
+// play sound n and send message to the server
 void playc(int n);
-/*! Update the overall volume */
+// update the overall volume
 void updatevol(void);
 
-} /* namespace sound */
-} /* namespace cube */
+} // namespace sound
+} // namespace cube
 
-/*! Hardcoded sounds, defined in sounds.cfg */
+// Hardcoded sounds, defined in sounds.cfg (XXX move to NS)
 enum
 {
   S_JUMP = 0, S_LAND, S_RIFLE, S_PUNCH1, S_SG, S_CG,
@@ -46,6 +41,4 @@ enum
   S_PIGR1, S_ICEBALL, S_SLIMEBALL,
   S_JUMPPAD,
 };
-
-#endif /* __CUBE_SOUND_HPP__ */
 

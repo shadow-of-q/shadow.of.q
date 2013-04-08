@@ -32,7 +32,7 @@ static void line(const char *sf, bool highlight)
 {
   cline cl;
   cl.cref = conlines.length()>100 ? conlines.pop().cref : newstringbuf("");
-  cl.outtime = lastmillis; // for how long to keep line on screen
+  cl.outtime = game::lastmillis(); // for how long to keep line on screen
   conlines.insert(0,cl);
   if (highlight) { // show line in a different colour, for chat etc.
     cl.cref[0] = '\f';
@@ -66,7 +66,7 @@ void render(void)
   char *refs[ndraw];
   loopv(conlines)
     if (conskip ? i>=conskip-1 || i>=conlines.length()-ndraw :
-        lastmillis-conlines[i].outtime<20000) {
+       game::lastmillis()-conlines[i].outtime<20000) {
       refs[nd++] = conlines[i].cref;
       if (nd==ndraw) break;
     }

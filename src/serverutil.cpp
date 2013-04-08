@@ -1,5 +1,4 @@
 // misc useful functions used by the server
-
 #include "cube.h"
 #include <enet/enet.h>
 
@@ -8,15 +7,13 @@
 namespace cube {
 namespace server {
 
-  void putint(uchar *&p, int n)
-  {
+  void putint(uchar *&p, int n) {
     if (n<128 && n>-127) { *p++ = n; }
     else if (n<0x8000 && n>=-0x8000) { *p++ = 0x80; *p++ = n; *p++ = n>>8;  }
     else { *p++ = 0x81; *p++ = n; *p++ = n>>8; *p++ = n>>16; *p++ = n>>24; };
   }
 
-  int getint(uchar *&p)
-  {
+  int getint(uchar *&p) {
     int c = *((char *)p);
     p++;
     if (c==-128) { int n = *p++; n |= *((char *)p)<<8; p++; return n;}
@@ -24,15 +21,13 @@ namespace server {
     else return c;
   }
 
-  void sendstring(const char *t, uchar *&p)
-  {
+  void sendstring(const char *t, uchar *&p) {
     while (*t) putint(p, *t++);
     putint(p, 0);
   }
 
   // size inclusive message token, 0 for variable or not-checked sizes
-  static const char msgsizesl[] =
-  {
+  static const char msgsizesl[] = {
     SV_INITS2C, 4, SV_INITC2S, 0, SV_POS, 12, SV_TEXT, 0, SV_SOUND, 2, SV_CDIS, 2,
     SV_EDITH, 7, SV_EDITT, 7, SV_EDITS, 6, SV_EDITD, 6, SV_EDITE, 6,
     SV_DIED, 2, SV_DAMAGE, 4, SV_SHOT, 8, SV_FRAGS, 2,
@@ -44,18 +39,16 @@ namespace server {
     -1
   };
 
-  char msgsizelookup(int msg)
-  {
+  char msgsizelookup(int msg) {
     for (const char *p = msgsizesl; *p>=0; p += 2) if (*p==msg) return p[1];
     return -1;
   }
 
-  string copyname;
-  int copysize;
-  uchar *copydata = NULL;
+  static string copyname;
+  static int copysize;
+  static uchar *copydata = NULL;
 
-  void sendmaps(int n, string mapname, int mapsize, uchar *mapdata)
-  {
+  void sendmaps(int n, string mapname, int mapsize, uchar *mapdata) {
     if (mapsize <= 0 || mapsize > 256*256) return;
     strcpy_s(copyname, mapname);
     copysize = mapsize;
@@ -64,8 +57,7 @@ namespace server {
     memcpy(copydata, mapdata, mapsize);
   }
 
-  ENetPacket *recvmap(int n)
-  {
+  ENetPacket *recvmap(int n) {
     if (!copydata) return NULL;
     ENetPacket *packet = enet_packet_create(NULL, MAXTRANS + copysize, ENET_PACKET_FLAG_RELIABLE);
     uchar *start = packet->data;
@@ -80,7 +72,7 @@ namespace server {
     return packet;
   }
 
-} /* namespace server */
+} // namespace server
 
 #ifdef STANDALONE
 void client::localservertoclient(uchar *buf, int len) {};
@@ -120,7 +112,7 @@ int main(int argc, char* argv[])
 }
 #endif
 
-} /* namespace cube */
+} // namespace cube
 
 #ifdef STANDALONE
 #include "clientgame.cpp"

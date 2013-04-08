@@ -22,8 +22,7 @@ struct Ident
 static int completesize = 0, completeidx = 0;
 
 static void itoa(char *s, int i) { sprintf_s(s)("%d", i); }
-static char *exchangestr(char *o, const char *n)
-{
+static char *exchangestr(char *o, const char *n) {
   gp()->deallocstr(o);
   return newstring(n);
 }
@@ -31,8 +30,7 @@ static char *exchangestr(char *o, const char *n)
 // contains ALL vars/commands/aliases
 static hashtable<Ident> *idents = NULL;
 
-void alias(const char *name, const char *action)
-{
+void alias(const char *name, const char *action) {
   Ident *b = idents->access(name);
   if (!b) {
     name = newstring(name);
@@ -45,12 +43,10 @@ void alias(const char *name, const char *action)
       console::out("cannot redefine builtin %s with an alias", name);
   }
 }
-
 COMMAND(alias, ARG_2STR);
 
 int variable(const char *name, int min, int cur, int max,
-             int *storage, void (*fun)(), bool persist)
-{
+             int *storage, void (*fun)(), bool persist) {
   if (!idents) idents = new hashtable<Ident>;
   const Ident v = {ID_VAR, name, min, max, storage, fun, 0, 0, persist};
   idents->access(name, &v);
@@ -61,14 +57,12 @@ void setvar(const char *name, int i) { *idents->access(name)->storage = i; }
 int getvar(const char *name) { return *idents->access(name)->storage; }
 bool identexists(const char *name) { return idents->access(name)!=NULL; }
 
-char *getalias(const char *name)
-{
+char *getalias(const char *name) {
   const Ident *i = idents->access(name);
   return i && i->type==ID_ALIAS ? i->action : NULL;
 }
 
-bool addcommand(const char *name, void (*fun)(), int narg)
-{
+bool addcommand(const char *name, void (*fun)(), int narg) {
   if (!idents) idents = new hashtable<Ident>;
   const Ident c = { ID_COMMAND, name, 0, 0, 0, fun, narg, 0, false };
   idents->access(name, &c);
@@ -76,8 +70,7 @@ bool addcommand(const char *name, void (*fun)(), int narg)
 }
 
 // parse any nested set of () or []
-static char *parseexp(char *&p, int right) 
-{
+static char *parseexp(char *&p, int right) {
   int left = *p++;
   const char *word = p;
   for (int brak = 1; brak; ) {
@@ -97,8 +90,7 @@ static char *parseexp(char *&p, int right)
 }
 
 // parse single argument, including expressions
-static char *parseword(char *&p)
-{
+static char *parseword(char *&p) {
   p += strspn(p, " \t\r");
   if (p[0]=='/' && p[1]=='/') p += strcspn(p, "\n\0");
   if (*p=='\"') {
@@ -118,8 +110,7 @@ static char *parseword(char *&p)
 }
 
 // find value of ident referenced with $ in exp
-static char *lookup(char *n)
-{
+static char *lookup(char *n) {
   Ident *id = idents->access(n+1);
   if (id) switch (id->type) {
     case ID_VAR: string t; itoa(t, *(id->storage)); return exchangestr(n, t);
@@ -129,8 +120,7 @@ static char *lookup(char *n)
   return n;
 }
 
-int execute(const char *pp, bool isdown)
-{
+int execute(const char *pp, bool isdown) {
   char *p = (char*)pp;
   const int MAXWORDS = 25; // limit, remove
   char *w[MAXWORDS];
@@ -256,8 +246,7 @@ int execute(const char *pp, bool isdown)
 
 void resetcomplete(void) { completesize = 0; }
 
-void complete(char *s)
-{
+void complete(char *s) {
   if (*s!='/') {
     string t;
     strcpy_s(t, s);
@@ -276,8 +265,7 @@ void complete(char *s)
   if (completeidx>=idx) completeidx = 0;
 }
 
-bool execfile(const char *cfgfile)
-{
+bool execfile(const char *cfgfile) {
   string s;
   strcpy_s(s, cfgfile);
   char *buf = loadfile(path(s), NULL);
@@ -287,14 +275,12 @@ bool execfile(const char *cfgfile)
   return true;
 }
 
-void exec(const char *cfgfile)
-{
+void exec(const char *cfgfile) {
   if (!execfile(cfgfile))
     console::out("could not read \"%s\"", cfgfile);
 }
 
-void writecfg(void)
-{
+void writecfg(void) {
   FILE *f = fopen("config.cfg", "w");
   if (!f) return;
   fprintf(f, "// automatically written on exit, do not modify\n"
@@ -329,22 +315,19 @@ static void onrelease(bool on, char *body) { if (!on) execute(body); }
 
 static void concat(char *s) { alias("s", s); }
 
-static void concatword(char *s)
-{
+static void concatword(char *s) {
   for (char *a = s, *b = s; (*a = *b) != 0; b++) if (*a!=' ') a++;
   concat(s);
 }
 
-static int listlen(char *a)
-{
+static int listlen(char *a) {
   if (!*a) return 0;
   int n = 0;
   while (*a) if (*a++==' ') n++;
   return n+1;
 }
 
-static void at(char *s, char *pos)
-{
+static void at(char *s, char *pos) {
   int n = atoi(pos);
   loopi(n) {
     s += strcspn(s, " \0");
@@ -373,7 +356,7 @@ static int equal(int a, int b) { return (int)(a==b); } COMMANDN(=, equal, ARG_2E
 static int lt(int a, int b)    { return (int)(a<b); }  COMMANDN(<, lt, ARG_2EXP);
 static int gt(int a, int b)    { return (int)(a>b); }  COMMANDN(>, gt, ARG_2EXP);
 static int rndn(int a)         { return a>0 ? rnd(a) : 0; }  COMMANDN(rnd, rndn, ARG_1EXP);
-static int explastmillis()     { return lastmillis; }  COMMANDN(millis, explastmillis, ARG_1EXP);
+static int explastmillis(void) { return game::lastmillis(); }  COMMANDN(millis, explastmillis, ARG_1EXP);
 static int strcmpa(char *a, char *b) { return strcmp(a,b)==0; }  COMMANDN(strcmp, strcmpa, ARG_2EST);
 
 } // namespace cmd

@@ -7,8 +7,7 @@ namespace server {
 
 enum { ST_EMPTY, ST_LOCAL, ST_TCPIP };
 
-struct drawarray // server side version of "dynent" type
-{
+struct drawarray { // server side version of "dynent" type
   int type;
   ENetPeer *peer;
   string hostname;
@@ -21,8 +20,7 @@ static vector<drawarray> clients;
 static int maxclients = 8;
 static string smapname;
 
-struct server_entity // server side version of "entity" type
-{
+struct server_entity { // server side version of "entity" type
   bool spawned;
   int spawnsecs;
 };
@@ -31,8 +29,7 @@ static vector<server_entity> sents;
 static bool notgotitems = true; // true when map has changed and waiting for clients to send item
 static int mode = 0;
 
-void restoreserverstate(vector<entity> &ents)   // hack: called from savegame code, only works in SP
-{
+void restoreserverstate(vector<game::entity> &ents) { // hack: called from savegame code, only works in SP
   loopv(sents) {
     sents[i].spawned = ents[i].spawned;
     sents[i].spawnsecs = 0;
@@ -52,8 +49,7 @@ void process(ENetPacket *packet, int sender);
 void multicast(ENetPacket *packet, int sender);
 void disconnect_client(int n, const char *reason);
 
-void send(int n, ENetPacket *packet)
-{
+void send(int n, ENetPacket *packet) {
   if (!packet) return;
   switch (clients[n].type) {
     case ST_TCPIP:
@@ -66,8 +62,7 @@ void send(int n, ENetPacket *packet)
   }
 }
 
-void send2(bool rel, int cn, int a, int b)
-{
+void send2(bool rel, int cn, int a, int b) {
   ENetPacket *packet = enet_packet_create(NULL, 32, rel ? ENET_PACKET_FLAG_RELIABLE : 0);
   uchar *start = packet->data;
   uchar *p = start+2;
@@ -80,8 +75,7 @@ void send2(bool rel, int cn, int a, int b)
   if (packet->referenceCount==0) enet_packet_destroy(packet);
 };
 
-void sendservmsg(const char *msg)
-{
+void sendservmsg(const char *msg) {
   ENetPacket *packet = enet_packet_create(NULL, _MAXDEFSTR+10, ENET_PACKET_FLAG_RELIABLE);
   uchar *start = packet->data;
   uchar *p = start+2;
@@ -91,10 +85,9 @@ void sendservmsg(const char *msg)
   enet_packet_resize(packet, p-start);
   multicast(packet, -1);
   if (packet->referenceCount==0) enet_packet_destroy(packet);
-};
+}
 
-void disconnect_client(int n, const char *reason)
-{
+void disconnect_client(int n, const char *reason) {
   printf("client::disconnecting client (%s) [%s]\n", clients[n].hostname, reason);
   enet_peer_disconnect(clients[n].peer);
   clients[n].type = ST_EMPTY;
@@ -103,8 +96,8 @@ void disconnect_client(int n, const char *reason)
 
 void resetitems() { sents.setsize(0); notgotitems = true; };
 
-void pickup(uint i, int sec, int sender)         // server side item pickup, acknowledge first client that gets it
-{
+// server side item pickup, acknowledge first client that gets it
+void pickup(uint i, int sec, int sender) {
   if (i>=(uint)sents.length()) return;
   if (sents[i].spawned) {
     sents[i].spawned = false;
@@ -115,8 +108,7 @@ void pickup(uint i, int sec, int sender)         // server side item pickup, ack
 
 void resetvotes() { loopv(clients) clients[i].mapvote[0] = 0; }
 
-bool vote(char *map, int reqmode, int sender)
-{
+bool vote(char *map, int reqmode, int sender) {
   strcpy_s(clients[sender].mapvote, map);
   clients[sender].modevote = reqmode;
   int yes = 0, no = 0; 
@@ -137,8 +129,7 @@ bool vote(char *map, int reqmode, int sender)
 // server side processing of updates: does very little and most state is
 // tracked client only could be extended to move more gameplay to server (at
 // expense of lag)
-void process(ENetPacket * packet, int sender)   // sender may be -1
-{
+void process(ENetPacket * packet, int sender) { // sender may be -1
   const ushort len = *(ushort*) packet->data;
   if (ENET_NET_TO_HOST_16(len)!=packet->dataLength) {
     disconnect_client(sender, "packet length");
@@ -160,8 +151,7 @@ void process(ENetPacket * packet, int sender)   // sender may be -1
       sgetstr();
       getint(p);
     break;
-    case SV_MAPCHANGE:
-    {
+    case SV_MAPCHANGE: {
       sgetstr();
       int reqmode = getint(p);
       if (reqmode<0) reqmode = 0;
@@ -176,8 +166,7 @@ void process(ENetPacket * packet, int sender)   // sender may be -1
       sender = -1;
     }
     break;
-    case SV_ITEMLIST:
-    {
+    case SV_ITEMLIST: {
       int n;
       while ((n = getint(p))!=-1) if (notgotitems) {
         server_entity se = { false, 0 };
@@ -187,8 +176,7 @@ void process(ENetPacket * packet, int sender)   // sender may be -1
       notgotitems = false;
     }
     break;
-    case SV_ITEMPICKUP:
-    {
+    case SV_ITEMPICKUP: {
       const int n = getint(p);
       pickup(n, getint(p), sender);
     }
@@ -196,8 +184,7 @@ void process(ENetPacket * packet, int sender)   // sender may be -1
     case SV_PING:
       send2(false, cn, SV_PONG, getint(p));
     break;
-    case SV_POS:
-    {
+    case SV_POS: {
       cn = getint(p);
       if (cn<0 || cn>=clients.length() || clients[cn].type==ST_EMPTY) {
         disconnect_client(sender, "client num");
@@ -208,8 +195,7 @@ void process(ENetPacket * packet, int sender)   // sender may be -1
       loopi(size-2) getint(p);
     }
     break;
-    case SV_SENDMAP:
-    {
+    case SV_SENDMAP: {
       sgetstr();
       int mapsize = getint(p);
       sendmaps(sender, text, mapsize, p);
@@ -221,8 +207,7 @@ void process(ENetPacket * packet, int sender)   // sender may be -1
     case SV_EXT:   // allows for new features that require no server updates 
       for (int n = getint(p); n; n--) getint(p);
     break;
-    default:
-    {
+    default: {
       const int size = msgsizelookup(type);
       if (size==-1) { disconnect_client(sender, "tag type"); return; };
       loopi(size-1) getint(p);
@@ -233,8 +218,7 @@ void process(ENetPacket * packet, int sender)   // sender may be -1
   multicast(packet, sender);
 }
 
-void send_welcome(int n)
-{
+void send_welcome(int n) {
   ENetPacket * packet = enet_packet_create (NULL, MAXTRANS, ENET_PACKET_FLAG_RELIABLE);
   uchar *start = packet->data;
   uchar *p = start+2;
@@ -257,28 +241,24 @@ void send_welcome(int n)
   send(n, packet);
 }
 
-void multicast(ENetPacket *packet, int sender)
-{
+void multicast(ENetPacket *packet, int sender) {
   loopv(clients) {
     if (i==sender) continue;
     send(i, packet);
   }
 }
 
-void localclienttoserver(ENetPacket *packet)
-{
+void localclienttoserver(ENetPacket *packet) {
   process(packet, 0);
   if (!packet->referenceCount) enet_packet_destroy (packet);
 }
 
-drawarray &addclient()
-{
+drawarray &addclient(void) {
   loopv(clients) if (clients[i].type==ST_EMPTY) return clients[i];
   return clients.add();
 }
 
-void checkintermission()
-{
+void checkintermission(void) {
   if (!minremain) {
     interm = lastsec+10;
     mapend = lastsec+1000;
@@ -288,8 +268,7 @@ void checkintermission()
 
 void startintermission() { minremain = 0; checkintermission(); };
 
-void resetserverifempty()
-{
+void resetserverifempty(void) {
   loopv(clients) if (clients[i].type!=ST_EMPTY) return;
   clients.setsize(0);
   smapname[0] = 0;
@@ -305,10 +284,9 @@ void resetserverifempty()
 int nonlocalclients = 0;
 int lastconnect = 0;
 
-void slice(int seconds, unsigned int timeout)   // main server update, called from cube main loop in sp, or dedicated server loop
-{
-  loopv(sents)        // spawn entities when timer reached
-  {
+// main server update, called from cube main loop in sp, or dedicated server loop
+void slice(int seconds, unsigned int timeout) {
+  loopv(sents) { // spawn entities when timer reached
     if (sents[i].spawnsecs && (sents[i].spawnsecs -= seconds-lastsec)<=0) {
       sents[i].spawnsecs = 0;
       sents[i].spawned = true;
@@ -347,8 +325,7 @@ void slice(int seconds, unsigned int timeout)   // main server update, called fr
   ENetEvent event;
   if (enet_host_service(serverhost, &event, timeout) > 0) {
     switch (event.type) {
-      case ENET_EVENT_TYPE_CONNECT:
-      {
+      case ENET_EVENT_TYPE_CONNECT: {
         drawarray &c = addclient();
         c.type = ST_TCPIP;
         c.peer = event.peer;
@@ -383,21 +360,18 @@ void slice(int seconds, unsigned int timeout)   // main server update, called fr
 
 void cleanup(void) { if (serverhost) enet_host_destroy(serverhost); }
 
-void localdisconnect()
-{
+void localdisconnect(void) {
   loopv(clients) if (clients[i].type==ST_LOCAL) clients[i].type = ST_EMPTY;
 }
 
-void localconnect()
-{
+void localconnect(void) {
   drawarray &c = addclient();
   c.type = ST_LOCAL;
   strcpy_s(c.hostname, "local");
   send_welcome(&c-&clients[0]); 
 }
 
-void init(bool dedicated, int uprate, const char *sdesc, const char *ip, const char *master, const char *passwd, int maxcl)
-{
+void init(bool dedicated, int uprate, const char *sdesc, const char *ip, const char *master, const char *passwd, int maxcl) {
   serverpassword = passwd;
   maxclients = maxcl;
   servermsinit(master ? master : "wouter.fov120.com/cube/masterserver/", sdesc, dedicated);
@@ -423,6 +397,6 @@ void init(bool dedicated, int uprate, const char *sdesc, const char *ip, const c
   }
 }
 
-} /* namespace server */
-} /* namespace cube */
+} // namespace server
+} // namespace cube
 

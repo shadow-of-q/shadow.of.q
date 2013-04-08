@@ -4,8 +4,7 @@
 namespace cube {
 namespace rr {
 
-static const short char_coords[96][4] = 
-{
+static const short char_coords[96][4] = {
   {0,0,25,64},        //!
   {25,0,54,64},       //"
   {54,0,107,64},      //#
@@ -106,8 +105,7 @@ IF_EMSCRIPTEN(typedef ushort indextype);
 IF_NOT_EMSCRIPTEN(typedef uint indextype);
 static const indextype twotriangles[] = {0,1,2,0,2,3};
 
-int text_width(const char *str)
-{
+int text_width(const char *str) {
   int x = 0;
   for (int i = 0; str[i] != 0; i++) {
     int c = str[i];
@@ -122,24 +120,22 @@ int text_width(const char *str)
   return x;
 }
 
-void draw_textf(const char *fstr, int left, int top, int gl_num, ...)
-{
+void draw_textf(const char *fstr, int left, int top, int gl_num, ...) {
   sprintf_sdlv(str, gl_num, fstr);
   draw_text(str, left, top, gl_num);
 }
 
-void draw_text(const char *str, int left, int top, int gl_num)
-{
+void draw_text(const char *str, int left, int top, int gl_num) {
   OGL(BlendFunc, GL_ONE, GL_ONE);
   ogl::bindtexture(GL_TEXTURE_2D, gl_num);
   OGL(VertexAttrib3f,ogl::COL,1.f,1.f,1.f);
 
-  /* use a triangle mesh to display the text */
+  // use a triangle mesh to display the text
   const size_t len = strlen(str);
   indextype *indices = (indextype*) alloca(6*len*sizeof(int));
   vvecf<4> *verts = (vvecf<4>*) alloca(4*len*sizeof(vvecf<4>));
 
-  /* traverse the string and build the mesh */
+  // traverse the string and build the mesh
   int index = 0, vert = 0, x = left, y = top;
   for (int i = 0; str[i] != 0; ++i) {
     int c = str[i];
@@ -181,8 +177,7 @@ static void drawenvboxface(float s0, float t0, int x0, int y0, int z0,
                            float s1, float t1, int x1, int y1, int z1,
                            float s2, float t2, int x2, int y2, int z2,
                            float s3, float t3, int x3, int y3, int z3,
-                           int texture)
-{
+                           int texture) {
   vvecf<5> verts[4];
   verts[0] = vvecf<5>(s3, t3, float(x3), float(y3), float(z3));
   verts[1] = vvecf<5>(s2, t2, float(x2), float(y2), float(z2));
@@ -198,8 +193,7 @@ static void drawenvboxface(float s0, float t0, int x0, int y0, int z0,
   ogl::xtraverts += 4;
 }
 
-void draw_envbox(int t, int w)
-{
+void draw_envbox(int t, int w) {
   OGL(DepthMask, GL_FALSE);
   ogl::bindshader(ogl::DIFFUSETEX);
   ogl::enableattribarrayv(ogl::POS0, ogl::TEX);
@@ -231,6 +225,6 @@ void draw_envbox(int t, int w)
   OGL(DepthMask, GL_TRUE);
 }
 
-} /* namespace rr */
-} /* namespace cube */
+} // namespace rr
+} // namespace cube
 

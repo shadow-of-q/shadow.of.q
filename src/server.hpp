@@ -1,5 +1,5 @@
-#ifndef __CUBE_SERVER_HPP__
-#define __CUBE_SERVER_HPP__
+#pragma once
+#include "entities.hpp"
 
 typedef struct _ENetPacket ENetPacket;
 
@@ -16,7 +16,7 @@ void putint(uchar *&p, int n);
 int getint(uchar *&p);
 void sendstring(const char *t, uchar *&p);
 void startintermission(void);
-void restoreserverstate(vector<entity> &ents);
+void restoreserverstate(vector<game::entity> &ents);
 uchar *retrieveservers(uchar *buf, int buflen);
 char msgsizelookup(int msg);
 void serverms(int mode, int numplayers, int minremain, char *smapname, int seconds, bool isfull);
@@ -24,15 +24,13 @@ void servermsinit(const char *master, const char *sdesc, bool listen);
 void sendmaps(int n, string mapname, int mapsize, uchar *mapdata);
 ENetPacket *recvmap(int n);
 
-} /* namespace server */
-} /* namespace cube */
+} // namespace server
+} // namespace cube
 
 #define sgetstr() do { \
 char *t = text; \
 do { \
   *t = server::getint(p); \
 } while(*t++); \
-} while (0)  // used by networking
-
-#endif /* __CUBE_SERVER_HPP__ */
+} while (0) // used by networking
 

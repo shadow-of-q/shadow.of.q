@@ -1,6 +1,4 @@
-#ifndef __CUBE_BROWSER_HPP__
-#define __CUBE_BROWSER_HPP__
-
+#pragma once
 namespace cube {
 namespace browser {
 
@@ -9,8 +7,6 @@ namespace browser {
   void refreshservers(void);
   void writeservercfg(void);
 
-} /* namespace browser */
-} /* namespace cube */
-
-#endif /* __CUBE_BROWSER_HPP__ */
+} // namespace browser
+} // namespace cube
 

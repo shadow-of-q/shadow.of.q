@@ -1,10 +1,10 @@
-#ifndef __CUBE_MONSTER_HPP__
-#define __CUBE_MONSTER_HPP__
+#pragma once
+#include "entities.hpp"
 
 namespace cube {
-namespace monster {
+namespace game {
 
-enum { M_NONE, M_SEARCH, M_HOME, M_ATTACKING, M_PAIN, M_SLEEP, M_AIMING };
+enum {M_NONE, M_SEARCH, M_HOME, M_ATTACKING, M_PAIN, M_SLEEP, M_AIMING};
 void monsterclear(void);
 void restoremonsterstate(void);
 void monsterthink(void);
@@ -13,8 +13,6 @@ dvector &getmonsters(void);
 void monsterpain(dynent *m, int damage, dynent *d);
 void endsp(bool allkilled);
 
-} /* namespace monster */
-} /* namespace cube */
-
-#endif /* __CUBE_MONSTER_HPP__ */
+} // namespace game
+} // namespace cube
 

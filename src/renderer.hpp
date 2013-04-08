@@ -1,6 +1,5 @@
-#ifndef __CUBE_RENDERER_HPP__
-#define __CUBE_RENDERER_HPP__
-
+#pragma once
+#include "entities.hpp"
 #include "math.hpp"
 
 namespace cube {
@@ -27,7 +26,7 @@ void line(int x1, int y1, float z1, int x2, int y2, float z2);
 void box(const block &b, float z1, float z2, float z3, float z4);
 void dot(int x, int y, float z);
 void linestyle(float width, int r, int g, int b);
-void newsphere(vec &o, float max, int type);
+void newsphere(vec3f &o, float max, int type);
 void renderspheres(int time);
 void drawhud(int w, int h, int curfps, int nquads, int curvert, bool underwater);
 void readdepth(int w, int h);
@@ -36,17 +35,15 @@ void damageblend(int n);
 void renderents(void);
 
 // renderparticles
-void setorient(const vec &r, const vec &u);
-void particle_splash(int type, int num, int fade, const vec &p);
-void particle_trail(int type, int fade, vec &from, vec &to);
+void setorient(const vec3f &r, const vec3f &u);
+void particle_splash(int type, int num, int fade, const vec3f &p);
+void particle_trail(int type, int fade, vec3f &from, vec3f &to);
 void render_particles(int time);
 
 // rendermd2
 void rendermodel(const char *mdl, int frame, int range, int tex, float rad, float x, float y, float z, float yaw, float pitch, bool teammate, float scale, float speed, int snap = 0, int basetime = 0);
-mapmodelinfo &getmminfo(int i);
+game::mapmodelinfo &getmminfo(int i);
 
 } // namespace rr
 } // namespace cube
-
-#endif // __CUBE_RENDERER_HPP__
 
