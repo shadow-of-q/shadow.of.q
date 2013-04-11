@@ -111,9 +111,9 @@ void render_particles(int time) {
     } else {
       if (pt->gr) p->o.z -= ((game::lastmillis()-p->millis)/3.0f)*game::curtime()/(pt->gr*10000);
       vec3f a = p->d;
-      vmul(a,time);
-      vdiv(a,20000.0f);
-      vadd(p->o, a);
+      a *= float(time);
+      a /= 20000.f;
+      p->o += a;
       pp = &p->next;
     }
   }
@@ -156,17 +156,18 @@ void particle_splash(int type, int num, int fade, const vec3f &p) {
       y = rnd(radius*2)-radius;
       z = rnd(radius*2)-radius;
     } while (x*x+y*y+z*z>radius*radius);
-    vec3f d = vec3f(float(x), float(y), float(z));
+    const vec3f d = vec3f(float(x), float(y), float(z));
     newparticle(p, d, rnd(fade*3), type);
   }
 }
 
-void particle_trail(int type, int fade, vec3f &s, vec3f &e) {
-  vdist(d, v, s, e);
-  vdiv(v, d*2+0.1f);
+void particle_trail(int type, int fade, const vec3f &s, const vec3f &e) {
+  const vec3f v = s-e;
+  const float d = length(v);
+  const vec3f nv = v/(d*2.f+0.1f);
   vec3f p = s;
   loopi(int(d)*2) {
-    vadd(p, v);
+    p += nv;
     const cube::vec3f d(float(rnd(12)-5), float(rnd(11)-5), float(rnd(11)-5));
     newparticle(p, d, rnd(fade)+fade, type);
   }

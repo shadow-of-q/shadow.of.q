@@ -131,24 +131,24 @@ namespace physics {
     const float friction = water ? 20.0f : (pl->onfloor || floating ? 6.0f : 30.0f);
     const float fpsfric = friction/curtime*20.0f;
 
-    vmul(pl->vel, fpsfric-1);   // slowly apply friction and direction to velocity, gives a smooth movement
-    vadd(pl->vel, d);
-    vdiv(pl->vel, fpsfric);
+    pl->vel *= fpsfric-1; // slowly apply friction and direction to velocity, gives a smooth movement
+    pl->vel += d;
+    pl->vel /= fpsfric;
     d = pl->vel;
-    vmul(d, speed);             // d is now frametime based velocity vector
+    d *= speed; // d is now frametime based velocity vector
 
     pl->blocked = false;
     pl->moving = true;
 
-    if (floating) {                // just apply velocity
-      vadd(pl->o, d);
+    if (floating) { // just apply velocity
+      pl->o += d;
       if (pl->jumpnext) { pl->jumpnext = false; pl->vel.z = 2;    }
-    } else {                        // apply velocity with collision
+    } else { // apply velocity with collision
       if (pl->onfloor || water) {
         if (pl->jumpnext) {
           pl->jumpnext = false;
-          pl->vel.z = 1.7f;       // physics impulse upwards
-          if (water) { pl->vel.x /= 8; pl->vel.y /= 8; };      // dampen velocity change even harder, gives correct water feel
+          pl->vel.z = 1.7f; // physics impulse upwards
+          if (water) { pl->vel.x /= 8; pl->vel.y /= 8; }; // dampen velocity change even harder, gives correct water feel
           if (local) sound::playc(S_JUMP);
           else if (pl->monsterstate) sound::play(S_JUMP, &pl->o);
         } else if (pl->timeinair>800)  // if we land after long time must have been a high jump, make thud sound

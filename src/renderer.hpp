@@ -37,7 +37,7 @@ void renderents(void);
 // renderparticles
 void setorient(const vec3f &r, const vec3f &u);
 void particle_splash(int type, int num, int fade, const vec3f &p);
-void particle_trail(int type, int fade, vec3f &from, vec3f &to);
+void particle_trail(int type, int fade, const vec3f &from, const vec3f &to);
 void render_particles(int time);
 
 // rendermd2

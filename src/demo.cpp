@@ -247,23 +247,13 @@ static void start(void) {
 VAR(demodelaymsec, 0, 120, 500);
 
 // spline interpolation
-static void catmulrom(vec3f &z, vec3f &a, vec3f &b, vec3f &c, float s, vec3f &dest) {
-  vec3f t1 = b, t2 = c;
-  t1 -= z;
-  t1 *= 0.5f;
-  t2 -= a;
-  t2 *= 0.5f;
-
+static void catmulrom(const vec3f &z, const vec3f &a, const vec3f &b, const vec3f &c, float s, vec3f &dest) {
   const float s2 = s*s;
   const float s3 = s*s2;
-
-  dest = a;
-  vec3f t = b;
-
-  dest *= 2.f*s3 - 3.f*s2 + 1.f;
-  t    *= -2.f*s3 + 3.f*s2;     dest += t;
-  t1   *= s3 - 2.f*s2 + s; dest += t1;
-  t2   *= s3 -   s2;     dest += t2;
+  const vec3f t  = (-2.f*s3 + 3.f*s2)*b;
+  const vec3f t1 = (s3-2.f*s2+s)*0.5f*(b-z);
+  const vec3f t2 = (s3-s2)*0.5f*(c-a);
+  dest = (2.f*s3 - 3.f*s2 + 1.f)*a + t + t1 + t2;
 }
 
 static void fixwrap(game::dynent *a, game::dynent *b) {
@@ -337,10 +327,10 @@ void playbackstep(void) {
         fixwrap(a, game::player1);
         fixwrap(c, game::player1);
         fixwrap(z, game::player1);
-        vdist(dist, v, z->o, c->o);
-        if (dist<16) { // if teleport or spawn, dont't interpolate
+        const float dist = distance(z->o,c->o);
+        if (dist<16.f) { // if teleport or spawn, dont't interpolate
           catmulrom(z->o, a->o, b->o, c->o, bf, game::player1->o);
-          catmulrom(*(vec3f *)&z->yaw, *(vec3f *)&a->yaw, *(vec3f *)&b->yaw, *(vec3f *)&c->yaw, bf, *(vec3f *)&game::player1->yaw);
+          catmulrom(*(vec3f*)&z->yaw, *(vec3f*)&a->yaw, *(vec3f*)&b->yaw, *(vec3f*)&c->yaw, bf, *(vec3f *)&game::player1->yaw);
         }
         game::fixplayer1range();
       }

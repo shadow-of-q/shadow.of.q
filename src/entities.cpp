@@ -170,7 +170,7 @@ void pickup(int n, game::dynent *d) {
       lastjumppad = lastmillis();
       vec3f v((int)(char)ents[n].attr3/10.0f, (int)(char)ents[n].attr2/10.0f, ents[n].attr1/10.0f);
       player1->vel.z = 0;
-      vadd(player1->vel, v);
+      player1->vel += v;
       sound::playc(S_JUMPPAD);
     }
     break;
@@ -187,7 +187,7 @@ void checkitems(void) {
     if (!ents[i].spawned && e.type!=TELEPORT && e.type!=JUMPPAD)
       continue;
     const vec3f v(float(e.x), float(e.y), player1->eyeheight);
-    vdist(dist, t, player1->o, v);
+    const float dist = distance(player1->o, v);
     if (dist<(e.type==TELEPORT ? 4 : 2.5))
       pickup(i, player1);
   }

@@ -141,7 +141,7 @@ void monsteraction(dynent *m) {
     if (m->targetyaw>m->yaw) m->yaw = m->targetyaw;
   }
 
-  vdist(disttoenemy, vectoenemy, m->o, m->enemy->o);
+  const float disttoenemy = distance(m->o, m->enemy->o);
   m->pitch = atan2(m->enemy->o.z-m->o.z, disttoenemy)*180/PI;
 
   if (m->blocked) { // special case: if we run into scenery
@@ -261,7 +261,7 @@ void monsterthink(void) {
       }
     } else {
       v.z += monsters[i]->eyeheight;
-      vdist(dist, t, monsters[i]->o, v);
+      const float dist = distance(monsters[i]->o, v);
       v.z -= monsters[i]->eyeheight;
       if (dist<4) game::teleport((int)(&e-&ents[0]), monsters[i]);
     }

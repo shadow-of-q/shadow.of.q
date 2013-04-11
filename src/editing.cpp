@@ -10,6 +10,13 @@ bool editmode = false;
 namespace edit {
 
 VAR(editing,0,0,1);
+static block sel =
+{
+  cmd::variable("selx",  0, 0, 4096, &sel.x,  NULL, false),
+  cmd::variable("sely",  0, 0, 4096, &sel.y,  NULL, false),
+  cmd::variable("selxs", 0, 0, 4096, &sel.xs, NULL, false),
+  cmd::variable("selys", 0, 0, 4096, &sel.ys, NULL, false),
+};
 
 void toggleedit(void)
 {

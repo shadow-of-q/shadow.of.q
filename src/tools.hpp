@@ -350,21 +350,8 @@ INLINE void NAME##v(First first, Rest... rest) {\
 #define ARRAY_ELEM_N(X) (sizeof(X) / sizeof(X[0]))
 
 // simplistic vector ops XXX remove
-#define vmul(u,f)    { (u).x *= (f); (u).y *= (f); (u).z *= (f); }
-#define vdiv(u,f)    { (u).x /= (f); (u).y /= (f); (u).z /= (f); }
-#define vadd(u,v)    { (u).x += (v).x; (u).y += (v).y; (u).z += (v).z; };
-#define vsub(u,v)    { (u).x -= (v).x; (u).y -= (v).y; (u).z -= (v).z; };
-#define vdist(d,v,e,s) vec3f v = s; vsub(v,e); float d = (float)sqrt(dot(v,v));
+#define vdist(d,v,e,s) vec3f v = s; v -=e; float d = (float)sqrt(dot(v,v));
 #define vreject(v,u,max) ((v).x>(u).x+(max) || (v).x<(u).x-(max) || (v).y>(u).y+(max) || (v).y<(u).y-(max))
-#define vlinterp(v,f,u,g) { (v).x = (v).x*f+(u).x*g; (v).y = (v).y*f+(u).y*g; (v).z = (v).z*f+(u).z*g; }
-#if 0
-  // XXX REMOVE
-  struct vec3f {
-    INLINE vec(void) {}
-    INLINE vec(float x, float y, float z) : x(x),y(y),z(z) {}
-    float x, y, z;
-  };
-#endif
 
   // vertex array format
   struct vertex { float u, v, x, y, z; uchar r, g, b, a; };

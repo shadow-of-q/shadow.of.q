@@ -57,7 +57,7 @@ void createrays(vec3f &from, vec3f &to)             // create random spread of r
   loopi(SGRAYS) {
     vec3f r(RNDD, RNDD, RNDD);
     sg[i] = to;
-    vadd(sg[i], r);
+    sg[i] += r;
   }
 #undef RNDD
 }
@@ -66,8 +66,8 @@ bool intersect(dynent *d, vec3f &from, const vec3f &to)   // if lineseg hits ent
 {
   vec3f v = to, w = d->o;
   const vec3f *p;
-  vsub(v, from);
-  vsub(w, from);
+  v -= from;
+  w -= from;
   float c1 = dot(w, v);
 
   if (c1<=0)
@@ -76,8 +76,8 @@ bool intersect(dynent *d, vec3f &from, const vec3f &to)   // if lineseg hits ent
     float c2 = dot(v, v);
     if (c2<=c1) p = &to;
     else {
-      float f = c1/c2; vmul(v, f);
-      vadd(v, from);
+      float f = c1/c2; v *= f;
+      v += from;
       p = &v;
     }
   }
@@ -131,8 +131,8 @@ void hit(int target, int damage, dynent *d, dynent *at) {
   demo::damage(damage, d->o);
 }
 
-static const float RL_RADIUS = 5;
-static const float RL_DAMRAD = 7;   // hack
+static const float RL_RADIUS = 5.f;
+static const float RL_DAMRAD = 7.f; // hack
 
 void radialeffect(dynent *o, vec3f &v, int cn, int qdam, dynent *at) {
   if (o->state!=CS_ALIVE) return;
@@ -140,10 +140,10 @@ void radialeffect(dynent *o, vec3f &v, int cn, int qdam, dynent *at) {
   dist -= 2; // account for eye distance imprecision
   if (dist<RL_DAMRAD) {
     if (dist<0) dist = 0;
-    int damage = (int)(qdam*(1-(dist/RL_DAMRAD)));
+    const int damage = (int)(qdam*(1-(dist/RL_DAMRAD)));
     hit(cn, damage, o, at);
-    vmul(temp, (RL_DAMRAD-dist)*damage/800);
-    vadd(o->vel, temp);
+    temp *= (RL_DAMRAD-dist)*damage/800.f;
+    o->vel += temp;
   }
 }
 
@@ -185,8 +185,8 @@ void moveprojectiles(float time) {
     vdist(dist, v, p->o, p->to);
     float dtime = dist*1000/p->speed;
     if (time>dtime) dtime = time;
-    vmul(v, time/dtime);
-    vadd(v, p->o)
+    v *= time/dtime;
+    v += p->o;
     if (p->local) {
       loopv(players) {
         dynent *o = players[i];
@@ -202,7 +202,6 @@ void moveprojectiles(float time) {
         splash(p, v, p->o, -1, -1, qdam);
       else {
         if (p->gun==GUN_RL) {
-          // world::dodynlight(p->o, v, 0, 255, p->owner);
           rr::particle_splash(5, 2, 200, v);
         } else {
           rr::particle_splash(1, 1, 200, v);
@@ -248,8 +247,8 @@ void shootv(int gun, vec3f &from, vec3f &to, dynent *d, bool local)     // creat
 void hitpush(int target, int damage, dynent *d, dynent *at, vec3f &from, vec3f &to) {
   hit(target, damage, d, at);
   vdist(dist, v, from, to);
-  vmul(v, damage/dist/50);
-  vadd(d->vel, v);
+  v *= damage/dist/50.f;
+  d->vel += v;
 }
 
 void raydamage(dynent *o, vec3f &from, vec3f &to, dynent *d, int i) {
@@ -282,20 +281,20 @@ void shoot(dynent *d, vec3f &targ) {
   if (d->gunselect) d->ammo[d->gunselect]--;
   vec3f from = d->o;
   vec3f to = targ;
-  from.z -= 0.2f;    // below eye
+  from.z -= 0.2f; // below eye
 
   vdist(dist, unitv, from, to);
-  vdiv(unitv, dist);
+  unitv /= dist;
   vec3f kickback = unitv;
-  vmul(kickback, guns[d->gunselect].kickamount*-0.01f);
-  vadd(d->vel, kickback);
+  kickback *= guns[d->gunselect].kickamount*-0.01f;
+  d->vel += kickback;
   if (d->pitch<80.0f) d->pitch += guns[d->gunselect].kickamount*0.05f;
 
 
   if (d->gunselect==GUN_FIST || d->gunselect==GUN_BITE) {
-    vmul(unitv, 3); // punch range
+    unitv *= 3.f; // punch range
     to = from;
-    vadd(to, unitv);
+    to += unitv;
   }
   if (d->gunselect==GUN_SG) createrays(from, to);
 
