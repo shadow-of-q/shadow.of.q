@@ -88,7 +88,6 @@ TINLINE T rad2deg (T x) {return x * T(5.72957795130823208768e1f);}
 TINLINE T sin2cos (T x) {return sqrt(max(T(zero),T(one)-x*x));}
 TINLINE T cos2sin (T x) {return sin2cos(x);}
 
-// 2d vector
 template<typename T> struct vec2 {
   T x, y;
   typedef T scalar;
@@ -144,7 +143,6 @@ TINLINE v2 select (bool s, v2arg t, v2arg f) {
   return v2(select(s,t.x,f.x), select(s,t.y,f.y));
 }
 
-// 3d vector
 template<typename T> struct vec3 {
   T x, y, z;
   typedef T scalar;
@@ -203,6 +201,7 @@ TINLINE v3 normalize(v3arg a) {return a*rsqrt(dot(a,a));}
 TINLINE v3 cross(v3arg a, v3arg b) {
   return v3(a.y*b.z-a.z*b.y, a.z*b.x-a.x*b.z, a.x*b.y-a.y*b.x);
 }
+TINLINE bool rejectxy(v3 u, v3 v, float m) { return abs(v.x-u.x)>m || abs(v.y-u.y)>m; }
 
 // 4d vector
 template<typename T> struct vec4 {
@@ -262,7 +261,6 @@ TINLINE v4 select (bool s, v4arg t, v4arg f) {
   return v4(select(s,t.x,f.x), select(s,t.y,f.y), select(s,t.z,f.z), select(s,t.w,f.w));
 }
 
-// 3x3 matrix (linear transformation)
 template<typename T> struct mat3x3 {
   vec3<T> vx,vy,vz;
   INLINE mat3x3(void) {}
@@ -336,7 +334,6 @@ TINLINE m33 frame(v3arg N) {
   return m33(dx,dy,N);
 }
 
-// 4x3 matrix (affine transformation)
 template<typename T> struct mat4x3 {
   mat3x3<T> l;
   vec3<T> p;

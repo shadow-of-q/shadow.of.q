@@ -349,10 +349,6 @@ INLINE void NAME##v(First first, Rest... rest) {\
 
 #define ARRAY_ELEM_N(X) (sizeof(X) / sizeof(X[0]))
 
-// simplistic vector ops XXX remove
-#define vdist(d,v,e,s) vec3f v = s; v -=e; float d = (float)sqrt(dot(v,v));
-#define vreject(v,u,max) ((v).x>(u).x+(max) || (v).x<(u).x-(max) || (v).y>(u).y+(max) || (v).y<(u).y-(max))
-
   // vertex array format
   struct vertex { float u, v, x, y, z; uchar r, g, b, a; };
   typedef vector<char *> cvector;

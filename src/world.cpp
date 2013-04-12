@@ -55,18 +55,18 @@ int closestent(void)
 {
   if (edit::noteditmode()) return -1;
   int best = 0;
-  float bdist = 99999;
+  float bdist = 99999.f;
   loopv(ents) {
     entity &e = ents[i];
     if (e.type==NOTUSED) continue;
     const vec3f v(float(e.x), float(e.y), float(e.z));
-    vdist(dist, t, player1->o, v);
+    const float dist = distance(player1->o, v);
     if (dist<bdist) {
       best = i;
       bdist = dist;
     }
   }
-  return bdist==99999 ? -1 : best;
+  return bdist==99999.f ? -1 : best;
 }
 
 void entproperty(int prop, int amount)

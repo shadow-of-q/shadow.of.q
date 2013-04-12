@@ -96,7 +96,7 @@ struct sphere { vec3f o; float size, max; int type; sphere *next; };
 static sphere spheres[MAXSPHERES], *slist = NULL, *sempty = NULL;
 static bool sinit = false;
 
-void newsphere(vec3f &o, float max, int type) {
+void newsphere(const vec3f &o, float max, int type) {
   if (!sinit) {
     loopi(MAXSPHERES) {
       spheres[i].next = sempty;

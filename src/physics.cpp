@@ -6,6 +6,7 @@
 
 namespace cube {
 namespace physics {
+
   // collide with player or monster
   bool plcollide(game::dynent *d, game::dynent *o, float &headspace, float &hi, float &lo) {
     if (o->state!=CS_ALIVE) return true;
@@ -42,7 +43,7 @@ namespace physics {
     }
   }
 
-  // all collision happens here.  // spawn is a dirty side effect used in
+  // all collision happens here. spawn is a dirty side effect used in
   // spawning. drop & rise are supplied by the physics below to indicate
   // gravity/push for current mini-timestep
   bool collide(game::dynent *d, bool spawn, float drop, float rise) {
@@ -61,7 +62,9 @@ namespace physics {
     auto &v = game::getmonsters();
     // this loop can be a performance bottleneck with many monster on a slow
     // cpu, should replace with a blockmap but seems mostly fast enough
-    loopv(v) if (!vreject(d->o, v[i]->o, 7.0f) && d!=v[i] && !plcollide(d, v[i], headspace, hi, lo)) return false;
+    loopv(v)
+      if (!rejectxy(d->o, v[i]->o, 7.0f) && d!=v[i] && !plcollide(d, v[i], headspace, hi, lo))
+        return false;
     headspace -= 0.01f;
 
     mmcollide(d, hi, lo); // collide with map models

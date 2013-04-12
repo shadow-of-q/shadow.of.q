@@ -1,4 +1,3 @@
-// weapon.cpp: all shooting and effects code
 #include "cube.h"
 
 namespace cube {
@@ -6,13 +5,14 @@ namespace game {
 
 struct guninfo { short sound, attackdelay, damage, projspeed, part, kickamount; const char *name; };
 
-const int MONSTERDAMAGEFACTOR = 4;
-const int SGRAYS = 20;
-const float SGSPREAD = 2;
-vec3f sg[SGRAYS];
+static const int MONSTERDAMAGEFACTOR = 4;
+static const int SGRAYS = 20;
+static const float SGSPREAD = 2;
+static const float RL_RADIUS = 5.f;
+static const float RL_DAMRAD = 7.f; // hack
+static vec3f sg[SGRAYS];
 
-const static guninfo guns[NUMGUNS] =
-{
+static const guninfo guns[NUMGUNS] = {
   {S_PUNCH1,    250,  50, 0,   0,  1, "fist"          },
   {S_SG,       1400,  10, 0,   0, 20, "shotgun"       },  // *SGRAYS
   {S_CG,        100,  30, 0,   0,  7, "chaingun"      },
@@ -51,11 +51,11 @@ COMMAND(weapon, ARG_3STR);
 
 void createrays(vec3f &from, vec3f &to)             // create random spread of rays for the shotgun
 {
-  vdist(dist, dvec, from, to);
+  const float dist = distance(from, to);
   const float f = dist*SGSPREAD/1000;
 #define RNDD (rnd(101)-50)*f
   loopi(SGRAYS) {
-    vec3f r(RNDD, RNDD, RNDD);
+    const vec3f r(RNDD, RNDD, RNDD);
     sg[i] = to;
     sg[i] += r;
   }
@@ -93,8 +93,7 @@ bool intersect(dynent *d, vec3f &from, const vec3f &to)   // if lineseg hits ent
 char *playerincrosshair(void)
 {
   if (demo::playing()) return NULL;
-  loopv(players)
-  {
+  loopv(players) {
     dynent *o = players[i];
     if (!o) continue;
     if (intersect(o, player1->o, game::worldpos())) return o->name;
@@ -108,7 +107,7 @@ static projectile projs[MAXPROJ];
 
 void projreset(void) { loopi(MAXPROJ) projs[i].inuse = false; }
 
-void newprojectile(vec3f &from, vec3f &to, float speed, bool local, dynent *owner, int gun) {
+static void newprojectile(const vec3f &from, const vec3f &to, float speed, bool local, dynent *owner, int gun) {
   loopi(MAXPROJ) {
     projectile *p = &projs[i];
     if (p->inuse) continue;
@@ -123,20 +122,19 @@ void newprojectile(vec3f &from, vec3f &to, float speed, bool local, dynent *owne
   }
 }
 
-void hit(int target, int damage, dynent *d, dynent *at) {
-  if (d==player1) game::selfdamage(damage, at==player1 ? -1 : -2, at);
+static void hit(int target, int damage, dynent *d, dynent *at) {
+  if (d==player1)
+    game::selfdamage(damage, at==player1 ? -1 : -2, at);
   else if (d->monsterstate) monsterpain(d, damage, at);
   else { client::addmsg(1, 4, SV_DAMAGE, target, damage, d->lifesequence); sound::play(S_PAIN1+rnd(5), &d->o); }
   rr::particle_splash(3, damage, 1000, d->o);
   demo::damage(damage, d->o);
 }
 
-static const float RL_RADIUS = 5.f;
-static const float RL_DAMRAD = 7.f; // hack
-
-void radialeffect(dynent *o, vec3f &v, int cn, int qdam, dynent *at) {
+static void radialeffect(dynent *o, const vec3f &v, int cn, int qdam, dynent *at) {
   if (o->state!=CS_ALIVE) return;
-  vdist(dist, temp, v, o->o);
+  vec3f temp = v - o->o;
+  float dist = length(temp);
   dist -= 2; // account for eye distance imprecision
   if (dist<RL_DAMRAD) {
     if (dist<0) dist = 0;
@@ -147,7 +145,7 @@ void radialeffect(dynent *o, vec3f &v, int cn, int qdam, dynent *at) {
   }
 }
 
-void splash(projectile *p, vec3f &v, vec3f &vold, int notthisplayer, int notthismonster, int qdam) {
+static void splash(projectile *p, const vec3f &v, const vec3f &vold, int notthisplayer, int notthismonster, int qdam) {
   rr::particle_splash(0, 50, 300, v);
   p->inuse = false;
   if (p->gun!=GUN_RL)
@@ -168,7 +166,7 @@ void splash(projectile *p, vec3f &v, vec3f &vold, int notthisplayer, int notthis
   }
 }
 
-INLINE void projdamage(dynent *o, projectile *p, vec3f &v, int i, int im, int qdam) {
+INLINE void projdamage(dynent *o, projectile *p, const vec3f &v, int i, int im, int qdam) {
   if (o->state!=CS_ALIVE) return;
   if (intersect(o, p->o, v)) {
     splash(p, v, p->o, i, im, qdam);
@@ -182,7 +180,8 @@ void moveprojectiles(float time) {
     if (!p->inuse) continue;
     int qdam = guns[p->gun].damage*(p->owner->quadmillis ? 4 : 1);
     if (p->owner->monsterstate) qdam /= MONSTERDAMAGEFACTOR;
-    vdist(dist, v, p->o, p->to);
+    vec3f v = p->o - p->to;
+    const float dist = length(v);
     float dtime = dist*1000/p->speed;
     if (time>dtime) dtime = time;
     v *= time/dtime;
@@ -195,15 +194,16 @@ void moveprojectiles(float time) {
       }
       if (p->owner!=player1) projdamage(player1, p, v, -1, -1, qdam);
       dvector &mv = getmonsters();
-      loopv(mv) if (!vreject(mv[i]->o, v, 10.0f) && mv[i]!=p->owner) projdamage(mv[i], p, v, -1, i, qdam);
+      loopv(mv) if (!rejectxy(mv[i]->o, v, 10.0f) && mv[i]!=p->owner)
+        projdamage(mv[i], p, v, -1, i, qdam);
     }
     if (p->inuse) {
       if (time==dtime)
         splash(p, v, p->o, -1, -1, qdam);
       else {
-        if (p->gun==GUN_RL) {
+        if (p->gun==GUN_RL)
           rr::particle_splash(5, 2, 200, v);
-        } else {
+        else {
           rr::particle_splash(1, 1, 200, v);
           rr::particle_splash(guns[p->gun].part, 1, 1, v);
         }
@@ -213,7 +213,8 @@ void moveprojectiles(float time) {
   }
 }
 
-void shootv(int gun, vec3f &from, vec3f &to, dynent *d, bool local)     // create visual effect from a shot
+// create visual effect from a shot
+void shootv(int gun, const vec3f &from, const vec3f &to, dynent *d, bool local)
 {
   sound::play(guns[gun].sound, d==player1 ? NULL : &d->o);
   int pspeed = 25;
@@ -222,10 +223,8 @@ void shootv(int gun, vec3f &from, vec3f &to, dynent *d, bool local)     // creat
     case GUN_FIST:
       break;
     case GUN_SG:
-    {
       loopi(SGRAYS) rr::particle_splash(0, 5, 200, sg[i]);
       break;
-    }
     case GUN_CG:
       rr::particle_splash(0, 100, 250, to);
     break;
@@ -246,9 +245,9 @@ void shootv(int gun, vec3f &from, vec3f &to, dynent *d, bool local)     // creat
 
 void hitpush(int target, int damage, dynent *d, dynent *at, vec3f &from, vec3f &to) {
   hit(target, damage, d, at);
-  vdist(dist, v, from, to);
-  v *= damage/dist/50.f;
-  d->vel += v;
+  const vec3f v = from-to;
+  const float dist = length(v);
+  d->vel += damage/dist/50.f*v;
 }
 
 void raydamage(dynent *o, vec3f &from, vec3f &to, dynent *d, int i) {
@@ -256,8 +255,7 @@ void raydamage(dynent *o, vec3f &from, vec3f &to, dynent *d, int i) {
   int qdam = guns[d->gunselect].damage;
   if (d->quadmillis) qdam *= 4;
   if (d->monsterstate) qdam /= MONSTERDAMAGEFACTOR;
-  if (d->gunselect==GUN_SG)
-  {
+  if (d->gunselect==GUN_SG) {
     int damage = 0;
     loop(r, SGRAYS) if (intersect(o, from, sg[r])) damage += qdam;
     if (damage) hitpush(i, damage, o, d, from, to);
@@ -283,10 +281,8 @@ void shoot(dynent *d, vec3f &targ) {
   vec3f to = targ;
   from.z -= 0.2f; // below eye
 
-  vdist(dist, unitv, from, to);
-  unitv /= dist;
-  vec3f kickback = unitv;
-  kickback *= guns[d->gunselect].kickamount*-0.01f;
+  vec3f unitv = normalize(from-to);
+  const vec3f kickback = -unitv*float(guns[d->gunselect].kickamount)*0.01f;
   d->vel += kickback;
   if (d->pitch<80.0f) d->pitch += guns[d->gunselect].kickamount*0.05f;
 
@@ -300,7 +296,10 @@ void shoot(dynent *d, vec3f &targ) {
 
   if (d->quadmillis && attacktime>200) sound::playc(S_ITEMPUP);
   shootv(d->gunselect, from, to, d, true);
-  if (!d->monsterstate) client::addmsg(1, 8, SV_SHOT, d->gunselect, (int)(from.x*DMF), (int)(from.y*DMF), (int)(from.z*DMF), (int)(to.x*DMF), (int)(to.y*DMF), (int)(to.z*DMF));
+  if (!d->monsterstate) {
+    const vec3i ifrom=DMF*from, ito=DMF*to;
+    client::addmsg(1,8,SV_SHOT,d->gunselect,ifrom.x,ifrom.y,ifrom.z,ito.x,ito.y,ito.z);
+  }
   d->gunwait = guns[d->gunselect].attackdelay;
 
   if (guns[d->gunselect].projspeed) return;
