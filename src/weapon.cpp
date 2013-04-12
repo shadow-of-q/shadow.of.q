@@ -133,7 +133,7 @@ static void hit(int target, int damage, dynent *d, dynent *at) {
 
 static void radialeffect(dynent *o, const vec3f &v, int cn, int qdam, dynent *at) {
   if (o->state!=CS_ALIVE) return;
-  vec3f temp = v - o->o;
+  vec3f temp = o->o-v;
   float dist = length(temp);
   dist -= 2; // account for eye distance imprecision
   if (dist<RL_DAMRAD) {
@@ -180,7 +180,7 @@ void moveprojectiles(float time) {
     if (!p->inuse) continue;
     int qdam = guns[p->gun].damage*(p->owner->quadmillis ? 4 : 1);
     if (p->owner->monsterstate) qdam /= MONSTERDAMAGEFACTOR;
-    vec3f v = p->o - p->to;
+    vec3f v = p->to-p->o;
     const float dist = length(v);
     float dtime = dist*1000/p->speed;
     if (time>dtime) dtime = time;
@@ -244,7 +244,7 @@ void shootv(int gun, const vec3f &from, const vec3f &to, dynent *d, bool local)
 
 void hitpush(int target, int damage, dynent *d, dynent *at, vec3f &from, vec3f &to) {
   hit(target, damage, d, at);
-  const vec3f v = from-to;
+  const vec3f v = to-from;
   const float dist = length(v);
   d->vel += damage/dist/50.f*v;
 }
@@ -280,7 +280,7 @@ void shoot(dynent *d, vec3f &targ) {
   vec3f to = targ;
   from.z -= 0.2f; // below eye
 
-  vec3f unitv = normalize(from-to);
+  vec3f unitv = normalize(to-from);
   const vec3f kickback = -unitv*float(guns[d->gunselect].kickamount)*0.01f;
   d->vel += kickback;
   if (d->pitch<80.0f) d->pitch += guns[d->gunselect].kickamount*0.05f;

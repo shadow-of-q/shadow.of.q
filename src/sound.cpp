@@ -71,7 +71,7 @@ void clean(void) {
 static void updatechanvol(int chan, const vec3f *loc) {
   int vol = soundvol, pan = 255/2;
   if (loc) {
-    const vec3f v = *loc - game::player1->o;
+    const vec3f v = game::player1->o-*loc;
     const float dist = length(v);
     vol -= (int)(dist*3*soundvol/255);  // simple mono distance attenuation
     if (stereo && (v.x != 0 || v.y != 0)) {

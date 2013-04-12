@@ -162,7 +162,7 @@ void particle_splash(int type, int num, int fade, const vec3f &p) {
 }
 
 void particle_trail(int type, int fade, const vec3f &s, const vec3f &e) {
-  const vec3f v = s-e;
+  const vec3f v = e-s;
   const float d = length(v);
   const vec3f nv = v/(d*2.f+0.1f);
   vec3f p = s;
