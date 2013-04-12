@@ -185,12 +185,12 @@ TINLINE bool op<  (v3arg a, v3arg b) {
   if (a.z != b.z) return a.z < b.z;
   return false;
 }
-TINLINE T reduce_add (v3arg a) {return a.x + a.y + a.z;}
-TINLINE T reduce_mul (v3arg a) {return a.x * a.y * a.z;}
-TINLINE T reduce_min (v3arg a) {return min(a.x, a.y, a.z);}
-TINLINE T reduce_max (v3arg a) {return max(a.x, a.y, a.z);}
-TINLINE v3 min (v3arg a, v3arg b) {return v3(min(a.x,b.x), min(a.y,b.y), min(a.z,b.z));}
-TINLINE v3 max (v3arg a, v3arg b) {return v3(max(a.x,b.x), max(a.y,b.y), max(a.z,b.z));}
+TINLINE T reduce_add (v3arg a) {return a.x+a.y+a.z;}
+TINLINE T reduce_mul (v3arg a) {return a.x*a.y*a.z;}
+TINLINE T reduce_min (v3arg a) {return min(a.x,a.y,a.z);}
+TINLINE T reduce_max (v3arg a) {return max(a.x,a.y,a.z);}
+TINLINE v3 min (v3arg a, v3arg b) {return v3(min(a.x,b.x),min(a.y,b.y),min(a.z,b.z));}
+TINLINE v3 max (v3arg a, v3arg b) {return v3(max(a.x,b.x),max(a.y,b.y),max(a.z,b.z));}
 TINLINE v3 select (bool s, v3arg t, v3arg f) {
   return v3(select(s,t.x,f.x), select(s,t.y,f.y), select(s,t.z,f.z));
 }
@@ -201,7 +201,7 @@ TINLINE v3 normalize(v3arg a) {return a*rsqrt(dot(a,a));}
 TINLINE v3 cross(v3arg a, v3arg b) {
   return v3(a.y*b.z-a.z*b.y, a.z*b.x-a.x*b.z, a.x*b.y-a.y*b.x);
 }
-TINLINE bool rejectxy(v3 u, v3 v, float m) { return abs(v.x-u.x)>m || abs(v.y-u.y)>m; }
+TINLINE bool rejectxy(v3 u, v3 v, T m) {return abs(v.x-u.x)>m || abs(v.y-u.y)>m;}
 
 // 4d vector
 template<typename T> struct vec4 {

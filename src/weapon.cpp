@@ -218,8 +218,7 @@ void shootv(int gun, const vec3f &from, const vec3f &to, dynent *d, bool local)
 {
   sound::play(guns[gun].sound, d==player1 ? NULL : &d->o);
   int pspeed = 25;
-  switch (gun)
-  {
+  switch (gun) {
     case GUN_FIST:
       break;
     case GUN_SG:
@@ -234,7 +233,7 @@ void shootv(int gun, const vec3f &from, const vec3f &to, dynent *d, bool local)
     case GUN_SLIMEBALL:
       pspeed = guns[gun].projspeed;
       if (d->monsterstate) pspeed /= 2;
-      newprojectile(from, to, (float)pspeed, local, d, gun);
+      newprojectile(from, to, float(pspeed), local, d, gun);
     break;
     case GUN_RIFLE:
       rr::particle_splash(0, 50, 200, to);
