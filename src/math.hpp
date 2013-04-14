@@ -5,21 +5,32 @@
 #include <cfloat>
 
 namespace cube {
+template<typename T> struct vec2;
+template<typename T> struct vec3;
+template<typename T> struct vec4;
+
+// macros shared for swizzle declarations and definitions
+#define sw21(A) sw22(A,x) sw22(A,y)
+#define sw20 sw21(x) sw21(y)
+#define sw31(A) sw32(A,x) sw32(A,y) sw32(A,z)
+#define sw30 sw31(x) sw31(y) sw31(z)
+#define sw41(A) sw42(A,x) sw42(A,y) sw42(A,z) sw42(A,w)
+#define sw40 sw41(x) sw41(y) sw41(z) sw41(w)
 
 // polymorphic constant values
 #define CONSTANT_TYPE(TYPE,VALUE,NUM)\
 static const struct TYPE {\
-  INLINE TYPE(){}\
-  INLINE operator double(void) const { return NUM; }\
-  INLINE operator float (void) const { return NUM; }\
-  INLINE operator int64 (void) const { return NUM; }\
-  INLINE operator uint64(void) const { return NUM; }\
-  INLINE operator int32 (void) const { return NUM; }\
-  INLINE operator uint32(void) const { return NUM; }\
-  INLINE operator int16 (void) const { return NUM; }\
-  INLINE operator uint16(void) const { return NUM; }\
-  INLINE operator int8  (void) const { return NUM; }\
-  INLINE operator uint8 (void) const { return NUM; }\
+  INLINE TYPE(void) {}\
+  INLINE operator double(void) const {return NUM;}\
+  INLINE operator float (void) const {return NUM;}\
+  INLINE operator s64(void) const {return NUM;}\
+  INLINE operator u64(void) const {return NUM;}\
+  INLINE operator s32(void) const {return NUM;}\
+  INLINE operator u32(void) const {return NUM;}\
+  INLINE operator s16(void) const {return NUM;}\
+  INLINE operator u16(void) const {return NUM;}\
+  INLINE operator s8 (void) const {return NUM;}\
+  INLINE operator u8 (void) const {return NUM;}\
 } VALUE;
 CONSTANT_TYPE(zerotype,zero,0);
 CONSTANT_TYPE(onetype,one,1);
@@ -83,8 +94,8 @@ TINLINE T min (T a, T b, T c, T d) {return min(min(a,b),min(c,d));}
 TINLINE T min (T a, T b, T c, T d, T e) {return min(min(min(a,b),min(c,d)),e);}
 TINLINE T max (T a, T b, T c, T d, T e) {return max(max(max(a,b),max(c,d)),e);}
 TINLINE T clamp (T x, T lower = T(zero), T upper = T(one)) {return max(lower, min(x,upper));}
-TINLINE T deg2rad (T x) {return x * T(1.74532925199432957692e-2f);}
-TINLINE T rad2deg (T x) {return x * T(5.72957795130823208768e1f);}
+TINLINE T deg2rad (T x) {return x * T(1.74532925199432957692e-2);}
+TINLINE T rad2deg (T x) {return x * T(5.72957795130823208768e1);}
 TINLINE T sin2cos (T x) {return sqrt(max(T(zero),T(one)-x*x));}
 TINLINE T cos2sin (T x) {return sin2cos(x);}
 
@@ -102,6 +113,20 @@ template<typename T> struct vec2 {
   INLINE vec2(onetype) : x(one),y(one) {}
   INLINE const T& op[](int axis) const {return (&x)[axis];}
   INLINE T& op[](int axis) {return (&x)[axis];}
+#define sw22(A,B) INLINE const v2 A##B(void); // declare all swizzles
+  sw20
+#undef sw22
+#define sw22(A,B) sw23(A,B,x) sw23(A,B,y)
+#define sw23(A,B,C) INLINE const v3 A##B##C(void);
+  sw20
+#undef sw23
+#define sw23(A,B,C) sw24(A,B,C,x) sw24(A,B,C,y)
+#define sw24(A,B,C,D) INLINE const v4 A##B##C##D(void);
+  sw20
+#undef sw23
+#undef sw24
+#undef sw23
+#undef sw22
 };
 
 TINLINE v2 op+ (v2arg a)  {return v2(+a.x, +a.y);}
@@ -157,6 +182,20 @@ template<typename T> struct vec3 {
   INLINE vec3 (onetype)  : x(one),y(one),z(one) {}
   INLINE const T& op[](int axis) const {return (&x)[axis];}
   INLINE T& op[](int axis) {return (&x)[axis];}
+#define sw32(A,B) INLINE const v2 A##B(void); // declare all swizzles
+  sw30
+#undef sw32
+#define sw32(A,B) sw33(A,B,x) sw33(A,B,y) sw33(A,B,z)
+#define sw33(A,B,C) INLINE const v3 A##B##C(void);
+  sw30
+#undef sw33
+#define sw33(A,B,C) sw34(A,B,C,x) sw34(A,B,C,y) sw34(A,B,C,z)
+#define sw34(A,B,C,D) INLINE const v4 A##B##C##D(void);
+  sw30
+#undef sw33
+#undef sw34
+#undef sw33
+#undef sw32
 };
 
 TINLINE v3 abs (v3arg a) {return v3(abs(a.x), abs(a.y), abs(a.z));}
@@ -218,6 +257,20 @@ template<typename T> struct vec4 {
   INLINE vec4 (onetype)  : x(one),y(one),z(one),w(one) {}
   INLINE const T& op[](int axis) const {return (&x)[axis];}
   INLINE T& op[](int axis) {return (&x)[axis];}
+#define sw42(A,B) INLINE const v2 A##B(void); // declare all swizzles
+  sw40
+#undef sw42
+#define sw42(A,B) sw43(A,B,x) sw43(A,B,y) sw43(A,B,z) sw43(A,B,w)
+#define sw43(A,B,C) INLINE const v3 A##B##C(void);
+  sw40
+#undef sw43
+#define sw43(A,B,C) sw44(A,B,C,x) sw44(A,B,C,y) sw44(A,B,C,z) sw44(A,B,C,w)
+#define sw44(A,B,C,D) INLINE const v4 A##B##C##D(void);
+  sw40
+#undef sw43
+#undef sw44
+#undef sw43
+#undef sw42
 };
 
 TINLINE v4 op+ (v4arg a) {return v4(+a.x, +a.y, +a.z, +a.w);}
@@ -377,7 +430,6 @@ TINLINE v3 xfmpoint (m43arg m, v3arg p) {return xfmpoint(m.l,p) + m.p;}
 TINLINE v3 xfmvector(m43arg m, v3arg v) {return xfmvector(m.l,v);}
 TINLINE v3 xfmnormal(m43arg m, v3arg n) {return xfmnormal(m.l,n);}
 
-// 4x4 matrix (homogenous transformation)
 template<typename T> struct mat4x4 {
   vec4<T> vx,vy,vz,vw;
   INLINE mat4x4(void) {}
@@ -584,17 +636,66 @@ TINLINE v3 unproject(v3arg win, m44arg model, m44arg proj, const vec4<int> &view
 
 // convenient variable size static vector
 template <typename U, int n> struct vvec {
-  template <typename... T> INLINE vvec(T... args) { this->set(0,args...); }
+  template <typename... T> INLINE vvec(T... args) {set(0,args...);}
   template <typename First, typename... Rest>
-  INLINE void set(int index, First first, Rest... rest) {
-    this->v[index] = first;
-    set(index+1,rest...);
+  INLINE void set(int i, First first, Rest... rest) {
+    assign(first, i);
+    set(i,rest...);
   }
-  INLINE void set(int index) {}
-  float &operator[] (int index) { return v[index]; }
-  const float &operator[] (int index) const { return v[index]; }
+  INLINE void assign(U x, int &i) {this->v[i++] = x;}
+  INLINE void assign(vec2<U> u, int &i) {v[i++]=u.x; v[i++]=u.y;}
+  INLINE void assign(vec3<U> u, int &i) {v[i++]=u.x; v[i++]=u.y; v[i++]=u.z;}
+  INLINE void assign(vec4<U> u, int &i) {v[i++]=u.x; v[i++]=u.y; v[i++]=u.z; v[i++]=u.w;}
+  INLINE void set(int i) {}
+  float &operator[] (int i) { return v[i]; }
+  const float &operator[] (int i) const { return v[i]; }
   U v[n];
 };
+
+// define all swizzles for vec2
+#define sw22(A,B) TINLINE const v2 v2::A##B(void) {return v2(A,B);}
+sw20
+#undef sw22
+#define sw22(A,B) sw23(A,B,x) sw23(A,B,y)
+#define sw23(A,B,C) TINLINE const v3 v2::A##B##C(void) {return v3(A,B,C);}
+sw20
+#undef sw23
+#define sw23(A,B,C) sw24(A,B,C,x) sw24(A,B,C,y)
+#define sw24(A,B,C,D) TINLINE const v4 v2::A##B##C##D(void) {return v4(A,B,C,D);}
+sw20
+#undef sw24
+#undef sw23
+#undef sw22
+
+// define all swizzles for vec3
+#define sw32(A,B) TINLINE const v2 v3::A##B(void) {return v2(A,B);}
+sw30
+#undef sw32
+#define sw32(A,B) sw33(A,B,x) sw33(A,B,y) sw33(A,B,z)
+#define sw33(A,B,C) TINLINE const v3 v3::A##B##C(void) {return v3(A,B,C);}
+sw30
+#undef sw33
+#define sw33(A,B,C) sw34(A,B,C,x) sw34(A,B,C,y) sw34(A,B,C,z)
+#define sw34(A,B,C,D) TINLINE const v4 v3::A##B##C##D(void) {return v4(A,B,C,D);}
+sw30
+#undef sw34
+#undef sw33
+#undef sw32
+
+// define all swizzles for vec4
+#define sw42(A,B) TINLINE const v2 v4::A##B(void) {return v2(A,B);}
+sw40
+#undef sw42
+#define sw42(A,B) sw43(A,B,x) sw43(A,B,y) sw43(A,B,z) sw43(A,B,w)
+#define sw43(A,B,C) TINLINE const v3 v4::A##B##C(void) {return v3(A,B,C);}
+sw40
+#undef sw43
+#define sw43(A,B,C) sw44(A,B,C,x) sw44(A,B,C,y) sw44(A,B,C,z) sw44(A,B,C,w)
+#define sw44(A,B,C,D) TINLINE const v4 v4::A##B##C##D(void) {return v4(A,B,C,D);}
+sw40
+#undef sw44
+#undef sw43
+#undef sw42
 
 // commonly used types
 typedef mat3x3<float> mat3x3f;
@@ -633,5 +734,11 @@ template <int n> using vveci = vvec<int,n>;
 #undef m33arg
 #undef m43arg
 #undef m44arg
+#undef sw21
+#undef sw20
+#undef sw31
+#undef sw30
+#undef sw41
+#undef sw40
 } // namespace cube
 

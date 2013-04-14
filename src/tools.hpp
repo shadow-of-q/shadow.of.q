@@ -89,25 +89,25 @@ namespace cube {
 #define loopv(v)    for(int i = 0; i<(v).length(); ++i)
 #define loopvrev(v) for(int i = (v).length()-1; i>=0; --i)
 
-  // integer types
+// integer types
 #if defined(__MSVC__)
-  typedef          __int64  int64;
-  typedef unsigned __int64 uint64;
-  typedef          __int32  int32;
-  typedef unsigned __int32 uint32;
-  typedef          __int16  int16;
-  typedef unsigned __int16 uint16;
-  typedef          __int8    int8;
-  typedef unsigned __int8   uint8;
+  typedef          __int64 s64;
+  typedef unsigned __int64 u64;
+  typedef          __int32 s32;
+  typedef unsigned __int32 u32;
+  typedef          __int16 s16;
+  typedef unsigned __int16 u16;
+  typedef          __int8  s8;
+  typedef unsigned __int8  u8;
 #else
-  typedef          long long  int64;
-  typedef unsigned long long uint64;
-  typedef                int  int32;
-  typedef unsigned       int uint32;
-  typedef              short  int16;
-  typedef unsigned     short uint16;
-  typedef               char   int8;
-  typedef unsigned      char  uint8;
+  typedef          long long s64;
+  typedef unsigned long long u64;
+  typedef                int s32;
+  typedef unsigned       int u32;
+  typedef              short s16;
+  typedef unsigned     short u16;
+  typedef               char s8;
+  typedef unsigned      char u8;
 #endif
 
 #ifdef WIN32
@@ -117,6 +117,11 @@ namespace cube {
 #define _vsnprintf vsnprintf
 #define PATHDIV '/'
 #endif
+
+// concatenation
+#define JOIN(X, Y) _DO_JOIN(X, Y)
+#define _DO_JOIN(X, Y) _DO_JOIN2(X, Y)
+#define _DO_JOIN2(X, Y) X##Y
 
 // useful for repetitive calls to same functions
 #define MAKE_VARIADIC(NAME)\

@@ -38,16 +38,16 @@ static vec3f right, up;
 
 void setorient(const vec3f &r, const vec3f &u) { right = r; up = u; }
 
-static const struct parttype { float r, g, b; int gr, tex; float sz; } parttypes[] = {
-  {0.7f, 0.6f, 0.3f, 2,  3, 0.06f}, // yellow: sparks
-  {0.5f, 0.5f, 0.5f, 20, 7, 0.15f}, // grey:   small smoke
-  {0.2f, 0.2f, 1.0f, 20, 3, 0.08f}, // blue:   edit mode entities
-  {1.0f, 0.1f, 0.1f, 1,  7, 0.06f}, // red:    blood spats
-  {1.0f, 0.8f, 0.8f, 20, 6, 1.2f }, // yellow: fireball1
-  {0.5f, 0.5f, 0.5f, 20, 7, 0.6f }, // grey:   big smoke
-  {1.0f, 1.0f, 1.0f, 20, 8, 1.2f }, // blue:   fireball2
-  {1.0f, 1.0f, 1.0f, 20, 9, 1.2f }, // green:  fireball3
-  {1.0f, 0.1f, 0.1f, 0,  7, 0.2f }, // red:    demotrack
+static const struct parttype {vec3f rgb; int gr, tex; float sz;} parttypes[] = {
+  {vec3f(0.7f, 0.6f, 0.3f), 2,  3, 0.06f}, // yellow: sparks
+  {vec3f(0.5f, 0.5f, 0.5f), 20, 7, 0.15f}, // grey:   small smoke
+  {vec3f(0.2f, 0.2f, 1.0f), 20, 3, 0.08f}, // blue:   edit mode entities
+  {vec3f(1.0f, 0.1f, 0.1f), 1,  7, 0.06f}, // red:    blood spats
+  {vec3f(1.0f, 0.8f, 0.8f), 20, 6, 1.2f }, // yellow: fireball1
+  {vec3f(0.5f, 0.5f, 0.5f), 20, 7, 0.6f }, // grey:   big smoke
+  {vec3f(1.0f, 1.0f, 1.0f), 20, 8, 1.2f }, // blue:   fireball2
+  {vec3f(1.0f, 1.0f, 1.0f), 20, 9, 1.2f }, // green:  fireball3
+  {vec3f(1.0f, 0.1f, 0.1f), 0,  7, 0.2f }, // red:    demotrack
 };
 static const int parttypen = ARRAY_ELEM_N(parttypes);
 
@@ -58,12 +58,12 @@ static glparticle glparts[glvertexn];
 
 static void initparticles(void) {
   // indices never change we set them once here
-  const uint16 twotriangles[] = {0,1,2,2,3,1};
-  uint16 *indices = new uint16[glindexn];
+  const u16 twotriangles[] = {0,1,2,2,3,1};
+  u16 *indices = new u16[glindexn];
   OGL(GenBuffers, 1, &particleibo);
   ogl::bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, particleibo);
   loopi(MAXPARTICLES) loopj(6) indices[6*i+j]=4*i+twotriangles[j];
-  OGL(BufferData, GL_ELEMENT_ARRAY_BUFFER, glindexn*sizeof(uint16), indices, GL_STATIC_DRAW);
+  OGL(BufferData, GL_ELEMENT_ARRAY_BUFFER, glindexn*sizeof(u16), indices, GL_STATIC_DRAW);
   ogl::bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, 0);
 
   // vertices will be created at each drawing call
@@ -96,12 +96,11 @@ void render_particles(int time) {
     const uint index = 4*partbucket[p->type]++;
     const parttype *pt = &parttypes[p->type];
     const float sz = pt->sz*particlesize/100.0f;
-    // XXX use vec3f
-    glparts[index+0] = vvecf<8>(pt->r, pt->g, pt->b, 0.f, 1.f, p->o.x+(-right.x+up.x)*sz, p->o.z+(-right.y+up.y)*sz, p->o.y+(-right.z+up.z)*sz);
-    glparts[index+1] = vvecf<8>(pt->r, pt->g, pt->b, 1.f, 1.f, p->o.x+( right.x+up.x)*sz, p->o.z+( right.y+up.y)*sz, p->o.y+( right.z+up.z)*sz);
-    glparts[index+2] = vvecf<8>(pt->r, pt->g, pt->b, 0.f, 0.f, p->o.x+(-right.x-up.x)*sz, p->o.z+(-right.y-up.y)*sz, p->o.y+(-right.z-up.z)*sz);
-    glparts[index+3] = vvecf<8>(pt->r, pt->g, pt->b, 1.f, 0.f, p->o.x+( right.x-up.x)*sz, p->o.z+( right.y-up.y)*sz, p->o.y+( right.z-up.z)*sz);
-
+    const vec3f poxzy = p->o.xzy();
+    glparts[index+0] = vvecf<8>(pt->rgb, 0.f, 1.f, poxzy-(right-up)*sz);
+    glparts[index+1] = vvecf<8>(pt->rgb, 1.f, 1.f, poxzy+(right+up)*sz);
+    glparts[index+2] = vvecf<8>(pt->rgb, 0.f, 0.f, poxzy-(right+up)*sz);
+    glparts[index+3] = vvecf<8>(pt->rgb, 1.f, 0.f, poxzy-(up-right)*sz);
     if (numrender++>maxparticles || (p->fade -= time)<0) {
       *pp = p->next;
       p->next = parempty;
@@ -135,7 +134,7 @@ void render_particles(int time) {
     const parttype *pt = &parttypes[i];
     const int n = partbucketsize[i]*6;
     ogl::bindtexture(GL_TEXTURE_2D, pt->tex);
-    const void *offset = (const void *) (partbucket[i] * sizeof(uint16[6]));
+    const void *offset = (const void *) (partbucket[i] * sizeof(u16[6]));
     ogl::drawelements(GL_TRIANGLES, n, GL_UNSIGNED_SHORT, offset);
   }
 
