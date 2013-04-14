@@ -1,4 +1,5 @@
 #pragma once
+#include "sound.hpp"
 #include "tools.hpp"
 
 namespace cube {
@@ -28,7 +29,7 @@ enum {
 };
 
 // armour types... take 20/40/60 % off
-enum { A_BLUE, A_GREEN, A_YELLOW };
+enum {A_BLUE, A_GREEN, A_YELLOW};
 
 // map entity
 struct persistent_entity {
@@ -82,6 +83,7 @@ extern dynent *player1; // special client ent that receives input and acts as ca
 extern dvector players; // all the other clients (in multiplayer)
 extern vector<entity> ents; // map entities
 
+const char *entnames(int which);
 void putitems(uchar *&p);
 void checkquad(int time);
 void checkitems(void);

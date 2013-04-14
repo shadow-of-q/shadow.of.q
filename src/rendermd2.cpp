@@ -1,5 +1,4 @@
-#include "cube.h"
-#include "ogl.hpp"
+#include "cube.hpp"
 
 namespace cube {
 namespace rr {
@@ -94,7 +93,7 @@ bool md2::load(char* filename) {
 
   fclose(file);
 
-  // XXX remove that as soon as we use vbo and shaders for animation
+  // TODO remove that as soon as we use vbo and shaders for animation
   builtframes = new bool[numFrames];
   loopj(numFrames) builtframes[j] = false;
 
@@ -135,7 +134,7 @@ void md2::scale(int frame, float scale, int sn) {
                   +(snap(sn, cv[2]*cf->scale[2])+cf->translate[2])/sc);
       trisv.add(vvecf<channenum>(s,t,v.x,v.z,v.y));
     }
-    loopi(n-2) { // just stolen from sauer. XXX use an index buffer
+    loopi(n-2) { // just stolen from sauer. TODO use an index buffer
       if (moden <= 0) { // fan
         tris.add(trisv[0]);
         tris.add(trisv[i+1]);

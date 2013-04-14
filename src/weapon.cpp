@@ -1,4 +1,4 @@
-#include "cube.h"
+#include "cube.hpp"
 
 namespace cube {
 namespace game {
@@ -13,15 +13,15 @@ static const float RL_DAMRAD = 7.f; // hack
 static vec3f sg[SGRAYS];
 
 static const guninfo guns[NUMGUNS] = {
-  {S_PUNCH1,    250,  50, 0,   0,  1, "fist"          },
-  {S_SG,       1400,  10, 0,   0, 20, "shotgun"       },  // *SGRAYS
-  {S_CG,        100,  30, 0,   0,  7, "chaingun"      },
-  {S_RLFIRE,    800, 120, 80,  0, 10, "rocketlauncher"},
-  {S_RIFLE,    1500, 100, 0,   0, 30, "rifle"         },
-  {S_FLAUNCH,   200,  20, 50,  4,  1, "fireball"      },
-  {S_ICEBALL,   200,  40, 30,  6,  1, "iceball"       },
-  {S_SLIMEBALL, 200,  30, 160, 7,  1, "slimeball"     },
-  {S_PIGR1,     250,  50, 0,   0,  1, "bite"          }
+  {sound::PUNCH1,    250,  50, 0,   0,  1, "fist"          },
+  {sound::SG,       1400,  10, 0,   0, 20, "shotgun"       },  // *SGRAYS
+  {sound::CG,        100,  30, 0,   0,  7, "chaingun"      },
+  {sound::RLFIRE,    800, 120, 80,  0, 10, "rocketlauncher"},
+  {sound::RIFLE,    1500, 100, 0,   0, 30, "rifle"         },
+  {sound::FLAUNCH,   200,  20, 50,  4,  1, "fireball"      },
+  {sound::ICEBALL,   200,  40, 30,  6,  1, "iceball"       },
+  {sound::SLIMEBALL, 200,  30, 160, 7,  1, "slimeball"     },
+  {sound::PIGR1,     250,  50, 0,   0,  1, "bite"          }
 };
 
 void selectgun(int a, int b, int c)
@@ -36,7 +36,7 @@ void selectgun(int a, int b, int c)
   else if (s!=GUN_SG && player1->ammo[GUN_SG]) s = GUN_SG;
   else if (s!=GUN_RIFLE && player1->ammo[GUN_RIFLE]) s = GUN_RIFLE;
   else s = GUN_FIST;
-  if (s!=player1->gunselect) sound::playc(S_WEAPLOAD);
+  if (s!=player1->gunselect) sound::playc(sound::WEAPLOAD);
   player1->gunselect = s;
   //console::out("%s selected", (int)guns[s].name);
 }
@@ -125,8 +125,12 @@ static void newprojectile(const vec3f &from, const vec3f &to, float speed, bool 
 static void hit(int target, int damage, dynent *d, dynent *at) {
   if (d==player1)
     game::selfdamage(damage, at==player1 ? -1 : -2, at);
-  else if (d->monsterstate) monsterpain(d, damage, at);
-  else { client::addmsg(1, 4, SV_DAMAGE, target, damage, d->lifesequence); sound::play(S_PAIN1+rnd(5), &d->o); }
+  else if (d->monsterstate)
+    monsterpain(d, damage, at);
+  else {
+    client::addmsg(1, 4, SV_DAMAGE, target, damage, d->lifesequence);
+    sound::play(sound::PAIN1+rnd(5), &d->o);
+  }
   rr::particle_splash(3, damage, 1000, d->o);
   demo::damage(damage, d->o);
 }
@@ -149,9 +153,9 @@ static void splash(projectile *p, const vec3f &v, const vec3f &vold, int notthis
   rr::particle_splash(0, 50, 300, v);
   p->inuse = false;
   if (p->gun!=GUN_RL)
-    sound::play(S_FEXPLODE, &v);
+    sound::play(sound::FEXPLODE, &v);
   else {
-    sound::play(S_RLHIT, &v);
+    sound::play(sound::RLHIT, &v);
     rr::newsphere(v, RL_RADIUS, 0);
     if (!p->local) return;
     radialeffect(player1, v, -1, qdam, p->owner);
@@ -270,7 +274,7 @@ void shoot(dynent *d, vec3f &targ) {
   d->lastaction = game::lastmillis();
   d->lastattackgun = d->gunselect;
   if (!d->ammo[d->gunselect]) {
-    sound::playc(S_NOAMMO);
+    sound::playc(sound::NOAMMO);
     d->gunwait = 250;
     d->lastattackgun = -1;
     return;
@@ -293,7 +297,7 @@ void shoot(dynent *d, vec3f &targ) {
   }
   if (d->gunselect==GUN_SG) createrays(from, to);
 
-  if (d->quadmillis && attacktime>200) sound::playc(S_ITEMPUP);
+  if (d->quadmillis && attacktime>200) sound::playc(sound::ITEMPUP);
   shootv(d->gunselect, from, to, d, true);
   if (!d->monsterstate) {
     const vec3i ifrom=DMF*from, ito=DMF*to;

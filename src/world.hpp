@@ -3,18 +3,15 @@
 #include "tools.hpp"
 
 namespace cube {
-
+namespace world {
 struct block { int x, y, xs, ys; };
 
-// XXX move it to NS
 enum {
   MAPVERSION = 5, // bump if map format changes, see worldio.cpp
   SMALLEST_FACTOR = 6, // determines number of mips there can be
   DEFAULT_FACTOR = 8,
   LARGEST_FACTOR = 11 // 10 is already insane
 };
-
-namespace world {
 
 void setup(int factor);
 // used for edit mode ent display

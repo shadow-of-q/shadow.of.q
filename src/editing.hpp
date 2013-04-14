@@ -1,10 +1,9 @@
 #pragma once
 
 namespace cube {
-// XXX move that
-extern bool editmode;
 namespace edit {
 
+bool mode(void);
 void cursorupdate(void);
 void toggleedit(void);
 void editdrag(bool isdown);

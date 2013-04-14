@@ -1,5 +1,4 @@
-#include "cube.h"
-#include "ogl.hpp"
+#include "cube.hpp"
 
 namespace cube {
 namespace rr {

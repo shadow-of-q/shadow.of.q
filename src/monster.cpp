@@ -1,5 +1,4 @@
-// implements AI for single player monsters, currently client only
-#include "cube.h"
+#include "cube.hpp"
 
 namespace cube {
 namespace game {
@@ -24,14 +23,14 @@ struct monstertype { // see docs for how these values modify behaviour
   short painsound, diesound;
   const char *name, *mdlname;
 } static const monstertypes[NUMMONSTERTYPES] = {
-  {GUN_FIREBALL,  15, 100, 3, 0,   100, 800, 1, 10, 10, S_PAINO, S_DIE1,   "an ogre",     "monster/ogro"   },
-  {GUN_CG,        18,  70, 2, 70,   10, 400, 2,  8,  9, S_PAINR, S_DEATHR, "a rhino",     "monster/rhino"  },
-  {GUN_SG,        14, 120, 1, 100, 300, 400, 4, 14, 14, S_PAINE, S_DEATHE, "ratamahatta", "monster/rat"    },
-  {GUN_RIFLE,     15, 200, 1, 80,  300, 300, 4, 18, 18, S_PAINS, S_DEATHS, "a slith",     "monster/slith"  },
-  {GUN_RL,        13, 500, 1, 0,   100, 200, 6, 24, 24, S_PAINB, S_DEATHB, "bauul",       "monster/bauul"  },
-  {GUN_BITE,      22,  50, 3, 0,   100, 400, 1, 12, 15, S_PAINP, S_PIGGR2, "a hellpig",   "monster/hellpig"},
-  {GUN_ICEBALL,   12, 250, 1, 0,    10, 400, 6, 18, 18, S_PAINH, S_DEATHH, "a knight",    "monster/knight" },
-  {GUN_SLIMEBALL, 15, 100, 1, 0,   200, 400, 2, 13, 10, S_PAIND, S_DEATHD, "a goblin",    "monster/goblin" },
+  {GUN_FIREBALL,  15, 100, 3, 0,   100, 800, 1, 10, 10, sound::PAINO, sound::DIE1,   "an ogre",     "monster/ogro"   },
+  {GUN_CG,        18,  70, 2, 70,   10, 400, 2,  8,  9, sound::PAINR, sound::DEATHR, "a rhino",     "monster/rhino"  },
+  {GUN_SG,        14, 120, 1, 100, 300, 400, 4, 14, 14, sound::PAINE, sound::DEATHE, "ratamahatta", "monster/rat"    },
+  {GUN_RIFLE,     15, 200, 1, 80,  300, 300, 4, 18, 18, sound::PAINS, sound::DEATHS, "a slith",     "monster/slith"  },
+  {GUN_RL,        13, 500, 1, 0,   100, 200, 6, 24, 24, sound::PAINB, sound::DEATHB, "bauul",       "monster/bauul"  },
+  {GUN_BITE,      22,  50, 3, 0,   100, 400, 1, 12, 15, sound::PAINP, sound::PIGGR2, "a hellpig",   "monster/hellpig"},
+  {GUN_ICEBALL,   12, 250, 1, 0,    10, 400, 6, 18, 18, sound::PAINH, sound::DEATHH, "a knight",    "monster/knight" },
+  {GUN_SLIMEBALL, 15, 100, 1, 0,   200, 400, 2, 13, 10, sound::PAIND, sound::DEATHD, "a goblin",    "monster/goblin" },
 };
 
 dynent *basicmonster(int type, int yaw, int state, int trigger, int move) {
@@ -165,16 +164,16 @@ void monsteraction(dynent *m) {
     break;
     case M_SLEEP: { // state classic sp monster start in, wait for visual contact
       vec3f target;
-      if (editmode || !enemylos(m, target)) return; // skip running physics
+      if (edit::mode() || !enemylos(m, target)) return; // skip running physics
       normalise(m, enemyyaw);
       float angle = (float)fabs(enemyyaw-m->yaw);
-      if (disttoenemy<8 // the better the angle to the player, the further the monster can see/hear
-          ||(disttoenemy<16 && angle<135)
-          ||(disttoenemy<32 && angle<90)
+      if (disttoenemy<8                   // the better the angle to the player
+          ||(disttoenemy<16 && angle<135) // the further the monster can
+          ||(disttoenemy<32 && angle<90)  // see/hear
           ||(disttoenemy<64 && angle<45)
           || angle<10) {
         transition(m, M_HOME, 1, 500, 200);
-        sound::play(S_GRUNT1+rnd(2), &m->o);
+        sound::play(sound::GRUNT1+rnd(2), &m->o);
       }
     }
     break;

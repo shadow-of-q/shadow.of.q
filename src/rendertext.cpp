@@ -1,4 +1,3 @@
-#include "cube.h"
 #include "ogl.hpp"
 
 namespace cube {

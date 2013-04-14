@@ -1,6 +1,4 @@
-// entities.cpp: map entity related functions (pickup etc.)
-
-#include "cube.h"
+#include "cube.hpp"
 
 namespace cube {
 namespace game {
@@ -11,6 +9,16 @@ const char *entmdlnames[] = {
   "shells", "bullets", "rockets", "rrounds", "health", "boost",
   "g_armour", "y_armour", "quad",	"teleporter",
 };
+
+static const char *entnames_[] = {
+  "none?", "light", "playerstart",
+  "shells", "bullets", "rockets", "riflerounds",
+  "health", "healthboost", "greenarmour", "yellowarmour", "quaddamage",
+  "teleport", "teledest",
+  "mapmodel", "monster", "trigger", "jumppad",
+  "?", "?", "?", "?", "?"
+};
+const char *entnames(int which) { return entnames_[which]; }
 
 static int triggertime = 0;
 
@@ -29,20 +37,17 @@ void renderentities(void) {
       rr::rendermodel(mmi.name, 0, 1, e.attr4, (float)mmi.rad, e.x, mmi.zoff+e.attr3, e.y, (float)((e.attr1+7)-(e.attr1+7)%15), 0, false, 1.0f, 10.0f, mmi.snap);
     } else {
       if (e.type!=CARROT) {
-        if (!e.spawned && e.type!=TELEPORT) continue;
-        if (e.type<I_SHELLS || e.type>TELEPORT) continue;
+        if (!e.spawned && e.type!=sound::TELEPORT) continue;
+        if (e.type<I_SHELLS || e.type>sound::TELEPORT) continue;
         renderent(e, entmdlnames[e.type-I_SHELLS], (float)(1+sin(lastmillis()/100.0+e.x+e.y)/20), lastmillis()/10.0f);
       } else switch (e.attr2) {
         case 1:
-        case 3:
-          continue;
-
+        case 3: continue;
         case 2:
         case 0:
           if (!e.spawned) continue;
           renderent(e, "carrot", (float)(1+sin(lastmillis()/100.0+e.x+e.y)/20), lastmillis()/(e.attr2 ? 1.0f : 10.0f));
-          break;
-
+        break;
         case 4: renderent(e, "switch2", 3,      (float)e.attr3*90, (!e.spawned && !triggertime) ? 1  : 0, (e.spawned || !triggertime) ? 1 : 2,  triggertime, 1050.0f);  break;
         case 5: renderent(e, "switch1", -0.15f, (float)e.attr3*90, (!e.spawned && !triggertime) ? 30 : 0, (e.spawned || !triggertime) ? 1 : 30, triggertime, 35.0f); break;
       }
@@ -51,15 +56,15 @@ void renderentities(void) {
 };
 
 static const struct itemstat { int add, max, sound; } itemstats[] = {
-  {     10,    50, S_ITEMAMMO},
-  {     20,   100, S_ITEMAMMO},
-  {      5,    25, S_ITEMAMMO},
-  {      5,    25, S_ITEMAMMO},
-  {     25,   100, S_ITEMHEALTH},
-  {     50,   200, S_ITEMHEALTH},
-  {    100,   100, S_ITEMARMOUR},
-  {    150,   150, S_ITEMARMOUR},
-  {  20000, 30000, S_ITEMPUP}
+  {   10,    50, sound::ITEMAMMO},
+  {   20,   100, sound::ITEMAMMO},
+  {    5,    25, sound::ITEMAMMO},
+  {    5,    25, sound::ITEMAMMO},
+  {   25,   100, sound::ITEMHEALTH},
+  {   50,   200, sound::ITEMHEALTH},
+  {  100,   100, sound::ITEMARMOUR},
+  {  150,   150, sound::ITEMARMOUR},
+  {20000, 30000, sound::ITEMPUP}
 };
 
 void baseammo(int gun) { player1->ammo[gun] = itemstats[gun-1].add*2; };
@@ -123,7 +128,7 @@ void teleport(int n, game::dynent *d) { // also used by monsters
       d->pitch = 0;
       d->vel.x = d->vel.y = d->vel.z = 0;
       entinmap(d);
-      sound::playc(S_TELEPORT);
+      sound::playc(sound::TELEPORT);
       break;
     }
   }
@@ -164,28 +169,25 @@ void pickup(int n, game::dynent *d) {
       teleport(n, d);
     }
     break;
-    case JUMPPAD: {
+    case sound::JUMPPAD: {
       static int lastjumppad = 0;
       if (lastmillis()-lastjumppad<300) break;
       lastjumppad = lastmillis();
       vec3f v((int)(char)ents[n].attr3/10.0f, (int)(char)ents[n].attr2/10.0f, ents[n].attr1/10.0f);
       player1->vel.z = 0;
       player1->vel += v;
-      sound::playc(S_JUMPPAD);
+      sound::playc(sound::JUMPPAD);
     }
     break;
   }
 }
 
 void checkitems(void) {
-  if (editmode)
-    return;
+  if (edit::mode()) return;
   loopv(ents) {
     entity &e = ents[i];
-    if (e.type==NOTUSED)
-      continue;
-    if (!ents[i].spawned && e.type!=TELEPORT && e.type!=JUMPPAD)
-      continue;
+    if (e.type==NOTUSED) continue;
+    if (!ents[i].spawned && e.type!=TELEPORT && e.type!=JUMPPAD) continue;
     const vec3f v(float(e.x), float(e.y), player1->eyeheight);
     const float dist = distance(player1->o, v);
     if (dist<(e.type==TELEPORT ? 4 : 2.5))
@@ -196,7 +198,7 @@ void checkitems(void) {
 void checkquad(int time) {
   if (player1->quadmillis && (player1->quadmillis -= time)<0) {
     player1->quadmillis = 0;
-    sound::playc(S_PUPOUT);
+    sound::playc(sound::PUPOUT);
     console::out("quad damage is over");
   }
 }

@@ -1,4 +1,4 @@
-#include "cube.h" 
+#include "cube.hpp"
 #include <enet/enet.h>
 #include <time.h>
 

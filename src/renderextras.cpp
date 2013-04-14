@@ -1,18 +1,6 @@
-#include "cube.h"
-#include "ogl.hpp"
+#include "cube.hpp"
 
 namespace cube {
-
-// XXX
-const char *entnames[] = {
-  "none?", "light", "playerstart",
-  "shells", "bullets", "rockets", "riflerounds",
-  "health", "healthboost", "greenarmour", "yellowarmour", "quaddamage",
-  "teleport", "teledest",
-  "mapmodel", "monster", "trigger", "jumppad",
-  "?", "?", "?", "?", "?"
-};
-
 namespace rr {
 
 void line(int x1, int y1, float z1, int x2, int y2, float z2) {
@@ -32,7 +20,7 @@ void linestyle(float width, int r, int g, int b) {
   OGL(VertexAttrib3f,ogl::COL,float(r)/255.f,float(g)/255.f,float(b)/255.f);
 }
 
-void box(const block &b, float z1, float z2, float z3, float z4) {
+void box(const world::block &b, float z1, float z2, float z3, float z4) {
   const vvecf<3> verts[] = {
     vvecf<3>(float(b.x),      z1, float(b.y)),
     vvecf<3>(float(b.x+b.xs), z2, float(b.y)),
@@ -154,7 +142,7 @@ static string closeent;
 // show sparkly thingies for map entities in edit mode
 void renderents(void) {
   closeent[0] = 0;
-  if (!editmode) return;
+  if (!edit::mode()) return;
   loopv(game::ents) {
     game::entity &e = game::ents[i];
     if (e.type==game::NOTUSED) continue;
@@ -166,7 +154,7 @@ void renderents(void) {
     game::entity &c = game::ents[e];
     sprintf_s(closeent)
       ("closest entity = %s (%d, %d, %d, %d), selection = (%d, %d)",
-      entnames[c.type], c.attr1, c.attr2, c.attr3, c.attr4,
+      game::entnames(c.type), c.attr1, c.attr2, c.attr3, c.attr4,
       cmd::getvar("selxs"), cmd::getvar("selys"));
   }
 }
@@ -250,7 +238,7 @@ VARP(crosshairfx, 0, 1, 1);
 
 void drawhud(int w, int h, int curfps, int nquads, int curvert, bool underwater) {
   readmatrices();
-  if (editmode)
+  if (edit::mode())
     if (cursordepth==1.0f) game::setworldpos(game::player1->o);
 
   ogl::disablev(GL_DEPTH_TEST);

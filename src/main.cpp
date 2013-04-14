@@ -1,6 +1,4 @@
-#include "cube.h"
-#include "ogl.hpp"
-#include "math.hpp"
+#include "cube.hpp"
 #include <SDL/SDL.h>
 #include <enet/enet.h>
 #include <time.h>
@@ -79,7 +77,6 @@ VARF(gamespeed, 10, 100, 1000, if (client::multiplayer()) gamespeed = 100);
 VARP(minmillis, 0, 5, 1000);
 VARF(grabmouse, 0, 0, 1, {SDL_WM_GrabInput(grabmouse ? SDL_GRAB_ON : SDL_GRAB_OFF);});
 
-int islittleendian = 1;
 int ignore = 5;
 
 static void main_loop(void) {
@@ -134,7 +131,8 @@ static int main(int argc, char **argv) {
   int fs = SDL_FULLSCREEN, par = 0, uprate = 0, maxcl = 4;
   const char *sdesc = "", *ip = "", *passwd = "";
   const char *master = NULL;
-  islittleendian = *((char *)&islittleendian);
+
+  initendiancheck();
 
 #define log(s) console::out("init: %s", s)
   log("sdl");

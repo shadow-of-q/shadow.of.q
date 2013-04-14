@@ -1,4 +1,4 @@
-#include "cube.h"
+#include "cube.hpp"
 #include <enet/enet.h>
 
 namespace cube {
@@ -238,7 +238,7 @@ void c2sinfo(const game::dynent *d) {
     server::putint(p, (d->strafe&3) |
               ((d->move&3)<<2) |
               (((int)d->onfloor)<<4) |
-              ((editmode ? CS_EDITING : d->state)<<5));
+              ((edit::mode() ? CS_EDITING : d->state)<<5));
 
     if (senditemstoserver) {
       packet->flags = ENET_PACKET_FLAG_RELIABLE;
@@ -457,7 +457,7 @@ void localservertoclient(uchar *buf, int len) {
         if (ls==game::player1->lifesequence)
           game::selfdamage(damage, cn, d);
       } else
-        sound::play(S_PAIN1+rnd(5), &game::getclient(target)->o);
+        sound::play(sound::PAIN1+rnd(5), &game::getclient(target)->o);
     }
     break;
     case SV_DIED: {
@@ -483,7 +483,7 @@ void localservertoclient(uchar *buf, int len) {
             console::out("%s fragged %s", a->name, d->name);
         }
       }
-      sound::play(S_DIE1+rnd(2), &d->o);
+      sound::play(sound::DIE1+rnd(2), &d->o);
       d->lifesequence++;
     }
     break;
@@ -499,9 +499,9 @@ void localservertoclient(uchar *buf, int len) {
       game::setspawn(i, true);
       if (i>=uint(game::ents.length()))
         break;
-      // XXX clean that with vec3i
-      const vec3f v(float(game::ents[i].x), float(game::ents[i].y), float(game::ents[i].z));
-      sound::play(S_ITEMSPAWN, &v); 
+      const auto &e = game::ents[i];
+      const vec3f v(float(e.x),float(e.y),float(e.z));
+      sound::play(sound::ITEMSPAWN, &v); 
     }
     break;
     case SV_ITEMACC:

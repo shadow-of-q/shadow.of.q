@@ -1,6 +1,5 @@
-#include "sound.hpp"
-#include "cube.h"
-#include "SDL/SDL_mixer.h"
+#include "cube.hpp"
+#include <SDL/SDL_mixer.h>
 
 #define MAXCHAN 32
 #define SOUNDFREQ 22050

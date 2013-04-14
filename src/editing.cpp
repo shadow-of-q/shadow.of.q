@@ -1,22 +1,18 @@
-// most map editing commands go here, entity editing commands are
-// in world.cpp
-#include "cube.h"
+#include "cube.hpp"
 
 namespace cube {
-
-// XXX
-bool editmode = false;
-
 namespace edit {
 
 VAR(editing,0,0,1);
-static block sel =
-{
+static world::block sel = {
   cmd::variable("selx",  0, 0, 4096, &sel.x,  NULL, false),
   cmd::variable("sely",  0, 0, 4096, &sel.y,  NULL, false),
   cmd::variable("selxs", 0, 0, 4096, &sel.xs, NULL, false),
   cmd::variable("selys", 0, 0, 4096, &sel.ys, NULL, false),
 };
+
+static bool editmode = false;
+bool mode(void) { return editmode; }
 
 void toggleedit(void)
 {

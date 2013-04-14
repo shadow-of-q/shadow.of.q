@@ -148,12 +148,10 @@ INLINE void NAME##v(First first, Rest... rest) {\
     d[_MAXDEFSTR-1] = 0;
   }
 
-  struct sprintf_s_f
-  {
+  struct sprintf_s_f {
     char *d;
     sprintf_s_f(char *str): d(str) {};
-    void operator()(const char* fmt, ...)
-    {
+    void operator()(const char* fmt, ...) {
       va_list v;
       va_start(v, fmt);
       _vsnprintf(d, _MAXDEFSTR, fmt, v);
@@ -173,12 +171,13 @@ INLINE void NAME##v(First first, Rest... rest) {\
   extern char *path(char *s);
   extern char *loadfile(char *fn, int *size);
   extern void endianswap(void *, int, int);
+  extern int islittleendian(void);
+  extern void initendiancheck(void);
 
 #define PI  (3.1415927f)
 #define PI2 (2*PI)
 
-  class noncopyable
-  {
+  class noncopyable {
     protected:
       INLINE noncopyable(void) {}
       INLINE ~noncopyable(void) {}
@@ -190,8 +189,7 @@ INLINE void NAME##v(First first, Rest... rest) {\
   /* memory pool that uses buckets and linear allocation for small objects
    * VERY fast, and reasonably good memory reuse
    */
-  struct pool
-  {
+  struct pool {
     enum { POOLSIZE = 4096 };   // can be absolutely anything
     enum { PTRSIZE = sizeof(char *) };
     enum { MAXBUCKETS = 65 };   // meaning up to size 256 on 32bit pointer systems
@@ -222,22 +220,19 @@ INLINE void NAME##v(First first, Rest... rest) {\
 
   pool *gp();
 
-  template <class T> struct vector : noncopyable
-  {
+  template <class T> struct vector : noncopyable {
     T *buf;
     int alen;
     int ulen;
     pool *p;
 
-    INLINE vector(void)
-    {
+    INLINE vector(void) {
       this->p = gp();
       alen = 8;
       buf = (T *)p->alloc(alen*sizeof(T));
       ulen = 0;
     }
-    INLINE vector(vector &&other)
-    {
+    INLINE vector(vector &&other) {
       this->buf = other.buf;
       this->alen = other.alen;
       this->ulen = other.ulen;
@@ -245,14 +240,12 @@ INLINE void NAME##v(First first, Rest... rest) {\
     }
     ~vector(void) { setsize(0); p->dealloc(buf, alen*sizeof(T)); }
 
-    INLINE T &add(const T &x)
-    {
+    INLINE T &add(const T &x) {
       if(ulen==alen) realloc();
       new (&buf[ulen]) T(x);
       return buf[ulen++];
     }
-    INLINE T &add(void)
-    {
+    INLINE T &add(void) {
       if(ulen==alen) realloc();
       new (&buf[ulen]) T;
       return buf[ulen++];
@@ -266,24 +259,20 @@ INLINE void NAME##v(First first, Rest... rest) {\
     INLINE T &operator[](int i) { assert(i>=0 && i<ulen); return buf[i]; }
     INLINE T *getbuf(void) { return buf; }
     void setsize(int i) { for(; ulen>i; ulen--) buf[ulen-1].~T(); }
-    void sort(void *cf)
-    {
+    void sort(void *cf) {
       qsort(buf, ulen, sizeof(T), (int (__cdecl *)(const void *,const void *))cf);
     }
-    void realloc(void)
-    {
+    void realloc(void) {
       const int olen = alen;
       buf = (T *)p->realloc(buf, olen*sizeof(T), (alen *= 2)*sizeof(T));
     }
-    T remove(int i)
-    {
+    T remove(int i) {
       T e = buf[i];
       for(int p = i+1; p<ulen; p++) buf[p-1] = buf[p];
       ulen--;
       return e;
     }
-    T &insert(int i, const T &e)
-    {
+    T &insert(int i, const T &e) {
       add(T());
       for(int p = ulen-1; p>i; p--) buf[p] = buf[p-1];
       buf[i] = e;
@@ -291,18 +280,15 @@ INLINE void NAME##v(First first, Rest... rest) {\
     }
   };
 
-  template <class T> struct hashtable
-  {
+  template <class T> struct hashtable {
     struct chain { chain *next; const char *key; T data; };
-
     int size;
     int numelems;
     chain **table;
     pool *parent;
     chain *enumc;
 
-    hashtable(void)
-    {
+    hashtable(void) {
       this->size = 1<<10;
       this->parent = gp();
       numelems = 0;
@@ -313,8 +299,7 @@ INLINE void NAME##v(First first, Rest... rest) {\
     hashtable(hashtable<T> &v);
     void operator=(hashtable<T> &v);
 
-    T *access(const char *key, const T *data = NULL)
-    {
+    T *access(const char *key, const T *data = NULL) {
       unsigned int h = 5381;
       for(int i = 0, k; (k = key[i]) != 0; i++) h = ((h<<5)+h)^k; // bernstein k=33 xor
       h = h&(size-1); // primes not much of an advantage
@@ -362,6 +347,4 @@ INLINE void NAME##v(First first, Rest... rest) {\
   static const int MB = KB*KB;
 
 } // namespace cube
-
-#include "math.hpp"
 

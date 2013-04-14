@@ -1,5 +1,5 @@
 #if !defined(STANDALONE)
-#include "cube.h"
+#include "cube.hpp"
 #include <enet/enet.h>
 
 namespace cube {
@@ -278,7 +278,7 @@ void spawnplayer(dynent *d) {
   if (spawncycle!=-1) {
     d->o.x = ents[spawncycle].x;
     d->o.y = ents[spawncycle].y;
-    //d->o.z = ents[spawncycle].z; // XXX just put it in the z=0 plane
+    //d->o.z = ents[spawncycle].z; // TODO handle real height later
     d->o.z = 0.f;
     d->yaw = ents[spawncycle].attr1;
     d->pitch = 0;
@@ -338,7 +338,7 @@ void mousemove(int dx, int dy) {
 }
 
 void selfdamage(int damage, int actor, dynent *act) {
-  if (player1->state!=CS_ALIVE || editmode || intermission)
+  if (player1->state!=CS_ALIVE || edit::mode() || intermission)
     return;
   rr::damageblend(damage);
   demo::blend(damage);
@@ -375,11 +375,11 @@ void selfdamage(int damage, int actor, dynent *act) {
     player1->state = CS_DEAD;
     player1->pitch = 0;
     player1->roll = 60;
-    sound::play(S_DIE1+rnd(2));
+    sound::play(sound::DIE1+rnd(2));
     spawnstate(player1);
     player1->lastaction = lastmillis();
   } else
-    sound::play(S_PAIN6);
+    sound::play(sound::PAIN6);
 }
 
 void timeupdate(int timeremain) {
@@ -422,7 +422,7 @@ void startmap(const char *name) {
   loopv(players) if (players[i]) players[i]->frags = 0;
   resetspawns();
   strcpy_s(clientmap, name);
-  if (editmode) edit::toggleedit();
+  if (edit::mode()) edit::toggleedit();
   cmd::setvar("gamespeed", 100);
   cmd::setvar("fog", 180);
   cmd::setvar("fogcolour", 0x8099B3);

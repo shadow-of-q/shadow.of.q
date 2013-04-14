@@ -1,19 +1,12 @@
-#include "cube.h"
-#include "ogl.hpp"
+#include "cube.hpp"
 #include <SDL/SDL.h>
 #include <zlib.h>
 
 namespace cube {
-
-// lookup from map entities above to strings
-extern const char *entnames[];
-
-// XXX move that
-const int ssize = 1024;
-extern bool hasoverbright;
-
 namespace world {
+
 using namespace game;
+const int ssize = 1024;
 
 int findentity(int type, int index) {
   for (int i = index; i<ents.length(); i++)
@@ -43,7 +36,7 @@ void trigger(int tag, int type, bool savegame)
   if (!tag) return;
   // settag(tag, type);
   if (!savegame && type!=3)
-    sound::play(S_RUMBLE);
+    sound::play(sound::RUMBLE);
   sprintf_sd(aliasname)("level_trigger_%d", tag);
   if (cmd::identexists(aliasname))
     cmd::execute(aliasname);
@@ -89,7 +82,7 @@ static void delent(void)
     return;
   }
   const int t = ents[e].type;
-  console::out("%s entity deleted", entnames[t]);
+  console::out("%s entity deleted", entnames(t));
   ents[e].type = NOTUSED;
   client::addmsg(1, 10, SV_EDITENT, e, NOTUSED, 0, 0, 0, 0, 0, 0, 0);
 }
@@ -97,7 +90,7 @@ COMMAND(delent, ARG_NONE);
 
 static int findtype(const char *what)
 {
-  loopi(MAXENTTYPES) if (strcmp(what,entnames[i])==0) return i;
+  loopi(MAXENTTYPES) if (strcmp(what,entnames(i))==0) return i;
   console::out("unknown entity type \"%s\"", what);
   return NOTUSED;
 }

@@ -1,5 +1,4 @@
-// misc useful functions used by the server
-#include "cube.h"
+#include "cube.hpp"
 #include <enet/enet.h>
 
 // all network traffic is in 32bit ints, which are then compressed using the

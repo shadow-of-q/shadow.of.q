@@ -1,4 +1,4 @@
-#include "cube.h"
+#include "cube.hpp"
 #include <ctype.h>
 #include <SDL/SDL.h>
 
@@ -20,16 +20,14 @@ static string commandbuf;
 static cvector vhistory;
 static int histpos = 0;
 
-static void setconskip(int n)
-{
+static void setconskip(int n) {
   conskip += n;
   if (conskip < 0)
     conskip = 0;
 }
 COMMANDN(conskip, setconskip, ARG_1INT);
 
-static void line(const char *sf, bool highlight)
-{
+static void line(const char *sf, bool highlight) {
   cline cl;
   cl.cref = conlines.length()>100 ? conlines.pop().cref : newstringbuf("");
   cl.outtime = game::lastmillis(); // for how long to keep line on screen
@@ -46,8 +44,7 @@ static void line(const char *sf, bool highlight)
 #endif
 }
 
-void out(const char *s, ...)
-{
+void out(const char *s, ...) {
   sprintf_sdv(sf, s);
   s = sf;
   int n = 0;
@@ -60,8 +57,7 @@ void out(const char *s, ...)
   line(s, n!=0);
 }
 
-void render(void)
-{
+void render(void) {
   int nd = 0;
   char *refs[ndraw];
   loopv(conlines)
@@ -78,16 +74,14 @@ void render(void)
 struct keym { int code; char *name; char *action; } keyms[256];
 static int numkm = 0;
 
-static void keymap(char *code, char *key, char *action)
-{
+static void keymap(char *code, char *key, char *action) {
   keyms[numkm].code = atoi(code);
   keyms[numkm].name = newstring(key);
   keyms[numkm++].action = newstringbuf(action);
 }
 COMMAND(keymap, ARG_3STR);
 
-static void bindkey(char *key, char *action)
-{
+static void bindkey(char *key, char *action) {
   for (char *x = key; *x; x++) *x = toupper(*x);
   loopi(numkm) if (strcmp(keyms[i].name, key)==0) {
     strcpy_s(keyms[i].action, action);
@@ -98,10 +92,9 @@ static void bindkey(char *key, char *action)
 COMMANDN(bind, bindkey, ARG_2STR);
 
 // turns input to the command line on or off
-static void saycommand(const char *init)
-{
+static void saycommand(const char *init) {
   SDL_EnableUNICODE(saycommandon = (init!=NULL));
-  if (!editmode) keyrepeat(saycommandon);
+  if (!edit::mode()) keyrepeat(saycommandon);
   if (!init) init = "";
   strcpy_s(commandbuf, init);
 }
@@ -110,8 +103,7 @@ COMMAND(saycommand, ARG_VARI);
 static void mapmsg(char *s) { strn0cpy(world::maptitle(), s, 128); }
 COMMAND(mapmsg, ARG_1STR);
 
-static void paste()
-{
+static void paste(void) {
 #ifdef WIN32
   if (!IsClipboardFormatAvailable(CF_TEXT)) return;
   if (!OpenClipboard(NULL)) return;
@@ -145,8 +137,7 @@ static void paste()
 #endif
 }
 
-static void history(int n)
-{
+static void history(int n) {
   static bool rec = false;
   if (!rec && n>=0 && n<vhistory.length()) {
     rec = true;
@@ -156,8 +147,7 @@ static void history(int n)
 }
 COMMAND(history, ARG_1INT);
 
-void keypress(int code, bool isdown, int cooked)
-{
+void keypress(int code, bool isdown, int cooked) {
   if (saycommandon) { // keystrokes go to commandline
     if (isdown) {
       switch (code) {
@@ -216,8 +206,7 @@ void keypress(int code, bool isdown, int cooked)
 
 char *getcurcommand() { return saycommandon ? commandbuf : NULL; }
 
-void writebinds(FILE *f)
-{
+void writebinds(FILE *f) {
   loopi(numkm)
     if (*keyms[i].action)
       fprintf(f, "bind \"%s\" [%s]\n", keyms[i].name, keyms[i].action);

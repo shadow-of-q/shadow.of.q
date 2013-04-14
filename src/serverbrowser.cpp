@@ -1,5 +1,5 @@
-#include "cube.h"
-#include "SDL/SDL_thread.h"
+#include "cube.hpp"
+#include <SDL/SDL_thread.h>
 #include <enet/enet.h>
 
 namespace cube {
@@ -145,6 +145,7 @@ void addserver(const char *servername) {
   si.address.host = ENET_HOST_ANY;
   si.address.port = CUBE_SERVINFO_PORT;
 }
+COMMAND(addserver, ARG_1STR);
 
 static void pingservers(void) {
   ENetBuffer buf;
@@ -248,6 +249,7 @@ static void servermenu(void) {
   refreshservers();
   menu::set(1);
 }
+COMMAND(servermenu, ARG_NONE);
 
 static void updatefrommaster(void) {
   const int MAXUPD = 32000;
@@ -271,9 +273,6 @@ void writeservercfg(void) {
   loopvrev(servers) fprintf(f, "addserver %s\n", servers[i].name);
   fclose(f);
 }
-
-COMMAND(addserver, ARG_1STR);
-COMMAND(servermenu, ARG_NONE);
 COMMAND(updatefrommaster, ARG_NONE);
 
 } // namespace browser

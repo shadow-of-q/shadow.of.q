@@ -2,7 +2,7 @@
 // All physics computations and constants were invented on the fly and simply
 // tweaked until they "felt right", and have no basis in reality.  Collision
 // detection is simplistic but very robust (uses discrete steps at fixed fps).
-#include "cube.h"
+#include "cube.hpp"
 
 namespace cube {
 namespace physics {
@@ -114,7 +114,7 @@ namespace physics {
   // prediction
   void moveplayer(game::dynent *pl, int moveres, bool local, int curtime) {
     const bool water = world::waterlevel()>pl->o.z-0.5f;
-    const bool floating = (editmode && local) || pl->state==CS_EDITING;
+    const bool floating = (edit::mode() && local) || pl->state==CS_EDITING;
 
     vec3f d; // vector of direction we ideally want to move in
     d.x = (float)(pl->move*cos(rad(pl->yaw-90)));
@@ -152,12 +152,12 @@ namespace physics {
           pl->jumpnext = false;
           pl->vel.z = 1.7f; // physics impulse upwards
           if (water) { pl->vel.x /= 8; pl->vel.y /= 8; }; // dampen velocity change even harder, gives correct water feel
-          if (local) sound::playc(S_JUMP);
-          else if (pl->monsterstate) sound::play(S_JUMP, &pl->o);
+          if (local) sound::playc(sound::JUMP);
+          else if (pl->monsterstate) sound::play(sound::JUMP, &pl->o);
         } else if (pl->timeinair>800)  // if we land after long time must have been a high jump, make thud sound
         {
-          if (local) sound::playc(S_LAND);
-          else if (pl->monsterstate) sound::play(S_LAND, &pl->o);
+          if (local) sound::playc(sound::LAND);
+          else if (pl->monsterstate) sound::play(sound::LAND, &pl->o);
         }
         pl->timeinair = 0;
       } else
@@ -207,8 +207,11 @@ namespace physics {
     }
 
     // play sounds on water transitions
-    if (!pl->inwater && water) { sound::play(S_SPLASH2, &pl->o); pl->vel.z = 0; }
-    else if (pl->inwater && !water) sound::play(S_SPLASH1, &pl->o);
+    if (!pl->inwater && water) {
+      sound::play(sound::SPLASH2, &pl->o);
+      pl->vel.z = 0.f;
+    } else if (pl->inwater && !water)
+      sound::play(sound::SPLASH1, &pl->o);
     pl->inwater = water;
   }
 

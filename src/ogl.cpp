@@ -1,5 +1,4 @@
-#include "cube.h"
-#include "ogl.hpp"
+#include "cube.hpp"
 #include <SDL/SDL.h>
 #include <SDL/SDL_image.h>
 
@@ -47,8 +46,7 @@ static const uint glbufferbinding[BUFFER_NUM] = {
   GL_ARRAY_BUFFER,
   GL_ELEMENT_ARRAY_BUFFER
 };
-void bindbuffer(uint target, uint buffer)
-{
+void bindbuffer(uint target, uint buffer) {
   if (bindedvbo[target] != buffer) {
     OGL(BindBuffer, glbufferbinding[target], buffer);
     bindedvbo[target] = buffer;
@@ -60,30 +58,26 @@ static int bigvbooffset=0, bigibooffset=0;
 static int drawibooffset=0, drawvbooffset=0;
 static GLuint bigvbo=0u, bigibo=0u;
 
-static void initbuffer(GLuint &bo, int target, int size)
-{
+static void initbuffer(GLuint &bo, int target, int size) {
   if (bo == 0u) OGL(GenBuffers, 1, &bo);
   bindbuffer(target, bo);
   OGL(BufferData, glbufferbinding[target], size, NULL, GL_DYNAMIC_DRAW);
   bindbuffer(target, 0);
 }
 
-static void immbufferinit(int size)
-{
+static void immbufferinit(int size) {
   initbuffer(bigvbo, ARRAY_BUFFER, size);
   initbuffer(bigibo, ELEMENT_ARRAY_BUFFER, size);
 }
 
 VARF(immbuffersize, 1*MB, 4*MB, 16*MB, immbufferinit(immbuffersize));
 
-void immattrib(int attrib, int n, int type, int sz, int offset)
-{
+void immattrib(int attrib, int n, int type, int sz, int offset) {
   const void *fake = (const void *) intptr_t(drawvbooffset+offset);
   OGL(VertexAttribPointer, attrib, n, type, 0, sz, fake);
 }
 
-static void immsetdata(int target, int sz, const void *data)
-{
+static void immsetdata(int target, int sz, const void *data) {
   assert(sz < immbuffersize);
   GLuint &bo = target==ARRAY_BUFFER ? bigvbo : bigibo;
   int &offset = target==ARRAY_BUFFER ? bigvbooffset : bigibooffset;
@@ -100,22 +94,19 @@ static void immsetdata(int target, int sz, const void *data)
   offset += sz;
 }
 
-void immvertices(int sz, const void *vertices)
-{
+void immvertices(int sz, const void *vertices) {
   immsetdata(ARRAY_BUFFER, sz, vertices);
 }
 
-void immdrawarrays(int mode, int count, int type)
-{
+void immdrawarrays(int mode, int count, int type) {
   drawarrays(mode,count,type);
 }
 
-void immdrawelements(int mode, int count, int type, const void *indices)
-{
+void immdrawelements(int mode, int count, int type, const void *indices) {
   int sz = count;
   switch (type) {
-    case GL_UNSIGNED_BYTE:  sz*=sizeof(uchar); break;
     case GL_UNSIGNED_SHORT: sz*=sizeof(ushort); break;
+    case GL_UNSIGNED_BYTE: sz*=sizeof(uchar); break;
     case GL_UNSIGNED_INT: sz*=sizeof(uint); break;
   };
   immsetdata(ELEMENT_ARRAY_BUFFER, sz, indices);
@@ -123,8 +114,7 @@ void immdrawelements(int mode, int count, int type, const void *indices)
   drawelements(mode, count, type, fake);
 }
 
-void immdraw(int mode, int pos, int tex, int col, size_t n, const float *data)
-{
+void immdraw(int mode, int pos, int tex, int col, size_t n, const float *data) {
   const int sz = (pos+tex+col)*sizeof(float);
   immvertices(n*sz, data);
   if (pos) {
@@ -222,8 +212,7 @@ static const uint ID_NUM = 2*MAXTEX;
 static GLuint generated_ids[ID_NUM];
 #endif /* EMSCRIPTEN */
 
-void bindtexture(uint target, uint id)
-{
+void bindtexture(uint target, uint id) {
   if (bindedtexture == id) return;
   bindedtexture = id;
 #if defined(EMSCRIPTEN)
@@ -236,8 +225,7 @@ void bindtexture(uint target, uint id)
 
 INLINE bool isPowerOfTwo(unsigned int x) { return ((x & (x - 1)) == 0); }
 
-bool installtex(int tnum, const char *texname, int &xs, int &ys, bool clamp)
-{
+bool installtex(int tnum, const char *texname, int &xs, int &ys, bool clamp) {
   SDL_Surface *s = IMG_Load(texname);
   if (!s) {
     console::out("couldn't load texture %s", texname);
@@ -284,8 +272,7 @@ bool installtex(int tnum, const char *texname, int &xs, int &ys, bool clamp)
   return true;
 }
 
-int lookuptex(int tex, int &xs, int &ys)
-{
+int lookuptex(int tex, int &xs, int &ys) {
   int frame = 0; /* other frames? */
   int tid = mapping[tex][frame];
 
@@ -344,8 +331,7 @@ COMMAND(texture, ARG_2STR);
 static GLuint spherevbo = 0;
 static int spherevertn = 0;
 
-static void buildsphere(float radius, int slices, int stacks)
-{
+static void buildsphere(float radius, int slices, int stacks) {
   vector<vvecf<5>> v;
   loopj(stacks) {
     const float angle0 = M_PI * float(j) / float(stacks);
@@ -385,8 +371,7 @@ static void buildsphere(float radius, int slices, int stacks)
  - overbright -> just multiplies final color
  -------------------------------------------------------------------------*/
 static float overbrightf = 1.f;
-static void overbright(float amount)
-{
+static void overbright(float amount) {
   dirty.flags.overbright=1;
   overbrightf = amount;
 }
@@ -394,8 +379,7 @@ static void overbright(float amount)
 /*--------------------------------------------------------------------------
  - quick and dirty shader management
  -------------------------------------------------------------------------*/
-static bool checkshader(GLuint shadername)
-{
+static bool checkshader(GLuint shadername) {
   GLint result = GL_FALSE;
   int infologlength;
 
@@ -413,8 +397,7 @@ static bool checkshader(GLuint shadername)
   return result == GL_TRUE;
 }
 
-static GLuint loadshader(GLenum type, const char *source, const char *rulestr)
-{
+static GLuint loadshader(GLenum type, const char *source, const char *rulestr) {
   GLuint name;
   OGLR(name, CreateShader, type);
   const char *sources[] = {rulestr, source};
@@ -424,8 +407,7 @@ static GLuint loadshader(GLenum type, const char *source, const char *rulestr)
   return name;
 }
 
-static GLuint loadprogram(const char *vertstr, const char *fragstr, uint rules)
-{
+static GLuint loadprogram(const char *vertstr, const char *fragstr, uint rules) {
   GLuint program = 0;
   sprintf_sd(rulestr)(IF_NOT_EMSCRIPTEN("#version 130\n")
                       IF_EMSCRIPTEN("precision highp float;\n")
@@ -550,8 +532,7 @@ static struct watershader : shader {
 static vec4f fogcolor;
 static vec2f fogstartend;
 
-static void bindshader(shader &shader)
-{
+static void bindshader(shader &shader) {
   if (bindedshader != &shader) {
     bindedshader = &shader;
     dirty.any = ~0x0;
@@ -561,8 +542,7 @@ static void bindshader(shader &shader)
 
 void bindshader(uint flags) { bindshader(shaders[flags]); }
 
-static void buildshaderattrib(shader &shader)
-{
+static void buildshaderattrib(shader &shader) {
   if (shader.rules&KEYFRAME) {
     OGL(BindAttribLocation, shader.program, POS0, "p0");
     OGL(BindAttribLocation, shader.program, POS1, "p1");
@@ -595,22 +575,19 @@ static void buildshaderattrib(shader &shader)
   OGL(UseProgram, 0);
 }
 
-static void buildshader(shader &shader, const char *vertsrc, const char *fragsrc, uint rules)
-{
+static void buildshader(shader &shader, const char *vertsrc, const char *fragsrc, uint rules) {
   memset(&shader, 0, sizeof(struct shader));
   shader.program = loadprogram(vertsrc, fragsrc, rules);
   shader.rules = rules;
   buildshaderattrib(shader);
 }
 
-static void buildubershader(shader &shader, uint rules)
-{
+static void buildubershader(shader &shader, uint rules) {
   buildshader(shader, ubervert, uberfrag, rules);
 }
 
 /* display the binded md2 model */
-void rendermd2(const float *pos0, const float *pos1, float lerp, int n)
-{
+void rendermd2(const float *pos0, const float *pos1, float lerp, int n) {
   OGL(VertexAttribPointer, TEX, 2, GL_FLOAT, 0, sizeof(float[5]), pos0);
   OGL(VertexAttribPointer, POS0, 3, GL_FLOAT, 0, sizeof(float[5]), pos0+2);
   OGL(VertexAttribPointer, POS1, 3, GL_FLOAT, 0, sizeof(float[5]), pos1+2);
@@ -622,8 +599,7 @@ void rendermd2(const float *pos0, const float *pos1, float lerp, int n)
 }
 
 /* flush all the states required for the draw call */
-static void flush(void)
-{
+static void flush(void) {
   if (dirty.any == 0) return; // fast path
   if (dirty.flags.shader) {
     OGL(UseProgram, bindedshader->program);
@@ -648,8 +624,7 @@ static void flush(void)
   }
 }
 
-void drawarrays(int mode, int first, int count) {
-  flush();
+void drawarrays(int mode, int first, int count) { flush();
   OGL(DrawArrays, mode, first, count);
 }
 void drawelements(int mode, int count, int type, const void *indices) {
@@ -669,8 +644,7 @@ void drawelements(int mode, int count, int type, const void *indices) {
 #undef GL_PROC
 #endif /* EMSCRIPTEN */
 
-void init(int w, int h)
-{
+void init(int w, int h) {
 #if !defined(EMSCRIPTEN)
 // on Windows, we directly load from OpenGL 1.1 functions
 #if defined(__WIN32__)
@@ -731,15 +705,13 @@ void init(int w, int h)
 
 void clean(void) { OGL(DeleteBuffers, 1, &spherevbo); }
 
-void drawsphere(void)
-{
+void drawsphere(void) {
   ogl::bindbuffer(ARRAY_BUFFER, spherevbo);
   ogl::bindshader(DIFFUSETEX);
   draw(GL_TRIANGLE_STRIP, 3, 2, spherevertn, NULL);
 }
 
-static void setupworld(void)
-{
+static void setupworld(void) {
   enableattribarrayv(POS0, COL, TEX);
   disableattribarrayv(POS1);
 }
@@ -747,8 +719,7 @@ static void setupworld(void)
 static const vec3f roll(0.f,0.f,1.f);
 static const vec3f pitch(-1.f,0.f,0.f);
 static const vec3f yaw(0.f,1.f,0.f);
-static void transplayer(void)
-{
+static void transplayer(void) {
   identity();
   rotate(game::player1->roll,roll);
   rotate(game::player1->pitch,pitch);
@@ -771,15 +742,13 @@ static const char *hudgunnames[] = {
   "hudguns/rifle"
 };
 
-static void drawhudmodel(int start, int end, float speed, int base)
-{
+static void drawhudmodel(int start, int end, float speed, int base) {
   rr::rendermodel(hudgunnames[game::player1->gunselect], start, end, 0, 1.0f,
     game::player1->o.x, game::player1->o.z, game::player1->o.y,
     game::player1->yaw+90, game::player1->pitch, false, 1.0f, speed, 0, base);
 }
 
-static void drawhudgun(float fovy, float aspect, int farplane)
-{
+static void drawhudgun(float fovy, float aspect, int farplane) {
   if (!hudgun) return;
 
   enablev(GL_CULL_FACE);
@@ -803,8 +772,7 @@ static void drawhudgun(float fovy, float aspect, int farplane)
   disablev(GL_CULL_FACE);
 }
 
-void draw(int mode, int pos, int tex, size_t n, const float *data)
-{
+void draw(int mode, int pos, int tex, size_t n, const float *data) {
   if (tex) {
     enableattribarrayv(TEX);
     OGL(VertexAttribPointer, TEX, tex, GL_FLOAT, 0, (pos+tex)*sizeof(float), data);
@@ -821,15 +789,13 @@ VAR(renderworld,0,1,1);
 VAR(renderwater,0,1,1);
 
 /* enforce the gl states */
-static void forceglstate(void)
-{
+static void forceglstate(void) {
   bindtexture(GL_TEXTURE_2D,0);
   loopi(BUFFER_NUM) bindbuffer(i,0);
   loopi(ATTRIB_NUM) disableattribarrayv(i);
 }
 
-static void dofog(bool underwater)
-{
+static void dofog(bool underwater) {
   fogstartend.x = float((fog+64)/8);
   fogstartend.y = 1.f/(float(fog)-fogstartend[0]);
   fogcolor.x = float(fogcolour>>16)/256.0f;
@@ -843,8 +809,7 @@ static void dofog(bool underwater)
   }
 }
 
-void drawframe(int w, int h, float curfps)
-{
+void drawframe(int w, int h, float curfps) {
   const float hf = world::waterlevel()-0.3f;
   const bool underwater = game::player1->o.z<hf;
   float fovy = (float)fov*h/w;

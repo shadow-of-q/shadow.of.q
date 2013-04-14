@@ -3,6 +3,7 @@
 #include "math.hpp"
 
 namespace cube {
+struct block;
 namespace rr {
 
 static const int VIRTW = 2400; // screen width for text & HUD

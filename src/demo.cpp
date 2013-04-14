@@ -1,13 +1,9 @@
-#include "cube.h"
+#include "cube.hpp"
 #include <zlib.h>
 
 // loading and saving of savegames & demos, dumps the spawn state of all
 // mapents, the full state of all dynents (monsters + player)
 namespace cube {
-
-// XXX
-extern int islittleendian;
-
 namespace demo {
 
 static gzFile f = NULL;
@@ -59,7 +55,7 @@ static void savestate(char *fn) {
   f = gzopen(fn, "wb9");
   if (!f) { console::out("could not write %s", fn); return; }
   gzwrite(f, (void *)"CUBESAVE", 8);
-  gzputc(f, islittleendian);
+  gzputc(f, islittleendian());
   gzputi(SAVEGAMEVERSION);
   gzputi(sizeof(game::dynent));
   gzwrite(f, (const voidp) game::getclientmap(), _MAXDEFSTR);
@@ -98,7 +94,7 @@ static void loadstate(char *fn) {
   string buf;
   gzread(f, buf, 8);
   if (strncmp(buf, "CUBESAVE", 8)) goto out;
-  if (gzgetc(f)!=islittleendian) goto out;     // not supporting save->load accross incompatible architectures simpifies things a LOT
+  if (gzgetc(f)!=islittleendian()) goto out;     // not supporting save->load accross incompatible architectures simpifies things a LOT
   if (gzgeti()!=SAVEGAMEVERSION || gzgeti()!=sizeof(game::dynent)) goto out;
   string mapname;
   gzread(f, mapname, _MAXDEFSTR);

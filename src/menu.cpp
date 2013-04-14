@@ -1,4 +1,4 @@
-#include "cube.h"
+#include "cube.hpp"
 #include <SDL/SDL.h>
 
 namespace cube {
@@ -30,6 +30,7 @@ static void show(char *name) {
     return;
   }
 }
+COMMANDN(showmenu, show, ARG_1STR);
 
 static int compare(mitem *a, mitem *b) {
   const int x = atoi(a->text);
@@ -87,6 +88,7 @@ void newm(const char *name) {
   menu.name = newstring(name);
   menu.menusel = 0;
 }
+COMMANDN(newmenu, newm, ARG_1STR);
 
 void manual(int m, int n, char *text) {
   if (!n) menus[m].items.setsize(0);
@@ -101,6 +103,7 @@ void item(char *text, char *action) {
   mi.text = newstring(text);
   mi.action = action[0] ? newstring(action) : mi.text;
 }
+COMMANDN(menuitem, item, ARG_2STR);
 
 bool key(int code, bool isdown) {
   if (vmenu<=0) return false;
@@ -129,10 +132,6 @@ bool key(int code, bool isdown) {
   }
   return true;
 }
-
-COMMANDN(menuitem, item, ARG_2STR);
-COMMANDN(showmenu, show, ARG_1STR);
-COMMANDN(newmenu, newm, ARG_1STR);
 
 } /* namespace menu */
 } /* namespace cube */

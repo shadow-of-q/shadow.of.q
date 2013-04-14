@@ -1,5 +1,4 @@
-#include "command.hpp"
-#include "cube.h"
+#include "cube.hpp"
 
 namespace cube {
 namespace cmd {

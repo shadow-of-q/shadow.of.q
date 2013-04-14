@@ -1,4 +1,7 @@
 #pragma once
+#include "tools.hpp"
+#include "math.hpp"
+#include "renderer.hpp"
 #if defined(EMSCRIPTEN)
 #include "GLES2/gl2.h"
 #else
