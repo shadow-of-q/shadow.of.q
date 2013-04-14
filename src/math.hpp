@@ -319,24 +319,10 @@ template<typename T> struct mat3x3 {
   INLINE mat3x3(void) {}
   INLINE mat3x3(const mat3x3 &m) {vx = m.vx; vy = m.vy; vz = m.vz;}
   INLINE mat3x3& op= (const mat3x3 &m) {vx = m.vx; vy = m.vy; vz = m.vz; return *this;}
-  INLINE mat3x3(v3arg n) {
-    vy = n;
-    if (abs(n.x) >= abs(n.y)) {
-      const float inv = rcp(sqrt(n.x*n.x + n.z*n.z));
-      vx = vec3<T>(-n.z*inv, zero, n.x*inv);
-    } else {
-      const float inv = rcp(sqrt(n.y*n.y + n.z*n.z));
-      vx = vec3<T>(zero, n.z*inv, -n.y*inv);
-    }
-    vx = normalize(vx);
-    vy = normalize(vy);
-    vz = cross(vy,vx);
-  }
+  mat3x3(v3arg n);
   UINLINE explicit mat3x3(const mat3x3<U> &s) : vx(s.vx), vy(s.vy), vz(s.vz) {}
   INLINE mat3x3(v3arg vx, v3arg vy, v3arg vz) : vx(vx), vy(vy), vz(vz) {}
-  INLINE mat3x3(T m00, T m01, T m02,
-                T m10, T m11, T m12,
-                T m20, T m21, T m22) :
+  INLINE mat3x3(T m00, T m01, T m02, T m10, T m11, T m12, T m20, T m21, T m22) :
     vx(m00,m10,m20), vy(m01,m11,m21), vz(m02,m12,m22) {}
   INLINE mat3x3(zerotype) : vx(zero),vy(zero),vz(zero) {}
   INLINE mat3x3(onetype)  : vx(one,zero,zero),vy(zero,one,zero),vz(zero,zero,one) {}
@@ -470,7 +456,7 @@ template<typename T> struct mat4x4 {
     vw = v4(zero, zero, zero, one);
   }
   m44& op= (const m44 &m) {vx=m.vx;vy=m.vy;vz=m.vz;vw=m.vw;return *this;}
-  INLINE m44 inverse(void) const;
+  m44 inverse(void) const;
   INLINE v4& op[] (int i) {return (&vx)[i];}
   INLINE const v4& op[] (int i) const {return (&vx)[i];}
 };
@@ -493,20 +479,15 @@ TINLINE v4  op* (m44arg m, v4arg v) {
             m.vx.w*v.x + m.vy.w*v.y + m.vz.w*v.z + m.vw.w*v.w);
 }
 TINLINE v4 op* (v4arg v, m44arg m) {
-  return V(m.vx.x*v.x + m.vx.y*v.y + m.vx.z*v.z + m.vx.w*v.w,
-           m.vy.x*v.x + m.vy.y*v.y + m.vy.z*v.z + m.vy.w*v.w,
-           m.vz.x*v.x + m.vz.y*v.y + m.vz.z*v.z + m.vz.w*v.w,
-           m.vw.x*v.x + m.vw.y*v.y + m.vw.z*v.z + m.vw.w*v.w);
+  return v4(dot(m.vx,v), dot(m.vy,v), dot(m.vz,v), dot(m.vw,v));
 }
 TINLINE m44 op* (m44arg m, m44arg n) {
   const v4 a0 = m.vx, a1 = m.vy, a2 = m.vz, a3 = m.vw;
   const v4 b0 = n.vx, b1 = n.vy, b2 = n.vz, b3 = n.vw;
-  m44 dst;
-  dst.vx = a0*b0.x + a1*b0.y + a2*b0.z + a3*b0.w;
-  dst.vy = a0*b1.x + a1*b1.y + a2*b1.z + a3*b1.w;
-  dst.vz = a0*b2.x + a1*b2.y + a2*b2.z + a3*b2.w;
-  dst.vw = a0*b3.x + a1*b3.y + a2*b3.z + a3*b3.w;
-  return dst;
+  return m44(a0*b0.x + a1*b0.y + a2*b0.z + a3*b0.w,
+             a0*b1.x + a1*b1.y + a2*b1.z + a3*b1.w,
+             a0*b2.x + a1*b2.y + a2*b2.z + a3*b2.w,
+             a0*b3.x + a1*b3.y + a2*b3.z + a3*b3.w);
 }
 TINLINE m44& op*= (m44& a, T b) {return a = a*b;}
 TINLINE m44& op/= (m44& a, T b) {return a = a/b;}
@@ -517,42 +498,6 @@ TINLINE v4 op/ (v4arg v, m44arg m) {return v * m.inverse();}
 TINLINE m44 op/ (m44arg m, m44arg n) {return m * n.inverse();}
 TINLINE bool op== (m44arg m, m44arg n) {return (m.vx==n.x) && (m.vy==n.y) && (m.vz==n.z) && (m.vw==n.w);}
 TINLINE bool op!= (m44arg m, m44arg n) {return (m.vx!=n.x) || (m.vy!=n.y) || (m.vz!=n.z) || (m.vw!=n.w);}
-TINLINE m44 m44::inverse(void) const {
-  m44 inv;
-  inv.vx.x = vy.y*vz.z*vw.w - vy.y*vz.w*vw.z - vz.y*vy.z*vw.w
-           + vz.y*vy.w*vw.z + vw.y*vy.z*vz.w - vw.y*vy.w*vz.z;
-  inv.vy.x =  -vy.x*vz.z*vw.w + vy.x*vz.w*vw.z + vz.x*vy.z*vw.w
-           - vz.x*vy.w*vw.z - vw.x*vy.z*vz.w + vw.x*vy.w*vz.z;
-  inv.vz.x =   vy.x*vz.y*vw.w - vy.x*vz.w*vw.y - vz.x*vy.y*vw.w
-           + vz.x*vy.w*vw.y + vw.x*vy.y*vz.w - vw.x*vy.w*vz.y;
-  inv.vw.x = -vy.x*vz.y*vw.z + vy.x*vz.z*vw.y + vz.x*vy.y*vw.z
-           - vz.x*vy.z*vw.y - vw.x*vy.y*vz.z + vw.x*vy.z*vz.y;
-  inv.vx.y =  -vx.y*vz.z*vw.w + vx.y*vz.w*vw.z + vz.y*vx.z*vw.w
-           - vz.y*vx.w*vw.z - vw.y*vx.z*vz.w + vw.y*vx.w*vz.z;
-  inv.vy.y =   vx.x*vz.z*vw.w - vx.x*vz.w*vw.z - vz.x*vx.z*vw.w
-           + vz.x*vx.w*vw.z + vw.x*vx.z*vz.w - vw.x*vx.w*vz.z;
-  inv.vz.y =  -vx.x*vz.y*vw.w + vx.x*vz.w*vw.y + vz.x*vx.y*vw.w
-           - vz.x*vx.w*vw.y - vw.x*vx.y*vz.w + vw.x*vx.w*vz.y;
-  inv.vw.y =  vx.x*vz.y*vw.z - vx.x*vz.z*vw.y - vz.x*vx.y*vw.z
-           + vz.x*vx.z*vw.y + vw.x*vx.y*vz.z - vw.x*vx.z*vz.y;
-  inv.vx.z =   vx.y*vy.z*vw.w - vx.y*vy.w*vw.z - vy.y*vx.z*vw.w
-           + vy.y*vx.w*vw.z + vw.y*vx.z*vy.w - vw.y*vx.w*vy.z;
-  inv.vy.z =  -vx.x*vy.z*vw.w + vx.x*vy.w*vw.z + vy.x*vx.z*vw.w
-           - vy.x*vx.w*vw.z - vw.x*vx.z*vy.w + vw.x*vx.w*vy.z;
-  inv.vz.z =  vx.x*vy.y*vw.w - vx.x*vy.w*vw.y - vy.x*vx.y*vw.w
-           + vy.x*vx.w*vw.y + vw.x*vx.y*vy.w - vw.x*vx.w*vy.y;
-  inv.vw.z = -vx.x*vy.y*vw.z + vx.x*vy.z*vw.y + vy.x*vx.y*vw.z
-           - vy.x*vx.z*vw.y - vw.x*vx.y*vy.z + vw.x*vx.z*vy.y;
-  inv.vx.w =  -vx.y*vy.z*vz.w + vx.y*vy.w*vz.z + vy.y*vx.z*vz.w
-           - vy.y*vx.w*vz.z - vz.y*vx.z*vy.w + vz.y*vx.w*vy.z;
-  inv.vy.w =   vx.x*vy.z*vz.w - vx.x*vy.w*vz.z - vy.x*vx.z*vz.w
-           + vy.x*vx.w*vz.z + vz.x*vx.z*vy.w - vz.x*vx.w*vy.z;
-  inv.vz.w = -vx.x*vy.y*vz.w + vx.x*vy.w*vz.y + vy.x*vx.y*vz.w
-           - vy.x*vx.w*vz.y - vz.x*vx.y*vy.w + vz.x*vx.w*vy.y;
-  inv.vw.w =  vx.x*vy.y*vz.z - vx.x*vy.z*vz.y - vy.x*vx.y*vz.z
-           + vy.x*vx.z*vz.y + vz.x*vx.y*vy.z - vz.x*vx.z*vy.y;
-  return inv / (vx.x*inv.vx.x + vx.y*inv.vy.x + vx.z*inv.vz.x + vx.w*inv.vw.x);
-}
 TINLINE m44 translate(m44arg m, v3arg v) {
   m44 dst(m);
   dst.vw = m.vx*v.x + m.vy*v.y + m.vz*v.z + m.vw;
@@ -609,17 +554,17 @@ TINLINE m44 ortho(T left, T right, T bottom, T top, T znear, T zfar) {
   m44 dst(one);
   dst.vx.x = T(two) / (right - left);
   dst.vy.y = T(two) / (top - bottom);
-  dst.vz.z = - T(two) / (zfar - znear);
-  dst.vw.x = - (right + left) / (right - left);
-  dst.vw.y = - (top + bottom) / (top - bottom);
-  dst.vw.z = - (zfar + znear) / (zfar - znear);
+  dst.vz.z = -T(two) / (zfar - znear);
+  dst.vw.x = -(right + left) / (right - left);
+  dst.vw.y = -(top + bottom) / (top - bottom);
+  dst.vw.z = -(zfar + znear) / (zfar - znear);
   return dst;
 }
 TINLINE m44 scale(m44arg m, v3arg v) {
   m44 dst;
-  dst.vx = m.vx * v.x;
-  dst.vy = m.vy * v.y;
-  dst.vz = m.vz * v.z;
+  dst.vx = m.vx*v.x;
+  dst.vy = m.vy*v.y;
+  dst.vz = m.vz*v.z;
   dst.vw = m.vw;
   return dst;
 }
@@ -631,7 +576,7 @@ TINLINE v3 unproject(v3arg win, m44arg model, m44arg proj, const vec4<int> &view
   in.y = T(two) * (win.y - T(viewport.y)) / T(viewport.w) - T(one);
   in.z = T(two) * win.z - T(one);
   const v4 out = final*in;
-  return v3(out.x/out.w,out.y/out.w,out.z/out.w);
+  return out.xyz() / out.w;
 }
 
 // convenient variable size static vector

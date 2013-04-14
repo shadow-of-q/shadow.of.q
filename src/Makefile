@@ -15,6 +15,7 @@ CLIENT_OBJS= \
 	entities.o \
 	ogl.o \
 	main.o \
+	math.o \
 	menu.o \
 	monster.o \
 	physics.o \
