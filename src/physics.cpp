@@ -117,24 +117,25 @@ namespace physics {
     const bool floating = (edit::mode() && local) || pl->state==CS_EDITING;
 
     vec3f d; // vector of direction we ideally want to move in
-    d.x = (float)(pl->move*cos(rad(pl->yaw-90)));
-    d.y = (float)(pl->move*sin(rad(pl->yaw-90)));
+    d.x = float(pl->move*cos(rad(pl->yaw-90.f)));
+    d.y = float(pl->move*sin(rad(pl->yaw-90.f)));
     d.z = 0;
 
     if (floating || water) {
-      d.x *= (float)cos(rad(pl->pitch));
-      d.y *= (float)cos(rad(pl->pitch));
-      d.z = (float)(pl->move*sin(rad(pl->pitch)));
+      d.x *= float(cos(rad(pl->pitch)));
+      d.y *= float(cos(rad(pl->pitch)));
+      d.z  = float(pl->move*sin(rad(pl->pitch)));
     }
 
-    d.x += (float)(pl->strafe*cos(rad(pl->yaw-180)));
-    d.y += (float)(pl->strafe*sin(rad(pl->yaw-180)));
+    d.x += float(pl->strafe*cos(rad(pl->yaw-180)));
+    d.y += float(pl->strafe*sin(rad(pl->yaw-180)));
 
     const float speed = curtime/(water ? 2000.0f : 1000.0f)*pl->maxspeed;
     const float friction = water ? 20.0f : (pl->onfloor || floating ? 6.0f : 30.0f);
     const float fpsfric = friction/curtime*20.0f;
 
-    pl->vel *= fpsfric-1; // slowly apply friction and direction to velocity, gives a smooth movement
+    // slowly apply friction and direction to velocity, gives a smooth movement
+    pl->vel *= fpsfric-1;
     pl->vel += d;
     pl->vel /= fpsfric;
     d = pl->vel;
@@ -151,45 +152,61 @@ namespace physics {
         if (pl->jumpnext) {
           pl->jumpnext = false;
           pl->vel.z = 1.7f; // physics impulse upwards
-          if (water) { pl->vel.x /= 8; pl->vel.y /= 8; }; // dampen velocity change even harder, gives correct water feel
-          if (local) sound::playc(sound::JUMP);
-          else if (pl->monsterstate) sound::play(sound::JUMP, &pl->o);
-        } else if (pl->timeinair>800)  // if we land after long time must have been a high jump, make thud sound
-        {
-          if (local) sound::playc(sound::LAND);
-          else if (pl->monsterstate) sound::play(sound::LAND, &pl->o);
+          if (water) { // dampen velocity change even harder, gives correct water feel
+            pl->vel.x /= 8.f;
+            pl->vel.y /= 8.f;
+          }
+          if (local)
+            sound::playc(sound::JUMP);
+          else if (pl->monsterstate)
+            sound::play(sound::JUMP, &pl->o);
+        } else if (pl->timeinair>800) { // if we land after long time must have been a high jump, add sound
+          if (local)
+            sound::playc(sound::LAND);
+          else if (pl->monsterstate)
+            sound::play(sound::LAND, &pl->o);
         }
         pl->timeinair = 0;
       } else
         pl->timeinair += curtime;
 
-      const float gravity = 20;
+      const float gravity = 20.f;
       const float f = 1.0f/moveres;
-      float dropf = ((gravity-1)+pl->timeinair/15.0f);        // incorrect, but works fine
-      if (water) { dropf = 5; pl->timeinair = 0; };            // float slowly down in water
-      const float drop = dropf*curtime/gravity/100/moveres;   // at high fps, gravity kicks in too fast
-      const float rise = speed/moveres/1.2f;                  // extra smoothness when lifting up stairs
+      float dropf = ((gravity-1.f)+pl->timeinair/15.0f); // incorrect, but works fine
+      if (water) { dropf = 5.f; pl->timeinair = 0.f; }; // float slowly down in water
+      const float drop = dropf*curtime/gravity/100/moveres; // at high fps, gravity kicks in too fast
+      const float rise = speed/moveres/1.2f; // extra smoothness when lifting up stairs
 
       loopi(moveres) { // discrete steps collision detection & sliding
         // try move forward
-        pl->o.x += f*d.x;
-        pl->o.y += f*d.y;
-        pl->o.z += f*d.z;
+        pl->o += f*d;
         if (collide(pl, false, drop, rise)) continue;
+
         // player stuck, try slide along y axis
         pl->blocked = true;
         pl->o.x -= f*d.x;
-        if (collide(pl, false, drop, rise)) { d.x = 0; continue; };
+        if (collide(pl, false, drop, rise)) {
+          d.x = 0.f;
+          continue;
+        }
         pl->o.x += f*d.x;
+
         // still stuck, try x axis
         pl->o.y -= f*d.y;
-        if (collide(pl, false, drop, rise)) { d.y = 0; continue; };
+        if (collide(pl, false, drop, rise)) {
+          d.y = 0.f;
+          continue;
+        }
         pl->o.y += f*d.y;
+
         // try just dropping down
         pl->moving = false;
         pl->o.x -= f*d.x;
         pl->o.y -= f*d.y;
-        if (collide(pl, false, drop, rise)) { d.y = d.x = 0; continue; };
+        if (collide(pl, false, drop, rise)) {
+          d.y = d.x = 0.f;
+          continue;
+        }
         pl->o.z -= f*d.z;
         break;
       }

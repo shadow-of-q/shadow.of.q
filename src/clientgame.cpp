@@ -5,8 +5,6 @@
 namespace cube {
 namespace game {
 
-dynent *player1 = newdynent(); // our client
-dvector players; // other clients
 static int lastmillis_ = 0;
 static int nextmode_ = 0;
 static vec3f worldpos_;
@@ -51,7 +49,7 @@ void resetmovement(dynent *d) {
 // reset player state not persistent accross spawns
 static void spawnstate(dynent *d) {
   resetmovement(d);
-  d->vel.x = d->vel.y = d->vel.z = 0;
+  d->vel = zero;
   d->onfloor = false;
   d->timeinair = 0;
   d->health = 100;
@@ -100,9 +98,7 @@ static void spawnstate(dynent *d) {
 
 dynent *newdynent(void) {
   dynent *d = (dynent*) gp()->alloc(sizeof(dynent));
-  d->o.x = 0;
-  d->o.y = 0;
-  d->o.z = 0;
+  d->o = zero;
   d->yaw = 270;
   d->pitch = 0;
   d->roll = 0;
@@ -169,7 +165,7 @@ void arenarespawn(void) {
         console::out("everyone died!");
       arenarespawnwait = lastmillis()+5000;
       arenadetectwait  = lastmillis()+10000;
-      player1->roll = 0;
+      player1->roll = 0.f ;
     }
   }
 }
@@ -538,59 +534,7 @@ void renderscores(void) {
     menu::manual(0, scorelines.length()+1, teamscores);
   }
 }
-#if 0
-#if defined(EMSCRIPTEN)
-static void sendmap(const char *mapname){}
-COMMAND(sendmap, ARG_1STR);
-static void getmap(void) {}
-COMMAND(getmap, ARG_NONE);
-#else
-static void sendmap(const char *mapname)
-{
-  if (*mapname) world::save(mapname);
-  client::changemap(mapname);
-  mapname = getclientmap();
-  int mapsize;
-  uchar *mapdata = world::readmap(mapname, &mapsize);
-  if (!mapdata) return;
-  ENetPacket *packet = enet_packet_create(NULL, MAXTRANS + mapsize, ENET_PACKET_FLAG_RELIABLE);
-  uchar *start = packet->data;
-  uchar *p = start+2;
-  server::putint(p, SV_SENDMAP);
-  server::sendstring(mapname, p);
-  server::putint(p, mapsize);
-  if (65535 - (p - start) < mapsize) {
-    console::out("map %s is too large to send", mapname);
-    free(mapdata);
-    enet_packet_destroy(packet);
-    return;
-  }
-  memcpy(p, mapdata, mapsize);
-  p += mapsize;
-  free(mapdata);
-  *(ushort *)start = ENET_HOST_TO_NET_16(p-start);
-  enet_packet_resize(packet, p-start);
-  client::sendpackettoserv(packet);
-  console::out("sending map %s to server...", mapname);
-  sprintf_sd(msg)("[map %s uploaded to server, \"getmap\" to receive it]", mapname);
-  client::toserver(msg);
-}
-COMMAND(sendmap, ARG_1STR);
 
-static void getmap(void)
-{
-  ENetPacket *packet = enet_packet_create(NULL, MAXTRANS, ENET_PACKET_FLAG_RELIABLE);
-  uchar *start = packet->data;
-  uchar *p = start+2;
-  server::putint(p, SV_RECVMAP);
-  *(ushort *)start = ENET_HOST_TO_NET_16(p-start);
-  enet_packet_resize(packet, p-start);
-  client::sendpackettoserv(packet);
-  console::out("requesting map from server...");
-}
-COMMAND(getmap, ARG_NONE);
-#endif
-#endif
 } // namespace game
 } // namespace cube
 #endif // !defined(STANDALONE)

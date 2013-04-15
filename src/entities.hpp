@@ -77,7 +77,6 @@ struct dynent {
   string name, team;
 };
 
-// XXX function?
 typedef vector<dynent*> dvector;
 extern dynent *player1; // special client ent that receives input and acts as camera
 extern dvector players; // all the other clients (in multiplayer)

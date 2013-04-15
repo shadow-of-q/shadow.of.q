@@ -15,8 +15,8 @@ void restoremonsterstate(void) { // for savegames
     numkilled++;
 }
 
-#define TOTMFREQ 13
-#define NUMMONSTERTYPES 8
+static const int TOTMFREQ = 13;
+static const int NUMMONSTERTYPES = 8;
 
 struct monstertype { // see docs for how these values modify behaviour
   short gun, speed, health, freq, lag, rate, pain, loyalty, mscale, bscale;
@@ -52,7 +52,7 @@ dynent *basicmonster(int type, int yaw, int state, int trigger, int move) {
   m->move = move;
   m->enemy = player1;
   m->gunselect = t->gun;
-  m->maxspeed = (float)t->speed;
+  m->maxspeed = float(t->speed);
   m->health = t->health;
   m->armour = 0;
   loopi(NUMGUNS) m->ammo[i] = 10000;
@@ -154,7 +154,7 @@ void monsteraction(dynent *m) {
     }
   }
 
-  const float enemyyaw = -(float)atan2(m->enemy->o.x - m->o.x, m->enemy->o.y - m->o.y)/PI*180+180;
+  const float enemyyaw = -float(atan2(m->enemy->o.x - m->o.x, m->enemy->o.y - m->o.y))/PI*180.f+180.f;
 
   switch (m->monsterstate) {
     case M_PAIN:
@@ -167,11 +167,11 @@ void monsteraction(dynent *m) {
       if (edit::mode() || !enemylos(m, target)) return; // skip running physics
       normalise(m, enemyyaw);
       float angle = (float)fabs(enemyyaw-m->yaw);
-      if (disttoenemy<8                   // the better the angle to the player
-          ||(disttoenemy<16 && angle<135) // the further the monster can
-          ||(disttoenemy<32 && angle<90)  // see/hear
-          ||(disttoenemy<64 && angle<45)
-          || angle<10) {
+      if (disttoenemy<8                // the better the angle to the player
+       ||(disttoenemy<16 && angle<135) // the further the monster can
+       ||(disttoenemy<32 && angle<90)  // see/hear
+       ||(disttoenemy<64 && angle<45)
+       || angle<10) {
         transition(m, M_HOME, 1, 500, 200);
         sound::play(sound::GRUNT1+rnd(2), &m->o);
       }

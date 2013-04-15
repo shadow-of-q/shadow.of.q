@@ -113,15 +113,15 @@ template<typename T> struct vec2 {
   INLINE vec2(onetype) : x(one),y(one) {}
   INLINE const T& op[](int axis) const {return (&x)[axis];}
   INLINE T& op[](int axis) {return (&x)[axis];}
-#define sw22(A,B) INLINE const v2 A##B(void); // declare all swizzles
+#define sw22(A,B) INLINE v2 A##B(void) const; // declare all swizzles
   sw20
 #undef sw22
 #define sw22(A,B) sw23(A,B,x) sw23(A,B,y)
-#define sw23(A,B,C) INLINE const v3 A##B##C(void);
+#define sw23(A,B,C) INLINE v3 A##B##C(void) const;
   sw20
 #undef sw23
 #define sw23(A,B,C) sw24(A,B,C,x) sw24(A,B,C,y)
-#define sw24(A,B,C,D) INLINE const v4 A##B##C##D(void);
+#define sw24(A,B,C,D) INLINE v4 A##B##C##D(void) const;
   sw20
 #undef sw23
 #undef sw24
@@ -182,15 +182,15 @@ template<typename T> struct vec3 {
   INLINE vec3 (onetype)  : x(one),y(one),z(one) {}
   INLINE const T& op[](int axis) const {return (&x)[axis];}
   INLINE T& op[](int axis) {return (&x)[axis];}
-#define sw32(A,B) INLINE const v2 A##B(void); // declare all swizzles
+#define sw32(A,B) INLINE v2 A##B(void) const; // declare all swizzles
   sw30
 #undef sw32
 #define sw32(A,B) sw33(A,B,x) sw33(A,B,y) sw33(A,B,z)
-#define sw33(A,B,C) INLINE const v3 A##B##C(void);
+#define sw33(A,B,C) INLINE v3 A##B##C(void) const;
   sw30
 #undef sw33
 #define sw33(A,B,C) sw34(A,B,C,x) sw34(A,B,C,y) sw34(A,B,C,z)
-#define sw34(A,B,C,D) INLINE const v4 A##B##C##D(void);
+#define sw34(A,B,C,D) INLINE v4 A##B##C##D(void) const;
   sw30
 #undef sw33
 #undef sw34
@@ -257,15 +257,15 @@ template<typename T> struct vec4 {
   INLINE vec4 (onetype)  : x(one),y(one),z(one),w(one) {}
   INLINE const T& op[](int axis) const {return (&x)[axis];}
   INLINE T& op[](int axis) {return (&x)[axis];}
-#define sw42(A,B) INLINE const v2 A##B(void); // declare all swizzles
+#define sw42(A,B) INLINE v2 A##B(void) const; // declare all swizzles
   sw40
 #undef sw42
 #define sw42(A,B) sw43(A,B,x) sw43(A,B,y) sw43(A,B,z) sw43(A,B,w)
-#define sw43(A,B,C) INLINE const v3 A##B##C(void);
+#define sw43(A,B,C) INLINE v3 A##B##C(void) const;
   sw40
 #undef sw43
 #define sw43(A,B,C) sw44(A,B,C,x) sw44(A,B,C,y) sw44(A,B,C,z) sw44(A,B,C,w)
-#define sw44(A,B,C,D) INLINE const v4 A##B##C##D(void);
+#define sw44(A,B,C,D) INLINE v4 A##B##C##D(void) const;
   sw40
 #undef sw43
 #undef sw44
@@ -598,45 +598,45 @@ template <typename U, int n> struct vvec {
 };
 
 // define all swizzles for vec2
-#define sw22(A,B) TINLINE const v2 v2::A##B(void) {return v2(A,B);}
+#define sw22(A,B) TINLINE v2 v2::A##B(void) const {return v2(A,B);}
 sw20
 #undef sw22
 #define sw22(A,B) sw23(A,B,x) sw23(A,B,y)
-#define sw23(A,B,C) TINLINE const v3 v2::A##B##C(void) {return v3(A,B,C);}
+#define sw23(A,B,C) TINLINE v3 v2::A##B##C(void) const {return v3(A,B,C);}
 sw20
 #undef sw23
 #define sw23(A,B,C) sw24(A,B,C,x) sw24(A,B,C,y)
-#define sw24(A,B,C,D) TINLINE const v4 v2::A##B##C##D(void) {return v4(A,B,C,D);}
+#define sw24(A,B,C,D) TINLINE v4 v2::A##B##C##D(void) const {return v4(A,B,C,D);}
 sw20
 #undef sw24
 #undef sw23
 #undef sw22
 
 // define all swizzles for vec3
-#define sw32(A,B) TINLINE const v2 v3::A##B(void) {return v2(A,B);}
+#define sw32(A,B) TINLINE v2 v3::A##B(void) const {return v2(A,B);}
 sw30
 #undef sw32
 #define sw32(A,B) sw33(A,B,x) sw33(A,B,y) sw33(A,B,z)
-#define sw33(A,B,C) TINLINE const v3 v3::A##B##C(void) {return v3(A,B,C);}
+#define sw33(A,B,C) TINLINE v3 v3::A##B##C(void) const {return v3(A,B,C);}
 sw30
 #undef sw33
 #define sw33(A,B,C) sw34(A,B,C,x) sw34(A,B,C,y) sw34(A,B,C,z)
-#define sw34(A,B,C,D) TINLINE const v4 v3::A##B##C##D(void) {return v4(A,B,C,D);}
+#define sw34(A,B,C,D) TINLINE v4 v3::A##B##C##D(void) const {return v4(A,B,C,D);}
 sw30
 #undef sw34
 #undef sw33
 #undef sw32
 
 // define all swizzles for vec4
-#define sw42(A,B) TINLINE const v2 v4::A##B(void) {return v2(A,B);}
+#define sw42(A,B) TINLINE v2 v4::A##B(void) const {return v2(A,B);}
 sw40
 #undef sw42
 #define sw42(A,B) sw43(A,B,x) sw43(A,B,y) sw43(A,B,z) sw43(A,B,w)
-#define sw43(A,B,C) TINLINE const v3 v4::A##B##C(void) {return v3(A,B,C);}
+#define sw43(A,B,C) TINLINE v3 v4::A##B##C(void) const {return v3(A,B,C);}
 sw40
 #undef sw43
 #define sw43(A,B,C) sw44(A,B,C,x) sw44(A,B,C,y) sw44(A,B,C,z) sw44(A,B,C,w)
-#define sw44(A,B,C,D) TINLINE const v4 v4::A##B##C##D(void) {return v4(A,B,C,D);}
+#define sw44(A,B,C,D) TINLINE v4 v4::A##B##C##D(void) const {return v4(A,B,C,D);}
 sw40
 #undef sw44
 #undef sw43
