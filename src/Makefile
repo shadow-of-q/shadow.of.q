@@ -2,7 +2,7 @@ CXX=g++
 #CXX=clang++
 #CXX=~/src/emscripten/em++
 CXXOPTFLAGS=-Wall -DNDEBUG -g -fsigned-char -std=c++0x
-CXXFLAGS=$(CXXOPTFLAGS) -I../enet/include `sdl-config --cflags`
+CXXFLAGS=$(CXXOPTFLAGS) -I../enet/include -I../include `sdl-config --cflags`
 
 CLIENT_LIBS=-L../enet -lenet `sdl-config --libs` -lSDL_image -lSDL_mixer -lz -lGL -lX11
 #CLIENT_OBJS=blob.o
