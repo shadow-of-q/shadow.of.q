@@ -26,7 +26,8 @@ static int triggertime = 0;
 
 void renderent(entity &e, const char *mdlname, float z, float yaw, int frame = 0, int numf = 1, int basetime = 0, float speed = 10.0f)
 {
-  rr::rendermodel(mdlname, frame, numf, 0, 1.1f, e.x, z, e.y, yaw, 0, false, 1.0f, speed, 0, basetime);
+  rr::rendermodel(mdlname, frame, numf, 0, 1.1f, vec3f(e.x, z, e.y),
+    yaw, 0, false, 1.0f, speed, 0, basetime);
 }
 
 void renderentities(void) {
@@ -36,7 +37,9 @@ void renderentities(void) {
     if (e.type==MAPMODEL) {
       mapmodelinfo &mmi = rr::getmminfo(e.attr2);
       if (!&mmi) continue;
-      rr::rendermodel(mmi.name, 0, 1, e.attr4, (float)mmi.rad, e.x, mmi.zoff+e.attr3, e.y, (float)((e.attr1+7)-(e.attr1+7)%15), 0, false, 1.0f, 10.0f, mmi.snap);
+      const vec3f pos(e.x, float(mmi.zoff+e.attr3), e.y);
+      rr::rendermodel(mmi.name, 0, 1, e.attr4, (float)mmi.rad, pos,
+        (float)((e.attr1+7)-(e.attr1+7)%15), 0, false, 1.0f, 10.0f, mmi.snap);
     } else {
       if (e.type!=CARROT) {
         if (!e.spawned && e.type!=sound::TELEPORT) continue;

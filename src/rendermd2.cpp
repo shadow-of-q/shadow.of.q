@@ -42,7 +42,7 @@ struct md2 {
   int mdlnum;
   bool loaded;
   bool load(char* filename);
-  void render(vec3f &light, int numFrame, int range, float x, float y, float z,
+  void render(vec3f &light, int numFrame, int range, const vec3f &o,
               float yaw, float pitch, float scale, float speed, int snap, int basetime);
   void scale(int frame, float scale, int sn);
 
@@ -67,22 +67,18 @@ bool md2::load(char* filename) {
   endianswap(&header, sizeof(int), sizeof(md2_header)/sizeof(int));
 
   if (header.magic!= 844121161 || header.version!=8) return false;
-
   frames = new char[header.frameSize*header.numFrames];
   if (frames==NULL) return false;
 
   fseek(file, header.offsetFrames, SEEK_SET);
   sz = fread(frames, header.frameSize*header.numFrames, 1, file); (void) sz;
-
   for (int i = 0; i < header.numFrames; ++i)
     endianswap(frames + i * header.frameSize, sizeof(float), 6);
 
   glcommands = new int[header.numGlCommands];
   if (glcommands==NULL) return false;
-
   fseek(file, header.offsetGlCommands, SEEK_SET);
   sz = fread(glcommands, header.numGlCommands*sizeof(int), 1, file); (void) sz;
-
   endianswap(glcommands, sizeof(int), header.numGlCommands);
 
   numFrames    = header.numFrames;
@@ -146,7 +142,7 @@ void md2::scale(int frame, float scale, int sn) {
   OGL(BufferSubData, GL_ARRAY_BUFFER, framesz*frame, framesz, &tris[0][0]);
 }
 
-void md2::render(vec3f &light, int frame, int range, float x, float y, float z,
+void md2::render(vec3f &light, int frame, int range, const vec3f &o,
                  float yaw, float pitch, float sc, float speed, int snap, int basetime)
 {
   ogl::bindbuffer(ogl::ARRAY_BUFFER, vbo);
@@ -154,7 +150,7 @@ void md2::render(vec3f &light, int frame, int range, float x, float y, float z,
 
   OGL(VertexAttrib3fv, ogl::COL, &light.x);
   ogl::pushmatrix();
-  ogl::translate(vec3f(x, y, z));
+  ogl::translate(o);
   ogl::rotate(yaw+180.f, vec3f(0.f, -1.f, 0.f));
   ogl::rotate(pitch, vec3f(0.f, 0.f, 1.f));
 
@@ -220,12 +216,12 @@ COMMAND(mapmodel, ARG_5STR);
 COMMAND(mapmodelreset, ARG_NONE);
 
 void rendermodel(const char *mdl, int frame, int range, int tex,
-                 float rad, float x, float y, float z,
+                 float rad, const vec3f &o,
                  float yaw, float pitch, bool teammate,
                  float scale, float speed, int snap, int basetime)
 {
   md2 *m = loadmodel(mdl);
-  if (world::isoccluded(game::player1->o.x, game::player1->o.y, x-rad, z-rad, rad*2))
+  if (world::isoccluded(game::player1->o.x, game::player1->o.y, o.x-rad, o.z-rad, rad*2))
     return;
 
   delayedload(m);
@@ -238,7 +234,7 @@ void rendermodel(const char *mdl, int frame, int range, int tex,
     light.y *= 0.7f;
     light.z *= 1.2f;
   }
-  m->render(light, frame, range, x, y, z, yaw, pitch, scale, speed, snap, basetime);
+  m->render(light, frame, range, o, yaw, pitch, scale, speed, snap, basetime);
 }
 
 } // namespace rr

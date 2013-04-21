@@ -151,22 +151,20 @@ void setnames(const char *name)
     strcpy_s(pakname, "base");
     strcpy_s(mapname, name);
   }
-  sprintf_s(cgzname)("packages/%s/%s.cgz",      pakname, mapname);
-  sprintf_s(bakname)("packages/%s/%s_%d.BAK",   pakname, mapname, lastmillis());
+  sprintf_s(cgzname)("packages/%s/%s.cgz", pakname, mapname);
+  sprintf_s(bakname)("packages/%s/%s_%d.BAK", pakname, mapname, lastmillis());
   sprintf_s(pcfname)("packages/%s/package.cfg", pakname);
-  sprintf_s(mcfname)("packages/%s/%s.cfg",      pakname, mapname);
+  sprintf_s(mcfname)("packages/%s/%s.cfg", pakname, mapname);
   path(cgzname);
   path(bakname);
 }
 
-void backup(char *name, char *backupname)
-{
+void backup(char *name, char *backupname) {
   remove(backupname);
   rename(name, backupname);
 }
 
-void save(const char *mname)
-{
+void save(const char *mname) {
   if (!*mname) mname = getclientmap();
   setnames(mname);
   backup(cgzname, bakname);
@@ -193,8 +191,7 @@ void save(const char *mname)
   console::out("wrote map file %s", cgzname);
 }
 
-void load(const char *mname)
-{
+void load(const char *mname) {
   demo::stopifrecording();
   edit::pruneundos();
   setnames(mname);
@@ -229,8 +226,8 @@ void load(const char *mname)
   }
   gzclose(f);
 
-  int xs, ys;
-  loopi(256) ogl::lookuptex(i, xs, ys);
+  // int xs, ys;
+  // loopi(256) ogl::lookuptex(i, xs, ys);
   console::out("read map %s (%d milliseconds)", cgzname, SDL_GetTicks()-lastmillis());
   console::out("%s", hdr.maptitle);
   startmap(mname);
@@ -239,9 +236,9 @@ void load(const char *mname)
     if (cmd::identexists(aliasname))
       cmd::alias(aliasname, "");
   }
-  cmd::execfile("data/default_map_settings.cfg");
-  cmd::execfile(pcfname);
-  cmd::execfile(mcfname);
+  //cmd::execfile("data/default_map_settings.cfg");
+  //cmd::execfile(pcfname);
+  //cmd::execfile(mcfname);
 }
 COMMANDN(savemap, save, ARG_1STR);
 

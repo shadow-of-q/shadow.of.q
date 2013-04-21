@@ -13,7 +13,7 @@ int xtraverts = 0;
  -------------------------------------------------------------------------*/
 union {
   struct {
-    uint shader:1; /* will force to reload everything */
+    uint shader:1; // will force to reload everything
     uint mvp:1;
     uint fog:1;
     uint overbright:1;
@@ -53,7 +53,7 @@ void bindbuffer(uint target, uint buffer) {
   }
 }
 
-/* we use two big circular buffers to handle immediate mode */
+// we use two big circular buffers to handle immediate mode
 static int bigvbooffset=0, bigibooffset=0;
 static int drawibooffset=0, drawvbooffset=0;
 static GLuint bigvbo=0u, bigibo=0u;
@@ -192,17 +192,17 @@ void popmatrix(void) {
  - used for various shaders
  -------------------------------------------------------------------------*/
 static const int MAXTEX = 1000;
-static const int FIRSTTEX = 1000; /* opengl id = loaded id + FIRSTTEX */
-static const int MAXFRAMES = 2; /* increase for more complex shader defs */
-static int texx[MAXTEX]; /* (loaded texture) -> (name, size) */
+static const int FIRSTTEX = 1000; // opengl id = loaded id + FIRSTTEX
+static const int MAXFRAMES = 2; // increase for more complex shader defs
+static int texx[MAXTEX]; // (loaded texture) -> (name, size)
 static int texy[MAXTEX];
 static string texname[MAXTEX];
 static int curtex = 0;
 static int glmaxtexsize = 256;
 static int curtexnum = 0;
 
-/* std 1+, sky 14+, mdls 20+ */
-static int mapping[256][MAXFRAMES]; /* (texture, frame) -> (oglid, name) */
+// std 1+, sky 14+, mdls 20+
+static int mapping[256][MAXFRAMES]; // (texture, frame) -> (oglid, name)
 static string mapname[256][MAXFRAMES];
 
 static void purgetextures(void) {loopi(256)loop(j,MAXFRAMES)mapping[i][j]=0;}
@@ -210,7 +210,7 @@ static void purgetextures(void) {loopi(256)loop(j,MAXFRAMES)mapping[i][j]=0;}
 #if defined(EMSCRIPTEN)
 static const uint ID_NUM = 2*MAXTEX;
 static GLuint generated_ids[ID_NUM];
-#endif /* EMSCRIPTEN */
+#endif // EMSCRIPTEN
 
 void bindtexture(uint target, uint id) {
   if (bindedtexture == id) return;
@@ -223,7 +223,7 @@ void bindtexture(uint target, uint id) {
 #endif
 }
 
-INLINE bool isPowerOfTwo(unsigned int x) { return ((x & (x - 1)) == 0); }
+INLINE bool ispoweroftwo(unsigned int x) { return ((x & (x - 1)) == 0); }
 
 bool installtex(int tnum, const char *texname, int &xs, int &ys, bool clamp) {
   SDL_Surface *s = IMG_Load(texname);
@@ -240,7 +240,7 @@ bool installtex(int tnum, const char *texname, int &xs, int &ys, bool clamp) {
   if (tnum >= int(ID_NUM)) fatal("out of bound texture ID");
   if (generated_ids[tnum] == 0u)
     OGL(GenTextures, 1, generated_ids + tnum);
-#endif /* EMSCRIPTEN */
+#endif // EMSCRIPTEN
   bindedtexture = 0;
   console::out("loading %s (%ix%i)", texname, s->w, s->h);
   ogl::bindtexture(GL_TEXTURE_2D, tnum);
@@ -256,7 +256,7 @@ bool installtex(int tnum, const char *texname, int &xs, int &ys, bool clamp) {
   else
     fatal("unsupported texture format");
 
-  if (isPowerOfTwo(xs) && isPowerOfTwo(ys)) {
+  if (ispoweroftwo(xs) && ispoweroftwo(ys)) {
     OGL(GenerateMipmap, GL_TEXTURE_2D);
     OGL(TexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, clamp ? GL_CLAMP_TO_EDGE : GL_REPEAT);
     OGL(TexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, clamp ? GL_CLAMP_TO_EDGE : GL_REPEAT);
@@ -273,7 +273,7 @@ bool installtex(int tnum, const char *texname, int &xs, int &ys, bool clamp) {
 }
 
 int lookuptex(int tex, int &xs, int &ys) {
-  int frame = 0; /* other frames? */
+  const int frame = 0; // other frames?
   int tid = mapping[tex][frame];
 
   if (tid>=FIRSTTEX) {
@@ -283,20 +283,19 @@ int lookuptex(int tex, int &xs, int &ys) {
   }
 
   xs = ys = 16;
-  if (!tid) return 1; /* crosshair :) */
+  if (!tid) return 1; // crosshair :)
 
-  loopi(curtex) { /* lazily happens once per "texture" command */
+  loopi(curtex) // lazily happens once per "texture" command
     if (strcmp(mapname[tex][frame], texname[i])==0) {
       mapping[tex][frame] = tid = i+FIRSTTEX;
       xs = texx[i];
       ys = texy[i];
       return tid;
     }
-  }
 
   if (curtex==MAXTEX) fatal("loaded too many textures");
 
-  int tnum = curtex+FIRSTTEX;
+  const int tnum = curtex+FIRSTTEX;
   strcpy_s(texname[curtex], mapname[tex][frame]);
 
   sprintf_sd(name)("packages%c%s", PATHDIV, texname[curtex]);
@@ -314,9 +313,8 @@ int lookuptex(int tex, int &xs, int &ys) {
 static void texturereset(void) { curtexnum = 0; }
 COMMAND(texturereset, ARG_NONE);
 
-static void texture(char *aframe, char *name)
-{
-  int num = curtexnum++, frame = atoi(aframe);
+static void texture(const char *aframe, const char *name) {
+  const int num = curtexnum++, frame = atoi(aframe);
   if (num<0 || num>=256 || frame<0 || frame>=MAXFRAMES) return;
   mapping[num][frame] = 1;
   char *n = mapname[num][frame];
@@ -347,12 +345,12 @@ static void buildsphere(float radius, int slices, int stacks) {
       const float cos0 = cosf(angle);
       const int start = (i==0&&j!=0)?2:1;
       const int end = (i==slices&&j!=stacks-1)?2:1;
-      loopk(start) { /* stick the strips together */
+      loopk(start) { // stick the strips together
         const float s = 1.f-float(i)/slices, t = 1.f-float(j)/stacks;
         const float x = sin1*sin0, y = sin1*cos0, z = zLow;
         v.add(vvecf<5>(s, t, x, y, z));
       }
-      loopk(end) { /* idem */
+      loopk(end) { // idem
         const float s = 1.f-float(i)/slices, t = 1.f-float(j+1)/stacks;
         const float x = sin2*sin0, y = sin2*cos0, z = zHigh;
         v.add(vvecf<5>(s, t, x, y, z));
@@ -433,7 +431,7 @@ static GLuint loadprogram(const char *vertstr, const char *fragstr, uint rules) 
 #define VS_IN "in"
 #define VS_OUT "out"
 #define PS_IN "in"
-#endif /* EMSCRIPTEN */
+#endif // EMSCRIPTEN
 
 static const char ubervert[] = {
   "uniform mat4 MVP;\n"
@@ -500,13 +498,13 @@ static const char uberfrag[] = {
 };
 
 static struct shader {
-  uint rules; /* fog,keyframe...? */
-  GLuint program; /* ogl program */
-  GLuint udiffuse, udelta, umvp, uoverbright; /* uniforms */
-  GLuint uzaxis, ufogstartend, ufogcolor; /* uniforms */
+  uint rules; // fog,keyframe...?
+  GLuint program; // ogl program
+  GLuint udiffuse, udelta, umvp, uoverbright; // uniforms
+  GLuint uzaxis, ufogstartend, ufogcolor; // uniforms
 } shaders[shadern];
 
-static const char watervert[] = { /* use DIFFUSETEX */
+static const char watervert[] = { // use DIFFUSETEX
   "#define PI 3.14159265\n"
   "uniform mat4 MVP;\n"
   "uniform vec2 duv, dxy;\n"
@@ -553,7 +551,7 @@ static void buildshaderattrib(shader &shader) {
   OGL(BindAttribLocation, shader.program, COL, "incol");
 #if !defined(EMSCRIPTEN)
   OGL(BindFragDataLocation, shader.program, 0, "c");
-#endif /* EMSCRIPTEN */
+#endif // EMSCRIPTEN
   OGL(LinkProgram, shader.program);
   OGL(ValidateProgram, shader.program);
   OGL(UseProgram, shader.program);
@@ -586,7 +584,7 @@ static void buildubershader(shader &shader, uint rules) {
   buildshader(shader, ubervert, uberfrag, rules);
 }
 
-/* display the binded md2 model */
+// display the binded md2 model
 void rendermd2(const float *pos0, const float *pos1, float lerp, int n) {
   OGL(VertexAttribPointer, TEX, 2, GL_FLOAT, 0, sizeof(float[5]), pos0);
   OGL(VertexAttribPointer, POS0, 3, GL_FLOAT, 0, sizeof(float[5]), pos0+2);
@@ -598,7 +596,7 @@ void rendermd2(const float *pos0, const float *pos1, float lerp, int n) {
   drawarrays(GL_TRIANGLES, 0, n);
 }
 
-/* flush all the states required for the draw call */
+// flush all the states required for the draw call
 static void flush(void) {
   if (dirty.any == 0) return; // fast path
   if (dirty.flags.shader) {
@@ -642,7 +640,29 @@ void drawelements(int mode, int count, int type, const void *indices) {
 #include "GL/ogl200.hxx"
 #include "GL/ogl300.hxx"
 #undef GL_PROC
-#endif /* EMSCRIPTEN */
+#endif // EMSCRIPTEN
+
+static void drawground(void) {
+  static bool initialized = false;
+  if (!initialized) {
+    texturereset();
+    texture("0", "dg/floor_grass1.jpg");
+    initialized = true;
+  }
+  int xs, ys;
+  ogl::bindtexture(GL_TEXTURE_2D, ogl::lookuptex(0,xs,ys));
+  enableattribarrayv(POS0, TEX);
+  disableattribarrayv(COL, POS1);
+  bindshader(FOG|DIFFUSETEX);
+  const float groundsize = 1000.f;
+  const vvecf<5> ground[] = {
+    vvecf<5>(vec2f(-groundsize,-groundsize),vec3f(-groundsize,0.f,-groundsize)),
+    vvecf<5>(vec2f(+groundsize,-groundsize),vec3f(+groundsize,0.f,-groundsize)),
+    vvecf<5>(vec2f(-groundsize,+groundsize),vec3f(-groundsize,0.f,+groundsize)),
+    vvecf<5>(vec2f(+groundsize,+groundsize),vec3f(+groundsize,0.f,+groundsize))
+  };
+  ogl::immdraw(GL_TRIANGLE_STRIP, 3, 2, 0, 4, &ground[0][0]);
+}
 
 void init(int w, int h) {
 #if !defined(EMSCRIPTEN)
@@ -653,7 +673,7 @@ void init(int w, int h) {
   #define GL_PROC(FIELD,NAME,PROTOTYPE) \
     FIELD = (PROTOTYPE) SDL_GL_GetProcAddress(#NAME); \
     if (FIELD == NULL) fatal("OpenGL 2 is required");
-#endif /* __WIN32__ */
+#endif // __WIN32__
 
 #include "GL/ogl100.hxx"
 #include "GL/ogl110.hxx"
@@ -664,7 +684,7 @@ void init(int w, int h) {
   #define GL_PROC(FIELD,NAME,PROTOTYPE) \
     FIELD = (PROTOTYPE) SDL_GL_GetProcAddress(#NAME); \
     if (FIELD == NULL) fatal("OpenGL 2 is required");
-#endif /* __WIN32__ */
+#endif // __WIN32__
 
 #include "GL/ogl100.hxx"
 #include "GL/ogl110.hxx"
@@ -692,13 +712,13 @@ void init(int w, int h) {
   dirty.any = ~0x0;
   purgetextures();
   buildsphere(1, 12, 6);
-  loopi(shadern) buildubershader(shaders[i], i); /* build uber-shaders */
-  buildshader(watershader, watervert, uberfrag, DIFFUSETEX); /* build water shader */
+  loopi(shadern) buildubershader(shaders[i], i); // build uber-shaders
+  buildshader(watershader, watervert, uberfrag, DIFFUSETEX); // build water shader
   OGLR(watershader.udelta, GetUniformLocation, watershader.program, "delta");
   OGLR(watershader.uduv, GetUniformLocation, watershader.program, "duv");
   OGLR(watershader.udxy, GetUniformLocation, watershader.program, "dxy");
   OGLR(watershader.uhf, GetUniformLocation, watershader.program, "hf");
-  immbufferinit(immbuffersize); /* for immediate mode */
+  immbufferinit(immbuffersize); // for immediate mode
   loopi(ATTRIB_NUM) enabledattribarray[i] = 0;
   loopi(BUFFER_NUM) bindedvbo[i] = 0;
 }
@@ -744,8 +764,8 @@ static const char *hudgunnames[] = {
 
 static void drawhudmodel(int start, int end, float speed, int base) {
   rr::rendermodel(hudgunnames[game::player1->gunselect], start, end, 0, 1.0f,
-    game::player1->o.x, game::player1->o.z, game::player1->o.y,
-    game::player1->yaw+90, game::player1->pitch, false, 1.0f, speed, 0, base);
+    game::player1->o.xzy(), game::player1->yaw+90.f, game::player1->pitch,
+    false, 1.0f, speed, 0, base);
 }
 
 static void drawhudgun(float fovy, float aspect, int farplane) {
@@ -788,7 +808,7 @@ VAR(rendersky,0,1,1);
 VAR(renderworld,0,1,1);
 VAR(renderwater,0,1,1);
 
-/* enforce the gl states */
+// enforce the gl states
 static void forceglstate(void) {
   bindtexture(GL_TEXTURE_2D,0);
   loopi(BUFFER_NUM) bindbuffer(i,0);
@@ -831,7 +851,7 @@ void drawframe(int w, int h, float curfps) {
 
   transplayer();
 
-  /* render sky */
+  // render sky
   if (rendersky) {
     identity();
     rotate(game::player1->pitch, pitch);
@@ -851,7 +871,7 @@ void drawframe(int w, int h, float curfps) {
   game::renderentities();
   rr::renderspheres(game::curtime());
   rr::renderents();
-
+  ogl::drawground();
   disablev(GL_CULL_FACE);
 
   drawhudgun(fovy, aspect, farplane);
@@ -869,6 +889,6 @@ void drawframe(int w, int h, float curfps) {
   enablev(GL_CULL_FACE);
 }
 
-} /* namespace ogl */
-} /* namespace cube */
+} // namespace ogl
+} // namespace cube
 

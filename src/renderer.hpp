@@ -42,7 +42,7 @@ void particle_trail(int type, int fade, const vec3f &from, const vec3f &to);
 void render_particles(int time);
 
 // rendermd2
-void rendermodel(const char *mdl, int frame, int range, int tex, float rad, float x, float y, float z, float yaw, float pitch, bool teammate, float scale, float speed, int snap = 0, int basetime = 0);
+void rendermodel(const char *mdl, int frame, int range, int tex, float rad, const vec3f &o, float yaw, float pitch, bool teammate, float scale, float speed, int snap = 0, int basetime = 0);
 game::mapmodelinfo &getmminfo(int i);
 
 } // namespace rr
