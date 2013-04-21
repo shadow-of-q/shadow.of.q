@@ -153,20 +153,21 @@ TINLINE v2& op+= (v2& a, v2arg b) {a.x+=b.x; a.y+=b.y; return a;}
 TINLINE v2& op-= (v2& a, v2arg b) {a.x-=b.x; a.y-=b.y; return a;}
 TINLINE v2& op*= (v2& a, const T &b)  {a.x*=b; a.y*=b; return a;}
 TINLINE v2& op/= (v2& a, const T &b)  {a.x/=b; a.y/=b; return a;}
-TINLINE T reduce_add(v2arg a) {return a.x+a.y;}
-TINLINE T reduce_mul(v2arg a) {return a.x*a.y;}
-TINLINE T reduce_min(v2arg a) {return min(a.x, a.y);}
-TINLINE T reduce_max(v2arg a) {return max(a.x, a.y);}
-TINLINE bool op== (v2arg a, v2arg b) {return a.x==b.x && a.y==b.y;}
-TINLINE bool op!= (v2arg a, v2arg b) {return a.x!=b.x || a.y!=b.y;}
-TINLINE bool op<  (v2arg a, v2arg b) {
-  if (a.x != b.x) return a.x < b.x;
-  if (a.y != b.y) return a.y < b.y;
-  return false;
-}
+TINLINE T reduceadd(v2arg a) {return a.x+a.y;}
+TINLINE T reducemul(v2arg a) {return a.x*a.y;}
+TINLINE T reducemin(v2arg a) {return min(a.x, a.y);}
+TINLINE T reducemax(v2arg a) {return max(a.x, a.y);}
+TINLINE vec2<bool> op== (v2arg a, v2arg b) {return vec2<bool>(a.x==b.x,a.y==b.y);}
+TINLINE vec2<bool> op!= (v2arg a, v2arg b) {return vec2<bool>(a.x!=b.x,a.y!=b.y);}
+TINLINE vec2<bool> op< (v2arg a, v2arg b) {return vec2<bool>(a.x<b.x,a.y<b.y);}
+TINLINE vec2<bool> op> (v2arg a, v2arg b) {return vec2<bool>(a.x>b.x,a.y>b.y);}
+TINLINE vec2<bool> op<= (v2arg a, v2arg b) {return vec2<bool>(a.x<=b.x,a.y<=b.y);}
+TINLINE vec2<bool> op>= (v2arg a, v2arg b) {return vec2<bool>(a.x>=b.x,a.y>=b.y);}
 TINLINE v2 select (bool s, v2arg t, v2arg f) {
   return v2(select(s,t.x,f.x), select(s,t.y,f.y));
 }
+INLINE bool any(const vec2<bool> &v) {return v.x||v.y;}
+INLINE bool all(const vec2<bool> &v) {return v.x&&v.y;}
 
 template<typename T> struct vec3 {
   T x, y, z;
@@ -208,26 +209,28 @@ TINLINE v3 op+ (v3arg a, v3arg b) {return v3(a.x+b.x, a.y+b.y, a.z+b.z);}
 TINLINE v3 op- (v3arg a, v3arg b) {return v3(a.x-b.x, a.y-b.y, a.z-b.z);}
 TINLINE v3 op* (v3arg a, v3arg b) {return v3(a.x*b.x, a.y*b.y, a.z*b.z);}
 TINLINE v3 op/ (v3arg a, v3arg b) {return v3(a.x/b.x, a.y/b.y, a.z/b.z);}
+TINLINE v3 op% (v3arg a, v3arg b) {return v3(a.x%b.x, a.y%b.y, a.z%b.z);}
 TINLINE v3 op* (v3arg a, const T &b) {return v3(a.x*b, a.y*b, a.z*b);}
 TINLINE v3 op/ (v3arg a, const T &b) {return v3(a.x/b, a.y/b, a.z/b);}
+TINLINE v3 op% (v3arg a, const T &b) {return v3(a.x%b, a.y%b, a.z%b);}
 TINLINE v3 op* (const T &a, v3arg b) {return v3(a*b.x, a*b.y, a*b.z);}
 TINLINE v3 op/ (const T &a, v3arg b) {return v3(a/b.x, a/b.y, a/b.z);}
+TINLINE v3 op% (const T &a, v3arg b) {return v3(a%b.x, a%b.y, a%b.z);}
 TINLINE v3 op+= (v3& a, v3arg b) {a.x+=b.x; a.y+=b.y; a.z+=b.z; return a;}
 TINLINE v3 op-= (v3& a, v3arg b) {a.x-=b.x; a.y-=b.y; a.z-=b.z; return a;}
 TINLINE v3 op*= (v3& a, const T &b) {a.x*=b; a.y*=b; a.z*=b; return a;}
 TINLINE v3 op/= (v3& a, const T &b) {a.x/=b; a.y/=b; a.z/=b; return a;}
-TINLINE bool op== (v3arg a, v3arg b) {return a.x==b.x && a.y==b.y && a.z==b.z;}
-TINLINE bool op!= (v3arg a, v3arg b) {return a.x!=b.x || a.y!=b.y || a.z!=b.z;}
-TINLINE bool op<  (v3arg a, v3arg b) {
-  if (a.x != b.x) return a.x < b.x;
-  if (a.y != b.y) return a.y < b.y;
-  if (a.z != b.z) return a.z < b.z;
-  return false;
-}
-TINLINE T reduce_add (v3arg a) {return a.x+a.y+a.z;}
-TINLINE T reduce_mul (v3arg a) {return a.x*a.y*a.z;}
-TINLINE T reduce_min (v3arg a) {return min(a.x,a.y,a.z);}
-TINLINE T reduce_max (v3arg a) {return max(a.x,a.y,a.z);}
+TINLINE v3 op%= (v3& a, const T &b) {a.x%=b; a.y%=b; a.z%=b; return a;}
+TINLINE vec3<bool> op== (v3arg a, v3arg b) {return vec3<bool>(a.x==b.x,a.y==b.y,a.z==b.z);}
+TINLINE vec3<bool> op!= (v3arg a, v3arg b) {return vec3<bool>(a.x!=b.x,a.y!=b.y,a.z!=b.z);}
+TINLINE vec3<bool> op< (v3arg a, v3arg b) {return vec3<bool>(a.x<b.x,a.y<b.y,a.z<b.z);}
+TINLINE vec3<bool> op> (v3arg a, v3arg b) {return vec3<bool>(a.x>b.x,a.y>b.y,a.z>b.z);}
+TINLINE vec3<bool> op<= (v3arg a, v3arg b) {return vec3<bool>(a.x<=b.x,a.y<=b.y,a.z<=b.z);}
+TINLINE vec3<bool> op>= (v3arg a, v3arg b) {return vec3<bool>(a.x>=b.x,a.y>=b.y,a.z>=b.z);}
+TINLINE T reduceadd (v3arg a) {return a.x+a.y+a.z;}
+TINLINE T reducemul (v3arg a) {return a.x*a.y*a.z;}
+TINLINE T reducemin (v3arg a) {return min(a.x,a.y,a.z);}
+TINLINE T reducemax (v3arg a) {return max(a.x,a.y,a.z);}
 TINLINE v3 min (v3arg a, v3arg b) {return v3(min(a.x,b.x),min(a.y,b.y),min(a.z,b.z));}
 TINLINE v3 max (v3arg a, v3arg b) {return v3(max(a.x,b.x),max(a.y,b.y),max(a.z,b.z));}
 TINLINE v3 select (bool s, v3arg t, v3arg f) {
@@ -241,6 +244,8 @@ TINLINE v3 cross(v3arg a, v3arg b) {
   return v3(a.y*b.z-a.z*b.y, a.z*b.x-a.x*b.z, a.x*b.y-a.y*b.x);
 }
 TINLINE bool rejectxy(v3 u, v3 v, T m) {return abs(v.x-u.x)>m || abs(v.y-u.y)>m;}
+INLINE bool any(const vec3<bool> &v) {return v.x||v.y||v.z;}
+INLINE bool all(const vec3<bool> &v) {return v.x&&v.y&&v.z;}
 
 // 4d vector
 template<typename T> struct vec4 {
@@ -287,19 +292,16 @@ TINLINE v4& op+= (v4& a, v4arg b) {a.x+=b.x; a.y+=b.y; a.z+=b.z; a.w+=b.w; retur
 TINLINE v4& op-= (v4& a, v4arg b) {a.x-=b.x; a.y-=b.y; a.z-=b.z; a.w-=b.w; return a;}
 TINLINE v4& op*= (v4& a, const T &b) {a.x*=b; a.y*=b; a.z*=b; a.w*=b; return a;}
 TINLINE v4& op/= (v4& a, const T &b) {a.x/=b; a.y/=b; a.z/=b; a.w/=b; return a;}
-TINLINE bool op== (v4arg a, v4arg b) {return a.x==b.x && a.y==b.y && a.z==b.z && a.w==b.w;}
-TINLINE bool op!= (v4arg a, v4arg b) {return a.x!=b.x || a.y!=b.y || a.z!=b.z || a.w!=b.w;}
-TINLINE bool op<  (v4arg a, v4arg b) {
-  if (a.x != b.x) return a.x < b.x;
-  if (a.y != b.y) return a.y < b.y;
-  if (a.z != b.z) return a.z < b.z;
-  if (a.w != b.w) return a.w < b.w;
-  return false;
-}
-TINLINE T reduce_add(v4arg a) {return a.x + a.y + a.z + a.w;}
-TINLINE T reduce_mul(v4arg a) {return a.x * a.y * a.z * a.w;}
-TINLINE T reduce_min(v4arg a) {return min(a.x, a.y, a.z, a.w);}
-TINLINE T reduce_max(v4arg a) {return max(a.x, a.y, a.z, a.w);}
+TINLINE vec4<bool> op== (v4arg a, v4arg b) {return vec4<bool>(a.x==b.x,a.y==b.y,a.z==b.z,a.w==b.w);}
+TINLINE vec4<bool> op!= (v4arg a, v4arg b) {return vec4<bool>(a.x!=b.x,a.y!=b.y,a.z!=b.z,a.w!=b.w);}
+TINLINE vec4<bool> op< (v4arg a, v4arg b) {return vec4<bool>(a.x<b.x,a.y<b.y,a.z<b.z,a.w<b.w);}
+TINLINE vec4<bool> op> (v4arg a, v4arg b) {return vec4<bool>(a.x>b.x,a.y>b.y,a.z>b.z,a.w>b.w);}
+TINLINE vec4<bool> op<= (v4arg a, v4arg b) {return vec4<bool>(a.x<=b.x,a.y<=b.y,a.z<=b.z,a.w<=b.w);}
+TINLINE vec4<bool> op>= (v4arg a, v4arg b) {return vec4<bool>(a.x>=b.x,a.y>=b.y,a.z>=b.z,a.w>=b.w);}
+TINLINE T reduceadd(v4arg a) {return a.x + a.y + a.z + a.w;}
+TINLINE T reducemul(v4arg a) {return a.x * a.y * a.z * a.w;}
+TINLINE T reducemin(v4arg a) {return min(a.x, a.y, a.z, a.w);}
+TINLINE T reducemax(v4arg a) {return max(a.x, a.y, a.z, a.w);}
 TINLINE v4 min(v4arg a, v4arg b) {return v4(min(a.x,b.x), min(a.y,b.y), min(a.z,b.z), min(a.w,b.w));}
 TINLINE v4 max(v4arg a, v4arg b) {return v4(max(a.x,b.x), max(a.y,b.y), max(a.z,b.z), max(a.w,b.w));}
 TINLINE v4 abs (v4arg a) {return v4(abs(a.x), abs(a.y), abs(a.z), abs(a.w));}
@@ -313,6 +315,8 @@ TINLINE T distance (v4arg a, v4arg b) {return length(a-b);}
 TINLINE v4 select (bool s, v4arg t, v4arg f) {
   return v4(select(s,t.x,f.x), select(s,t.y,f.y), select(s,t.z,f.z), select(s,t.w,f.w));
 }
+INLINE bool any(const vec4<bool> &v) {return v.x||v.y||v.z||v.w;}
+INLINE bool all(const vec4<bool> &v) {return v.x&&v.y&&v.z&&v.w;}
 
 template<typename T> struct mat3x3 {
   vec3<T> vx,vy,vz;

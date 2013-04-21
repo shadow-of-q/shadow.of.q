@@ -264,6 +264,7 @@ INLINE void NAME##v(First first, Rest... rest) {\
     INLINE T &operator[](int i) { assert(i>=0 && i<ulen); return buf[i]; }
     INLINE T *getbuf(void) { return buf; }
     void setsize(int i) { for(; ulen>i; ulen--) buf[ulen-1].~T(); }
+    void clear(void) { setsize(0); }
     void sort(void *cf) {
       qsort(buf, ulen, sizeof(T), (int (__cdecl *)(const void *,const void *))cf);
     }

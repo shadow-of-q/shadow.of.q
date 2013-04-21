@@ -642,15 +642,231 @@ void drawelements(int mode, int count, int type, const void *indices) {
 #undef GL_PROC
 #endif // EMSCRIPTEN
 
+template <int x> struct powerof2policy { enum {value = !!((x&(x-1))==0)}; };
+#define GRIDPOLICY(x,y,z) \
+  static_assert(powerof2policy<x>::value,"x must be power of 2");\
+  static_assert(powerof2policy<y>::value,"y must be power of 2");\
+  static_assert(powerof2policy<z>::value,"z must be power of 2");
+
+// cube material
+enum  {
+  EMPTY = 0, // nothing at all
+  FULL = 1 // contains a deformed cube
+};
+
+// data contained in the most lower grid
+struct brickcube {
+  INLINE brickcube(u8 m) : p(0,0,0), mat(m), extra(0) {}
+  INLINE brickcube(vec3<u8> o = vec3<u8>(0,0,0), u8 m = EMPTY) : p(o), mat(m), extra(0) {}
+  vec3<u8> p;
+  u8 mat;
+  u32 extra;
+};
+// EMPTY (== air) cube and no displacement
+static const brickcube emptycube;
+
+#define loopxyz(org, end, body)\
+  for (int x = vec3i(org).x; x < vec3i(end).x; ++x)\
+  for (int y = vec3i(org).y; y < vec3i(end).y; ++y)\
+  for (int z = vec3i(org).z; z < vec3i(end).z; ++z) do {\
+    const vec3i xyz(x,y,z);\
+    body;\
+  } while (0)
+#undef INLINE
+#define INLINE
+
+// actually contains the data (geometries)
+template <int x, int y, int z>
+struct brick : public noncopyable {
+  INLINE brick(void) {
+    vbo = ibo = 0u;
+    elemnum = 0;
+  }
+  INLINE vec3i size(void) const { return vec3i(x,y,z); }
+  INLINE brickcube get(vec3i v) const { return elem[v.x][v.y][v.z]; }
+  INLINE void set(vec3i v, const brickcube &cube) { elem[v.x][v.y][v.z]=cube; }
+  INLINE brick &getbrick(vec3i idx) { return *this; }
+  template <typename F> INLINE void forallcubes(const F &f, vec3i org) {
+    loopxyz(zero, size(), {
+      auto cube = get(xyz);
+      if (cube.mat != EMPTY)
+        f(cube, org + xyz);
+    });
+  }
+  template <typename F> INLINE void forallbricks(const F &f, vec3i org) {
+    f(*this, org);
+  }
+  brickcube elem[x][y][z];
+  GRIDPOLICY(x,y,z);
+  enum {cubenx=x, cubeny=y, cubenz=z};
+  GLuint vbo, ibo;
+  u32 elemnum;
+};
+
+// recursive sparse grid
+template <typename T, int locx, int locy, int locz, int globx, int globy, int globz>
+struct grid : public noncopyable {
+  enum {cubenx=locx*T::cubenx, cubeny=locy*T::cubeny, cubenz=locz*T::cubenz};
+  INLINE grid(void) { memset(elem, 0, sizeof(elem)); }
+  INLINE vec3i local(void) const { return vec3i(locx,locy,locz); }
+  INLINE vec3i global(void) const { return vec3i(globx,globy,globz); }
+  INLINE vec3i cuben(void) const { return vec3i(cubenx, cubeny, cubenz); }
+  INLINE vec3i subcuben(void) const { return vec3i(T::cubenx, T::cubeny, T::cubenz); }
+  INLINE vec3i index(vec3i p) const {
+    return any(p<vec3i(zero))?local():p*local()/global();
+  }
+  INLINE T *subgrid(vec3i idx) const {
+    if (any(idx>=local())) return NULL;
+    return elem[idx.x][idx.y][idx.z];
+  }
+  INLINE brickcube get(vec3i v) const {
+    auto idx = index(v);
+    auto e = subgrid(idx);
+    if (e == NULL) return emptycube;
+    return e->get(v-idx*subcuben());
+  }
+  INLINE void set(vec3i v, const brickcube &cube) {
+    auto idx = index(v);
+    if (any(idx>=local())) return;
+    auto &e = elem[idx.x][idx.y][idx.z];
+    if (e == NULL) e = new T;
+    e->set(v-idx*subcuben(), cube);
+  }
+  template <typename F> INLINE void forallcubes(const F &f, vec3i org) {
+    loopxyz(zero, local(), if (T *e = subgrid(xyz))
+      e->forallcubes(f, org + xyz*global()/local()));
+  }
+  template <typename F> INLINE void forallbricks(const F &f, vec3i org) {
+    loopxyz(zero, local(), if (T *e = subgrid(xyz))
+      e->forallbricks(f, org + xyz*global()/local()););
+  }
+  T *elem[locx][locy][locz]; // each elem may be null when empty
+  GRIDPOLICY(locx,locy,locz);
+  GRIDPOLICY(globx,globy,globz);
+};
+
+static const int lx = 32, ly = 32, lz = 16;
+typedef brick<lx,ly,lz> worldbrick;
+static const int g = 2;
+static grid<worldbrick,g,g,g,g*lx,g*ly,g*lz> root;
+
+template <typename F> static void forallbricks(const F &f) {
+  root.forallbricks(f, zero);
+}
+
+static const int cubedirnum = 6;
+static const int cubevertnum = 8;
+static const int cubetrinum = 12;
+static const vec3i cubeverts[cubevertnum] = {
+  vec3i(0,0,0)/*0*/, vec3i(0,0,1)/*1*/, vec3i(0,1,1)/*2*/, vec3i(0,1,0)/*3*/,
+  vec3i(1,0,0)/*4*/, vec3i(1,0,1)/*5*/, vec3i(1,1,1)/*6*/, vec3i(1,1,0)/*7*/
+};
+static const vec3i cubetris[cubetrinum] = {
+  vec3i(0,1,2), vec3i(0,2,3), vec3i(4,7,6), vec3i(4,6,5), // -x,+x triangles
+  vec3i(0,4,5), vec3i(0,5,1), vec3i(2,6,7), vec3i(2,7,3), // -y,+y triangles
+  vec3i(3,7,4), vec3i(3,4,0), vec3i(1,5,6), vec3i(1,6,2)  // -z,+z triangles
+};
+static const vec3i cubenorms[cubedirnum] = {
+  vec3i(-1,0,0), vec3i(+1,0,0),
+  vec3i(0,-1,0), vec3i(0,+1,0),
+  vec3i(0,0,-1), vec3i(0,0,+1)
+};
+
+struct brickmeshctx {
+  brickmeshctx(const worldbrick &b) : b(b) {}
+  void clear(int orientation) {
+    dir = orientation;
+    memset(indices, 0xff, sizeof(indices));
+  }
+  INLINE u16 get(vec3i p) const { return indices[p.x][p.y][p.z]; }
+  INLINE void set(vec3i p, u16 idx) { indices[p.x][p.y][p.z] = idx; }
+  const worldbrick &b;
+  vector<vvecf<5>> vbo;
+  vector<u16> ibo;
+  u16 indices[lx+1][ly+1][lz+1];
+  int dir;
+};
+
+static INLINE void buildfaces(brickmeshctx &ctx, vec3i xyz, vec3i idx) {
+  const int chan = ctx.dir/2; // basically: x (==0), y (==1) or z (==2)
+  if (root.get(xyz).mat == EMPTY) return; // nothing here
+  if (root.get(xyz+cubenorms[ctx.dir]).mat != EMPTY) return; // invisible face
+
+  // build both triangles. we reuse already output vertices
+  const int idx0 = 2*ctx.dir+0, idx1 = 2*ctx.dir+1;
+  const vec3i tris[] = {cubetris[idx0], cubetris[idx1]};
+  loopi(2) { // build both triangles
+    loopj(3) { // build each vertex
+      const vec3i local = idx+cubeverts[tris[i][j]];
+      const vec3i global = xyz+cubeverts[tris[i][j]];
+      u16 id = ctx.get(local);
+      if (id == 0xffff) {
+        const vec3f pos = vec3f(global);//+vec3f(root.get(global).p);
+        const vec2f tex = chan==0?pos.yz():(chan==1?pos.xz():pos.xy());
+        id = ctx.vbo.length();
+        ctx.vbo.add(vvecf<5>(pos.xzy(),tex));
+        ctx.set(local, id);
+      }
+      ctx.ibo.add(id);
+    }
+  }
+}
+
+static void buildgridmesh(worldbrick &b, vec3i org) {
+  brickmeshctx ctx(b);
+  loopi(6) {
+    ctx.clear(i);
+    loopxyz(0, b.size(), buildfaces(ctx, org+xyz, xyz));
+  }
+  if (ctx.vbo.length() > 0xffff) fatal("too many vertices in the VBO");
+  OGL(GenBuffers, 1, &b.vbo);
+  OGL(GenBuffers, 1, &b.ibo);
+  ogl::bindbuffer(ogl::ARRAY_BUFFER, b.vbo);
+  ogl::bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, b.ibo);
+  OGL(BufferData, GL_ARRAY_BUFFER, ctx.vbo.length()*sizeof(vvecf<5>), &ctx.vbo[0][0], GL_STATIC_DRAW);
+  OGL(BufferData, GL_ELEMENT_ARRAY_BUFFER, ctx.ibo.length()*sizeof(u16), &ctx.ibo[0], GL_STATIC_DRAW);
+  bindbuffer(ogl::ARRAY_BUFFER, 0);
+  bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, 0);
+  b.elemnum = ctx.ibo.length();
+}
+
+static void fillgrid(void) {
+  loop(x,lx*g) loop(y,ly*g) root.set(vec3i(x,y,0), brickcube(FULL));
+  loop(z,lz*g) root.set(vec3i(6,6,z), brickcube(FULL));
+  forallbricks(buildgridmesh);
+}
+
+static void drawgrid(void) {
+  static bool initialized = false;
+  if (!initialized) {
+    texturereset();
+    texture("0", "dg/floor_grass1.jpg");
+    fillgrid();
+    initialized = true;
+  }
+  ogl::bindtexture(GL_TEXTURE_2D, ogl::lookuptex(0));
+  enableattribarrayv(POS0, TEX);
+  disableattribarrayv(COL, POS1);
+  bindshader(FOG|DIFFUSETEX);
+  forallbricks([&](const worldbrick &b, const vec3i org) {
+    ogl::bindbuffer(ogl::ARRAY_BUFFER, b.vbo);
+    ogl::bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, b.ibo);
+    OGL(VertexAttribPointer, TEX, 2, GL_FLOAT, 0, sizeof(float[5]), (const void*) sizeof(float[3]));
+    OGL(VertexAttribPointer, POS0, 3, GL_FLOAT, 0, sizeof(float[5]), (const void*) 0);
+    ogl::drawelements(GL_TRIANGLES, b.elemnum, GL_UNSIGNED_SHORT, 0);
+  });
+}
+
+#if 1
 static void drawground(void) {
+  return;
   static bool initialized = false;
   if (!initialized) {
     texturereset();
     texture("0", "dg/floor_grass1.jpg");
     initialized = true;
   }
-  int xs, ys;
-  ogl::bindtexture(GL_TEXTURE_2D, ogl::lookuptex(0,xs,ys));
+  ogl::bindtexture(GL_TEXTURE_2D, ogl::lookuptex(0));
   enableattribarrayv(POS0, TEX);
   disableattribarrayv(COL, POS1);
   bindshader(FOG|DIFFUSETEX);
@@ -663,6 +879,7 @@ static void drawground(void) {
   };
   ogl::immdraw(GL_TRIANGLE_STRIP, 3, 2, 0, 4, &ground[0][0]);
 }
+#endif
 
 void init(int w, int h) {
 #if !defined(EMSCRIPTEN)
@@ -872,6 +1089,7 @@ void drawframe(int w, int h, float curfps) {
   rr::renderspheres(game::curtime());
   rr::renderents();
   ogl::drawground();
+  ogl::drawgrid();
   disablev(GL_CULL_FACE);
 
   drawhudgun(fovy, aspect, farplane);

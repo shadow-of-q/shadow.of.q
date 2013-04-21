@@ -80,6 +80,7 @@ void clean(void);
 void drawframe(int w, int h, float curfps);
 bool installtex(int id, const char *name, int &xs, int &ys, bool clamp = false);
 int lookuptex(int tex, int &xs, int &ys);
+INLINE int lookuptex(int tex) {int xs,ys; return lookuptex(tex,xs,ys);}
 
 // draw helper functions
 void draw(int mode, int pos, int tex, size_t n, const float *data);
