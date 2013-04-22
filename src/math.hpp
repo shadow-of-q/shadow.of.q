@@ -320,10 +320,10 @@ INLINE bool all(const vec4<bool> &v) {return v.x&&v.y&&v.z&&v.w;}
 
 template<typename T> struct mat3x3 {
   vec3<T> vx,vy,vz;
+  mat3x3(v3arg n);
   INLINE mat3x3(void) {}
   INLINE mat3x3(const mat3x3 &m) {vx = m.vx; vy = m.vy; vz = m.vz;}
   INLINE mat3x3& op= (const mat3x3 &m) {vx = m.vx; vy = m.vy; vz = m.vz; return *this;}
-  mat3x3(v3arg n);
   UINLINE explicit mat3x3(const mat3x3<U> &s) : vx(s.vx), vy(s.vy), vz(s.vz) {}
   INLINE mat3x3(v3arg vx, v3arg vy, v3arg vz) : vx(vx), vy(vy), vz(vz) {}
   INLINE mat3x3(T m00, T m01, T m02, T m10, T m11, T m12, T m20, T m21, T m22) :

@@ -662,14 +662,14 @@ struct brickcube {
   u8 mat;
   u32 extra;
 };
-// EMPTY (== air) cube and no displacement
+// empty (== air) cube and no displacement
 static const brickcube emptycube;
 
 #define loopxyz(org, end, body)\
-  for (int x = vec3i(org).x; x < vec3i(end).x; ++x)\
-  for (int y = vec3i(org).y; y < vec3i(end).y; ++y)\
-  for (int z = vec3i(org).z; z < vec3i(end).z; ++z) do {\
-    const vec3i xyz(x,y,z);\
+  for (int X = vec3i(org).x; X < vec3i(end).x; ++X)\
+  for (int Y = vec3i(org).y; Y < vec3i(end).y; ++Y)\
+  for (int Z = vec3i(org).z; Z < vec3i(end).z; ++Z) do {\
+    const vec3i xyz(X,Y,Z);\
     body;\
   } while (0)
 #undef INLINE
@@ -747,7 +747,7 @@ struct grid : public noncopyable {
 
 static const int lx = 32, ly = 32, lz = 16;
 typedef brick<lx,ly,lz> worldbrick;
-static const int g = 2;
+static const int g = 8;
 static grid<worldbrick,g,g,g,g*lx,g*ly,g*lz> root;
 
 template <typename F> static void forallbricks(const F &f) {
@@ -854,32 +854,9 @@ static void drawgrid(void) {
     OGL(VertexAttribPointer, TEX, 2, GL_FLOAT, 0, sizeof(float[5]), (const void*) sizeof(float[3]));
     OGL(VertexAttribPointer, POS0, 3, GL_FLOAT, 0, sizeof(float[5]), (const void*) 0);
     ogl::drawelements(GL_TRIANGLES, b.elemnum, GL_UNSIGNED_SHORT, 0);
+    ogl::xtraverts += b.elemnum;
   });
 }
-
-#if 1
-static void drawground(void) {
-  return;
-  static bool initialized = false;
-  if (!initialized) {
-    texturereset();
-    texture("0", "dg/floor_grass1.jpg");
-    initialized = true;
-  }
-  ogl::bindtexture(GL_TEXTURE_2D, ogl::lookuptex(0));
-  enableattribarrayv(POS0, TEX);
-  disableattribarrayv(COL, POS1);
-  bindshader(FOG|DIFFUSETEX);
-  const float groundsize = 1000.f;
-  const vvecf<5> ground[] = {
-    vvecf<5>(vec2f(-groundsize,-groundsize),vec3f(-groundsize,0.f,-groundsize)),
-    vvecf<5>(vec2f(+groundsize,-groundsize),vec3f(+groundsize,0.f,-groundsize)),
-    vvecf<5>(vec2f(-groundsize,+groundsize),vec3f(-groundsize,0.f,+groundsize)),
-    vvecf<5>(vec2f(+groundsize,+groundsize),vec3f(+groundsize,0.f,+groundsize))
-  };
-  ogl::immdraw(GL_TRIANGLE_STRIP, 3, 2, 0, 4, &ground[0][0]);
-}
-#endif
 
 void init(int w, int h) {
 #if !defined(EMSCRIPTEN)
@@ -916,7 +893,7 @@ void init(int w, int h) {
 
   OGL(Viewport, 0, 0, w, h);
 #if defined (EMSCRIPTEN)
-  for (uint32 i = 0; i < sizeof(generated_ids) / sizeof(generated_ids[0]); ++i)
+  for (u32 i = 0; i < sizeof(generated_ids) / sizeof(generated_ids[0]); ++i)
     generated_ids[i] = 0;
   OGL(ClearDepthf,1.f);
 #else
@@ -1088,7 +1065,7 @@ void drawframe(int w, int h, float curfps) {
   game::renderentities();
   rr::renderspheres(game::curtime());
   rr::renderents();
-  ogl::drawground();
+  enablev(GL_CULL_FACE);
   ogl::drawgrid();
   disablev(GL_CULL_FACE);
 

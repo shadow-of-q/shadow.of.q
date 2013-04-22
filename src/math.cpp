@@ -3,7 +3,7 @@
 namespace cube {
 
 template <typename T>
-INLINE mat3x3<T>::mat3x3(const vec3<T> &n) {
+mat3x3<T>::mat3x3(const vec3<T> &n) {
   vy = n;
   if (abs(n.x) >= abs(n.y)) {
     const float inv = rcp(sqrt(n.x*n.x + n.z*n.z));
@@ -18,7 +18,7 @@ INLINE mat3x3<T>::mat3x3(const vec3<T> &n) {
 }
 
 template <typename T>
-INLINE mat4x4<T> mat4x4<T>::inverse(void) const {
+mat4x4<T> mat4x4<T>::inverse(void) const {
   mat4x4<T> inv;
   inv.vx.x = vy.y*vz.z*vw.w - vy.y*vz.w*vw.z - vz.y*vy.z*vw.w
            + vz.y*vy.w*vw.z + vw.y*vy.z*vz.w - vw.y*vy.w*vz.z;
