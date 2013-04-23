@@ -154,7 +154,7 @@ void identity(void) {
 }
 void translate(const vec3f &v) {
   dirty.flags.mvp=1;
-  vp[vpmode] = translate(vp[vpmode],v);
+  vp[vpmode] = vp[vpmode]*mat4x4f::translate(v);
 }
 void mulmatrix(const mat4x4f &m) {
   dirty.flags.mvp=1;
@@ -162,7 +162,7 @@ void mulmatrix(const mat4x4f &m) {
 }
 void rotate(float angle, const vec3f &axis) {
   dirty.flags.mvp=1;
-  vp[vpmode] = rotate(vp[vpmode],angle,axis);
+  vp[vpmode] = vp[vpmode]*mat4x4f::rotate(angle,axis);
 }
 void perspective(float fovy, float aspect, float znear, float zfar) {
   dirty.flags.mvp=1;
@@ -745,10 +745,32 @@ struct grid : public noncopyable {
   GRIDPOLICY(globx,globy,globz);
 };
 
-static const int lx = 32, ly = 32, lz = 16;
-typedef brick<lx,ly,lz> worldbrick;
-static const int g = 8;
-static grid<worldbrick,g,g,g,g*lx,g*ly,g*lz> root;
+// all levels of details for our world
+static const int lvl1x = 32, lvl1y = 32, lvl1z = 16;
+static const int lvl2x = 4,  lvl2y = 4,  lvl2z = 4;
+static const int lvl3x = 4,  lvl3y = 4,  lvl3z = 4;
+static const int lvlt1x = lvl1x, lvlt1y = lvl1y, lvlt1z = lvl1z;
+
+// compute the total number of cube for one level
+#define LVL_TOT(N, M)\
+static const int lvlt##N##x = lvl##N##x * lvlt##M##x;\
+static const int lvlt##N##y = lvl##N##y * lvlt##M##y;\
+static const int lvlt##N##z = lvl##N##z * lvlt##M##z;
+LVL_TOT(2,1)
+LVL_TOT(3,2)
+#undef LVL_TOT
+
+// define a type for one level of the hierarchy
+#define GRID(CHILD,N)\
+typedef grid<CHILD,lvl##N##x,lvl##N##y,lvl##N##z,lvlt##N##x,lvlt##N##y,lvlt##N##z> lvl##N##grid;
+typedef brick<lvl1x,lvl1y,lvl1z> lvl1grid;
+GRID(lvl1grid,2)
+GRID(lvl2grid,3)
+#undef GRID
+
+// our world and its total dimension
+static lvl3grid root;
+static const vec3i worldisize(lvlt3x,lvlt3y,lvlt3z);
 
 template <typename F> static void forallbricks(const F &f) {
   root.forallbricks(f, zero);
@@ -773,17 +795,17 @@ static const vec3i cubenorms[cubedirnum] = {
 };
 
 struct brickmeshctx {
-  brickmeshctx(const worldbrick &b) : b(b) {}
+  brickmeshctx(const lvl1grid &b) : b(b) {}
   void clear(int orientation) {
     dir = orientation;
     memset(indices, 0xff, sizeof(indices));
   }
   INLINE u16 get(vec3i p) const { return indices[p.x][p.y][p.z]; }
   INLINE void set(vec3i p, u16 idx) { indices[p.x][p.y][p.z] = idx; }
-  const worldbrick &b;
+  const lvl1grid &b;
   vector<vvecf<5>> vbo;
   vector<u16> ibo;
-  u16 indices[lx+1][ly+1][lz+1];
+  u16 indices[lvl1x+1][lvl1y+1][lvl1z+1];
   int dir;
 };
 
@@ -812,7 +834,7 @@ static INLINE void buildfaces(brickmeshctx &ctx, vec3i xyz, vec3i idx) {
   }
 }
 
-static void buildgridmesh(worldbrick &b, vec3i org) {
+static void buildgridmesh(lvl1grid &b, vec3i org) {
   brickmeshctx ctx(b);
   loopi(6) {
     ctx.clear(i);
@@ -831,8 +853,8 @@ static void buildgridmesh(worldbrick &b, vec3i org) {
 }
 
 static void fillgrid(void) {
-  loop(x,lx*g) loop(y,ly*g) root.set(vec3i(x,y,0), brickcube(FULL));
-  loop(z,lz*g) root.set(vec3i(6,6,z), brickcube(FULL));
+  loop(x,worldisize.x) loop(y,worldisize.y) root.set(vec3i(x,y,0), brickcube(FULL));
+  loop(z,worldisize.z) root.set(vec3i(6,6,z), brickcube(FULL));
   forallbricks(buildgridmesh);
 }
 
@@ -848,7 +870,7 @@ static void drawgrid(void) {
   enableattribarrayv(POS0, TEX);
   disableattribarrayv(COL, POS1);
   bindshader(FOG|DIFFUSETEX);
-  forallbricks([&](const worldbrick &b, const vec3i org) {
+  forallbricks([&](const lvl1grid &b, const vec3i org) {
     ogl::bindbuffer(ogl::ARRAY_BUFFER, b.vbo);
     ogl::bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, b.ibo);
     OGL(VertexAttribPointer, TEX, 2, GL_FLOAT, 0, sizeof(float[5]), (const void*) sizeof(float[3]));
@@ -856,6 +878,45 @@ static void drawgrid(void) {
     ogl::drawelements(GL_TRIANGLES, b.elemnum, GL_UNSIGNED_SHORT, 0);
     ogl::xtraverts += b.elemnum;
   });
+}
+
+struct ray {
+  INLINE ray(void) {}
+  INLINE ray(vec3f org, vec3f dir, float near = 0.f, float far = FLT_MAX)
+    : org(org), dir(dir), rdir(rcp(dir)), tnear(near), tfar(far) {}
+  vec3f org, dir, rdir;
+  float tnear, tfar;
+};
+
+struct camera {
+  INLINE camera(vec3f org, vec3f up, vec3f view, float fov, float ratio) :
+    org(org), up(up), view(view), fov(fov), ratio(ratio)
+  {
+    const float left = -ratio * 0.5f;
+    const float top = 0.5f;
+    dist = 0.5f / tan(fov * float(pi) / 360.f);
+    view = normalize(view);
+    up = normalize(up);
+    xaxis = cross(view, up);
+    xaxis = normalize(xaxis);
+    zaxis = cross(view, xaxis);
+    zaxis = normalize(zaxis);
+    imgplaneorg = dist*view + left*xaxis - top*zaxis;
+    xaxis *= ratio;
+  }
+  INLINE ray generate(int w, int h, int x, int y) {
+    const float rw = rcp(float(w)), rh = rcp(float(h));
+    const vec3f sxaxis = xaxis*rw, szaxis = zaxis*rh;
+    const vec3f dir = normalize(imgplaneorg + float(x)*sxaxis + float(y)*szaxis);
+    return ray(org, dir);
+  }
+  vec3f org, up, view, imgplaneorg, xaxis, zaxis;
+  float fov, ratio, dist;
+};
+
+static void castray(float fovy, float aspect, float farplane) {
+  using namespace game;
+  printf("\r[%f %f %f]               ", player1->yaw, player1->pitch, player1->roll);
 }
 
 void init(int w, int h) {
@@ -1042,7 +1103,6 @@ void drawframe(int w, int h, float curfps) {
   identity();
   perspective(fovy, aspect, 0.15f, farplane);
   matrixmode(MODELVIEW);
-
   transplayer();
 
   // render sky
@@ -1058,8 +1118,8 @@ void drawframe(int w, int h, float curfps) {
   overbright(2.f);
   setupworld();
   bindshader(DIFFUSETEX|FOG);
-  ogl::xtraverts = 0;
 
+  ogl::xtraverts = 0;
   game::renderclients();
   game::monsterrender();
   game::renderentities();
@@ -1070,6 +1130,7 @@ void drawframe(int w, int h, float curfps) {
   disablev(GL_CULL_FACE);
 
   drawhudgun(fovy, aspect, farplane);
+  castray(fovy, aspect, farplane);
 
   int nquads = 0;
 

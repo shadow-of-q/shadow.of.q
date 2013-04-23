@@ -21,20 +21,21 @@ template<typename T> struct vec4;
 #define CONSTANT_TYPE(TYPE,VALUE,NUM)\
 static const struct TYPE {\
   INLINE TYPE(void) {}\
-  INLINE operator double(void) const {return NUM;}\
-  INLINE operator float (void) const {return NUM;}\
-  INLINE operator s64(void) const {return NUM;}\
-  INLINE operator u64(void) const {return NUM;}\
-  INLINE operator s32(void) const {return NUM;}\
-  INLINE operator u32(void) const {return NUM;}\
-  INLINE operator s16(void) const {return NUM;}\
-  INLINE operator u16(void) const {return NUM;}\
-  INLINE operator s8 (void) const {return NUM;}\
-  INLINE operator u8 (void) const {return NUM;}\
+  INLINE operator double(void) const {return double(NUM);}\
+  INLINE operator float (void) const {return float(NUM);}\
+  INLINE operator s64(void) const {return s64(NUM);}\
+  INLINE operator u64(void) const {return u64(NUM);}\
+  INLINE operator s32(void) const {return s32(NUM);}\
+  INLINE operator u32(void) const {return u32(NUM);}\
+  INLINE operator s16(void) const {return s16(NUM);}\
+  INLINE operator u16(void) const {return u16(NUM);}\
+  INLINE operator s8 (void) const {return s8 (NUM);}\
+  INLINE operator u8 (void) const {return u8 (NUM);}\
 } VALUE;
 CONSTANT_TYPE(zerotype,zero,0);
 CONSTANT_TYPE(onetype,one,1);
 CONSTANT_TYPE(twotype,two,2);
+CONSTANT_TYPE(pitype,pi,3.14159265358979323846);
 #undef CONSTANT_TYPE
 
 // make the code terser
@@ -344,9 +345,9 @@ template<typename T> struct mat3x3 {
   static INLINE mat3x3 rotate(v3arg _u, T r) {
     const v3 u = normalize(_u);
     const T s = sin(r), c = cos(r);
-    return mat3x3(u.x*u.x+(one-u.x*u.x)*c,u.x*u.y*(one-c)-u.z*s,  u.x*u.z*(one-c)+u.y*s,
-                  u.x*u.y*(one-c)+u.z*s,  u.y*u.y+(one-u.y*u.y)*c,u.y*u.z*(one-c)-u.x*s,
-                  u.x*u.z*(one-c)-u.y*s,  u.y*u.z*(one-c)+u.x*s,  u.z*u.z+(one-u.z*u.z)*c);
+    return mat3x3(u.x*u.x+(T(one)-u.x*u.x)*c,u.x*u.y*(T(one)-c)-u.z*s,  u.x*u.z*(T(one)-c)+u.y*s,
+                  u.x*u.y*(T(one)-c)+u.z*s,  u.y*u.y+(T(one)-u.y*u.y)*c,u.y*u.z*(T(one)-c)-u.x*s,
+                  u.x*u.z*(T(one)-c)-u.y*s,  u.y*u.z*(T(one)-c)+u.x*s,  u.z*u.z+(T(one)-u.z*u.z)*c);
   }
 };
 
@@ -461,6 +462,30 @@ template<typename T> struct mat4x4 {
   }
   m44& op= (const m44 &m) {vx=m.vx;vy=m.vy;vz=m.vz;vw=m.vw;return *this;}
   m44 inverse(void) const;
+  static INLINE m44 translate(v3arg v) {
+    m44 m(one);
+    m.vw = v4(v.x,v.y,v.z,one);
+    return m;
+  }
+  static INLINE m44 rotate(T angle, v3arg v) {
+    m44 rot(zero), dst(zero);
+    const T a = deg2rad(angle);
+    const T c = cos(a);
+    const T s = sin(a);
+    const v3 axis = normalize(v);
+    const v3 temp = (T(one) - c) * axis;
+    rot.vx.x = c + temp.x*axis.x;
+    rot.vx.y = temp.x*axis.y + s*axis.z;
+    rot.vx.z = temp.x*axis.z - s*axis.y;
+    rot.vy.x = temp.y*axis.x - s*axis.z;
+    rot.vy.y = c + temp.y*axis.y;
+    rot.vy.z = temp.y*axis.z + s*axis.x;
+    rot.vz.x = temp.z*axis.x + s*axis.y;
+    rot.vz.y = temp.z*axis.y - s*axis.x;
+    rot.vz.z = c + temp.z*axis.z;
+    rot.vw.w = one;
+    return rot;
+  }
   INLINE v4& op[] (int i) {return (&vx)[i];}
   INLINE const v4& op[] (int i) const {return (&vx)[i];}
 };
@@ -502,11 +527,6 @@ TINLINE v4 op/ (v4arg v, m44arg m) {return v * m.inverse();}
 TINLINE m44 op/ (m44arg m, m44arg n) {return m * n.inverse();}
 TINLINE bool op== (m44arg m, m44arg n) {return (m.vx==n.x) && (m.vy==n.y) && (m.vz==n.z) && (m.vw==n.w);}
 TINLINE bool op!= (m44arg m, m44arg n) {return (m.vx!=n.x) || (m.vy!=n.y) || (m.vz!=n.z) || (m.vw!=n.w);}
-TINLINE m44 translate(m44arg m, v3arg v) {
-  m44 dst(m);
-  dst.vw = m.vx*v.x + m.vy*v.y + m.vz*v.z + m.vw;
-  return dst;
-}
 TINLINE m44 lookat(v3arg eye, v3arg center, v3arg up) {
   const v3 f = normalize(center - eye);
   const v3 u = normalize(up);
@@ -530,28 +550,6 @@ TINLINE m44 perspective(T fovy, T aspect, T znear, T zfar) {
   dst.vz.z = -(zfar + znear) / (zfar - znear);
   dst.vz.w = -T(one);
   dst.vw.z = -(T(two) * zfar * znear) / (zfar - znear);
-  return dst;
-}
-TINLINE m44 rotate(m44arg m, T angle, v3arg v) {
-  m44 rot(zero), dst(zero);
-  const T a = deg2rad(angle);
-  const T c = cos(a);
-  const T s = sin(a);
-  const v3 axis = normalize(v);
-  const v3 temp = (T(one) - c) * axis;
-  rot.vx.x = c + temp.x*axis.x;
-  rot.vx.y = T(zero) + temp.x*axis.y + s*axis.z;
-  rot.vx.z = T(zero) + temp.x*axis.z - s*axis.y;
-  rot.vy.x = T(zero) + temp.y*axis.x - s*axis.z;
-  rot.vy.y = c + temp.y*axis.y;
-  rot.vy.z = T(zero) + temp.y*axis.z + s*axis.x;
-  rot.vz.x = T(zero) + temp.z*axis.x + s*axis.y;
-  rot.vz.y = T(zero) + temp.z*axis.y - s*axis.x;
-  rot.vz.z = c + temp.z*axis.z;
-  dst.vx = m.vx*rot.vx.x + m.vy*rot.vx.y + m.vz*rot.vx.z;
-  dst.vy = m.vx*rot.vy.x + m.vy*rot.vy.y + m.vz*rot.vy.z;
-  dst.vz = m.vx*rot.vz.x + m.vy*rot.vz.y + m.vz*rot.vz.z;
-  dst.vw = m.vw;
   return dst;
 }
 TINLINE m44 ortho(T left, T right, T bottom, T top, T znear, T zfar) {
