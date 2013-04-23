@@ -42,8 +42,8 @@ void renderentities(void) {
         (float)((e.attr1+7)-(e.attr1+7)%15), 0, false, 1.0f, 10.0f, mmi.snap);
     } else {
       if (e.type!=CARROT) {
-        if (!e.spawned && e.type!=sound::TELEPORT) continue;
-        if (e.type<I_SHELLS || e.type>sound::TELEPORT) continue;
+        if (!e.spawned && e.type!=TELEPORT) continue;
+        if (e.type<I_SHELLS || e.type>TELEPORT) continue;
         renderent(e, entmdlnames[e.type-I_SHELLS], (float)(1+sin(lastmillis()/100.0+e.x+e.y)/20), lastmillis()/10.0f);
       } else switch (e.attr2) {
         case 1:
@@ -174,7 +174,7 @@ void pickup(int n, game::dynent *d) {
       teleport(n, d);
     }
     break;
-    case sound::JUMPPAD: {
+    case JUMPPAD: {
       static int lastjumppad = 0;
       if (lastmillis()-lastjumppad<300) break;
       lastjumppad = lastmillis();
