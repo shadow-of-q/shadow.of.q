@@ -344,7 +344,7 @@ template<typename T> struct mat3x3 {
   }
   static INLINE mat3x3 rotate(v3arg _u, T r) {
     const v3 u = normalize(_u);
-    const T s = sin(r), c = cos(r);
+    const T s = sin(deg2rad(r)), c = cos(deg2rad(r));
     return mat3x3(u.x*u.x+(T(one)-u.x*u.x)*c,u.x*u.y*(T(one)-c)-u.z*s,  u.x*u.z*(T(one)-c)+u.y*s,
                   u.x*u.y*(T(one)-c)+u.z*s,  u.y*u.y+(T(one)-u.y*u.y)*c,u.y*u.z*(T(one)-c)-u.x*s,
                   u.x*u.z*(T(one)-c)-u.y*s,  u.y*u.z*(T(one)-c)+u.x*s,  u.z*u.z+(T(one)-u.z*u.z)*c);

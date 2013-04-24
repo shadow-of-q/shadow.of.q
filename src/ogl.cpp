@@ -746,9 +746,15 @@ struct grid : public noncopyable {
 };
 
 // all levels of details for our world
+#if 0
 static const int lvl1x = 32, lvl1y = 32, lvl1z = 16;
 static const int lvl2x = 4,  lvl2y = 4,  lvl2z = 4;
 static const int lvl3x = 4,  lvl3y = 4,  lvl3z = 4;
+#else
+static const int lvl1x = 32, lvl1y = 32, lvl1z = 16;
+static const int lvl2x = 1,  lvl2y = 1,  lvl2z = 1;
+static const int lvl3x = 1,  lvl3y = 1,  lvl3z = 1;
+#endif
 static const int lvlt1x = lvl1x, lvlt1y = lvl1y, lvlt1z = lvl1z;
 
 // compute the total number of cube for one level
@@ -914,9 +920,26 @@ struct camera {
   float fov, ratio, dist;
 };
 
-static void castray(float fovy, float aspect, float farplane) {
+struct aabb { vec3f pmin, pmax; };
+INLINE bool slab(const aabb &box, vec3f org, vec3f rdir, float t)
+{
+  const vec3f l1 = (box.pmin - org) * rdir;
+  const vec3f l2 = (box.pmax - org) * rdir;
+  const float near = reducemax(min(l1,l2));
+  const float far = reducemin(max(l1,l2));
+  return (far >= near) & (far >= 0.f) & (near < t);
+}
+
+INLINE void castray(float fovy, float aspect, float farplane) {
+#if 0
   using namespace game;
-  printf("\r[%f %f %f]               ", player1->yaw, player1->pitch, player1->roll);
+  const mat3x3f r = mat3x3f::rotate(vec3f(0.f,0.f,1.f),game::player1->yaw)*
+                    mat3x3f::rotate(vec3f(0.f,1.f,0.f),game::player1->roll)*
+                    mat3x3f::rotate(vec3f(1.f,0.f,0.f),game::player1->pitch);
+  printf("\r[%f %f %f]", r.vx.x, r.vx.y, r.vx.z);
+  printf("  [%f %f %f]", r.vy.x, r.vy.y, r.vy.z);
+  printf("  [%f %f %f]", r.vz.x, r.vz.y, r.vz.z);
+#endif
 }
 
 void init(int w, int h) {
