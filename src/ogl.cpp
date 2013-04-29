@@ -752,15 +752,9 @@ struct grid : public noncopyable {
 };
 
 // all levels of details for our world
-#if 0
-static const int lvl1x = 32, lvl1y = 32, lvl1z = 16;
-static const int lvl2x = 4,  lvl2y = 4,  lvl2z = 4;
-static const int lvl3x = 4,  lvl3y = 4,  lvl3z = 4;
-#else
 static const int lvl1x = 16, lvl1y = 16, lvl1z = 16;
 static const int lvl2x = 4,  lvl2y = 4,  lvl2z = 4;
 static const int lvl3x = 4,  lvl3y = 4,  lvl3z = 4;
-#endif
 static const int lvlt1x = lvl1x, lvlt1y = lvl1y, lvlt1z = lvl1z;
 
 // compute the total number of cube for one level
@@ -782,9 +776,6 @@ GRID(lvl2grid,3)
 
 // our world and its total dimension
 static lvl3grid root;
-//static const int worldsizex=lvlt2x, worldsizey=lvlt2y, worldsizez=lvlt2z;
-//static const vec3i worldisize(lvlt3x,lvlt3y,lvlt3z);
-//static lvl2grid root;
 static const int worldsizex=lvlt3x, worldsizey=lvlt3y, worldsizez=lvlt3z;
 static const vec3i worldisize(worldsizex,worldsizey,worldsizez);
 static const vec3f worldfsize(worldsizex,worldsizey,worldsizez);
@@ -870,10 +861,9 @@ static void buildgridmesh(lvl1grid &b, vec3i org) {
 
 static void fillgrid(void) {
   loop(x,worldisize.x) loop(y,worldisize.y) root.set(vec3i(x,y,0), brickcube(FULL));
-  loop(z,worldisize.z) root.set(vec3i(6,6,z), brickcube(FULL));
-  loop(z,worldisize.z) root.set(vec3i(16+6,6,z), brickcube(FULL));
-  loop(z,worldisize.z) root.set(vec3i(16+6,16+6,z), brickcube(FULL));
-  loop(z,worldisize.z) root.set(vec3i(6,16+6,z), brickcube(FULL));
+  for (int x = 8; x < worldisize.x; x += 32)
+  for (int y = 8; y < worldisize.y; y += 32)
+    loop(z,worldisize.z) root.set(vec3i(x,y,z), brickcube(FULL));
   forallbricks(buildgridmesh);
 }
 
@@ -881,14 +871,14 @@ static void drawgrid(void) {
   static bool initialized = false;
   if (!initialized) {
     texturereset();
-    texture("0", "dg/floor_grass1.jpg");
+    texture("0", "ikbase/ik_floor_met128e.jpg");
     fillgrid();
     initialized = true;
   }
   ogl::bindtexture(GL_TEXTURE_2D, ogl::lookuptex(0));
   enableattribarrayv(POS0, TEX);
   disableattribarrayv(COL, POS1);
-  bindshader(FOG|DIFFUSETEX);
+  bindshader(DIFFUSETEX);
   forallbricks([&](const lvl1grid &b, const vec3i org) {
     ogl::bindbuffer(ogl::ARRAY_BUFFER, b.vbo);
     ogl::bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, b.ibo);
@@ -937,21 +927,20 @@ struct aabb {
   INLINE aabb(vec3f m, vec3f M) : pmin(m), pmax(M) {}
   vec3f pmin, pmax;
 };
-struct slabres {
-  INLINE slabres(float t, bool isec) : t(t), isec(isec) {}
+struct isecres {
+  INLINE isecres(bool isec = false, float t = 0.f) : t(t), isec(isec) {}
   float t;
   bool isec;
 };
-INLINE slabres slab(const aabb &box, vec3f org, vec3f rdir, float t) {
+INLINE isecres slab(const aabb &box, vec3f org, vec3f rdir, float t) {
   const vec3f l1 = (box.pmin-org)*rdir;
   const vec3f l2 = (box.pmax-org)*rdir;
   const float tfar = reducemin(max(l1,l2));
   const float tnear = reducemax(min(l1,l2));
-  return slabres(max(0.f,tnear), (tfar >= tnear) & (tfar >= 0.f) & (tnear < t));
+  return isecres((tfar >= tnear) & (tfar >= 0.f) & (tnear < t), max(0.f,tnear));
 }
 
-static void writebmp(const int *data, int width, int height, const char *filename)
-{
+static void writebmp(const int *data, int width, int height, const char *filename) {
   int x, y;
   FILE *fp = fopen(filename, "wb");
   assert(fp);
@@ -1006,11 +995,10 @@ static void writebmp(const int *data, int width, int height, const char *filenam
   hdr.bpp = 24;
   hdr.compression = 0;
   hdr.sizeraw = sizeraw;
-  hdr.hres = 0;  // 2834;
-  hdr.vres = 0;  // 2834;
+  hdr.hres = 0;
+  hdr.vres = 0;
   hdr.npalcolors = 0;
   hdr.nimportant = 0;
-
   fwrite(&magic[0], 1, 2, fp);
   fwrite(&hdr, 1, sizeof(hdr), fp);
   fwrite(raw, 1, hdr.sizeraw, fp);
@@ -1100,7 +1088,7 @@ static void castray(float fovy, float aspect, float farplane) {
     for (int x = 0; x < w; ++x) {
       const int offset = x+w*y;
       const ray ray = cam.generate(w, h, x, y);
-      const slabres res = slab(box, ray.org, ray.rdir, ray.tfar);
+      const isecres res = slab(box, ray.org, ray.rdir, ray.tfar);
       if (!res.isec) {
         pixels[offset] = 0;
         continue;
