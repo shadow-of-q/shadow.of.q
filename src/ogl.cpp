@@ -751,9 +751,9 @@ static const int lvl1x = 32, lvl1y = 32, lvl1z = 16;
 static const int lvl2x = 4,  lvl2y = 4,  lvl2z = 4;
 static const int lvl3x = 4,  lvl3y = 4,  lvl3z = 4;
 #else
-static const int lvl1x = 32, lvl1y = 32, lvl1z = 16;
-static const int lvl2x = 1,  lvl2y = 1,  lvl2z = 1;
-static const int lvl3x = 1,  lvl3y = 1,  lvl3z = 1;
+static const int lvl1x = 16, lvl1y = 16, lvl1z = 16;
+static const int lvl2x = 4,  lvl2y = 4,  lvl2z = 4;
+//static const int lvl3x = 1,  lvl3y = 1,  lvl3z = 1;
 #endif
 static const int lvlt1x = lvl1x, lvlt1y = lvl1y, lvlt1z = lvl1z;
 
@@ -763,7 +763,7 @@ static const int lvlt##N##x = lvl##N##x * lvlt##M##x;\
 static const int lvlt##N##y = lvl##N##y * lvlt##M##y;\
 static const int lvlt##N##z = lvl##N##z * lvlt##M##z;
 LVL_TOT(2,1)
-LVL_TOT(3,2)
+//LVL_TOT(3,2)
 #undef LVL_TOT
 
 // define a type for one level of the hierarchy
@@ -771,16 +771,17 @@ LVL_TOT(3,2)
 typedef grid<CHILD,lvl##N##x,lvl##N##y,lvl##N##z,lvlt##N##x,lvlt##N##y,lvlt##N##z> lvl##N##grid;
 typedef brick<lvl1x,lvl1y,lvl1z> lvl1grid;
 GRID(lvl1grid,2)
-GRID(lvl2grid,3)
+//GRID(lvl2grid,3)
 #undef GRID
 
 // our world and its total dimension
-static lvl3grid root;
-static const vec3i worldisize(lvlt3x,lvlt3y,lvlt3z);
+//static lvl3grid root;
+//static const vec3i worldisize(lvlt3x,lvlt3y,lvlt3z);
+static lvl2grid root;
+static const vec3i worldisize(lvlt2x,lvlt2y,lvlt2z);
 
-template <typename F> static void forallbricks(const F &f) {
-  root.forallbricks(f, zero);
-}
+template <typename F> static void forallbricks(const F &f) { root.forallbricks(f, zero); }
+template <typename F> static void forallcubes(const F &f) { root.forallcubes(f, zero); }
 
 static const int cubedirnum = 6;
 static const int cubevertnum = 8;
@@ -910,7 +911,7 @@ struct camera {
     imgplaneorg = dist*view + left*xaxis - top*zaxis;
     xaxis *= ratio;
   }
-  INLINE ray generate(int w, int h, int x, int y) {
+  INLINE ray generate(int w, int h, int x, int y) const {
     const float rw = rcp(float(w)), rh = rcp(float(h));
     const vec3f sxaxis = xaxis*rw, szaxis = zaxis*rh;
     const vec3f dir = normalize(imgplaneorg + float(x)*sxaxis + float(y)*szaxis);
@@ -920,27 +921,240 @@ struct camera {
   float fov, ratio, dist;
 };
 
-struct aabb { vec3f pmin, pmax; };
-INLINE bool slab(const aabb &box, vec3f org, vec3f rdir, float t)
-{
-  const vec3f l1 = (box.pmin - org) * rdir;
-  const vec3f l2 = (box.pmax - org) * rdir;
-  const float near = reducemax(min(l1,l2));
-  const float far = reducemin(max(l1,l2));
-  return (far >= near) & (far >= 0.f) & (near < t);
+struct aabb {
+  INLINE aabb(vec3f m, vec3f M) : pmin(m), pmax(M) {}
+  vec3f pmin, pmax;
+};
+struct slabres {
+  INLINE slabres(float t, bool isec) : t(t), isec(isec) {}
+  float t;
+  bool isec;
+};
+INLINE slabres slab(const aabb &box, vec3f org, vec3f rdir, float t) {
+  const vec3f l1 = (box.pmin-org) * rdir;
+  const vec3f l2 = (box.pmax-org) * rdir;
+  const float tfar = reducemin(max(l1,l2));
+  const float tnear = reducemax(min(l1,l2));
+  return slabres(tnear, (tfar >= tnear) & (tfar >= 0.f) & (tnear < t));
 }
 
-INLINE void castray(float fovy, float aspect, float farplane) {
+struct bmphdr {
+  //   2 bytes of magic here, "BM", total header size is 54 bytes!
+  int filesize;		//   4 total file size incl header
+  short as0, as1;		//   8 app specific
+  int bmpoffset;		//  12 ofset of bmp data 
+  int headerbytes;	//  16 bytes in header from this point (40 actually)
+  int width;		//  20 
+  int height;		//  24 
+  short nplanes;		//  26 no of color planes
+  short bpp;		//  28 bits/pixel
+  int compression;	//  32 BI_RGB = 0 = no compression
+  int sizeraw;		//  36 size of raw bmp file, excluding header, incl padding
+  int hres;		//  40 horz resolutions pixels/meter
+  int vres;		//  44
+  int npalcolors;		//  48 No of colors in palette
+  int nimportant;		//  52 No of important colors
+  // raw b, g, r data here, dword aligned per scan line
+};
+
+static int *readbmp(const char *bmppath, int *width, int *height)
+{
+  struct bmphdr hdr;
+  FILE *fp = fopen(bmppath, "rb");
+  assert(fp);
+
+  char magic[2];
+  fread(&magic[0], 1, 2, fp);
+  assert(magic[0] == 'B' && magic[1] == 'M');
+
+  fread(&hdr, sizeof(hdr), 1, fp);
+  assert(hdr.width > 0 && hdr.height > 0 && hdr.nplanes == 1 && hdr.compression == 0);
+
+  int *rgb32 = (int *) malloc(hdr.width * hdr.height * sizeof(int));
+  assert(rgb32);
+  int x, y;
+
+  int *dst = rgb32;
+  for (y = 0; y < hdr.height; y++) {
+    for (x = 0; x < hdr.width; x++) {
+      assert(!feof(fp));
+      int b = (getc(fp) & 0x0ff);
+      int g = (getc(fp) & 0x0ff);
+      int r = (getc(fp) & 0x0ff);
+      *dst++ = (r | (g << 8) | (b << 16) | 0xff000000);	/* abgr */
+    }
+    while (x & 3) {
+      getc(fp);
+      x++;
+    }		// each scanline padded to dword
+    // printf("read row %d\n", y);
+    // fflush(stdout);
+  }
+  fclose(fp);
+  *width = hdr.width;
+  *height = hdr.height;
+  return rgb32;
+}
+
+static void writebmp(const int *data, int width, int height, const char *filename)
+{
+  int x, y;
+  FILE *fp = fopen(filename, "wb");
+  assert(fp);
+
+  char *raw = (char *) malloc(width * height * sizeof(int));	// at most
+  assert(raw);
+  char *p = raw;
+
+  for (y = 0; y < height; y++) {
+    for (x = 0; x < width; x++) {
+      int c = *data++;
+      *p++ = ((c >> 16) & 0xff);
+      *p++ = ((c >> 8) & 0xff);
+      *p++ = ((c >> 0) & 0xff);
+    }
+    while (x & 3) {
+      *p++ = 0;
+      x++;
+    } // pad to dword
+  }
+  int sizeraw = p - raw;
+  int scanline = (width * 3 + 3) & ~3;
+  assert(sizeraw == scanline * height);
+
+  struct bmphdr hdr;
+
+  hdr.filesize = scanline * height + sizeof(hdr) + 2;
+  hdr.as0 = 0;
+  hdr.as1 = 0;
+  hdr.bmpoffset = sizeof(hdr) + 2;
+  hdr.headerbytes = 40;
+  hdr.width = width;
+  hdr.height = height;
+  hdr.nplanes = 1;
+  hdr.bpp = 24;
+  hdr.compression = 0;
+  hdr.sizeraw = sizeraw;
+  hdr.hres = 0;		// 2834;
+  hdr.vres = 0;		// 2834;
+  hdr.npalcolors = 0;
+  hdr.nimportant = 0;
+
+  /* Now write bmp file */
+  char magic[2] = { 'B', 'M' };
+  fwrite(&magic[0], 1, 2, fp);
+  fwrite(&hdr, 1, sizeof(hdr), fp);
+  fwrite(raw, 1, hdr.sizeraw, fp);
+
+  fclose(fp);
+  free(raw);
+}
+
+VAR(raycast, 0, 0, 1);
 #if 0
+static void castray(float fovy, float aspect, float farplane) {
+  vector<aabb> boxes;
+  forallcubes([&](const brickcube &cube, const vec3i &xyz) {
+    boxes.add(aabb(vec3f(xyz), vec3f(xyz)+vec3f(one)));
+  });
+  const int w = 1280, h = 768;
+  int *pixels = (int*)malloc(w*h*sizeof(int));
   using namespace game;
   const mat3x3f r = mat3x3f::rotate(vec3f(0.f,0.f,1.f),game::player1->yaw)*
                     mat3x3f::rotate(vec3f(0.f,1.f,0.f),game::player1->roll)*
                     mat3x3f::rotate(vec3f(1.f,0.f,0.f),game::player1->pitch);
-  printf("\r[%f %f %f]", r.vx.x, r.vx.y, r.vx.z);
-  printf("  [%f %f %f]", r.vy.x, r.vy.y, r.vy.z);
-  printf("  [%f %f %f]", r.vz.x, r.vz.y, r.vz.z);
-#endif
+
+  const camera cam(game::player1->o, -r.vz, -r.vy, fovy, aspect);
+  for (int y = 0; y < h; ++y) {
+    for (int x = 0; x < w; ++x) {
+      const ray r = cam.generate(w, h, x, y);
+      bool isec = false;
+      for (int i = 0; i < boxes.length(); ++i) {
+        if (slab(boxes[i], r.org, r.rdir, r.tfar)) {
+          isec = true;
+          break;
+        }
+      }
+      const int offset = x+w*y;
+      pixels[offset] = isec ? ~0x0 : 0x0;
+    }
+    printf("\r%i%%               ",100*y/h);
+  }
+  writebmp(pixels, w, h, "hop.bmp");
+
+  free(pixels);
 }
+#else
+static void castray(float fovy, float aspect, float farplane) {
+  const int w = 1280, h = 768;
+  int *pixels = (int*)malloc(w*h*sizeof(int));
+  using namespace game;
+  const mat3x3f r = mat3x3f::rotate(vec3f(0.f,0.f,1.f),game::player1->yaw)*
+                    mat3x3f::rotate(vec3f(0.f,1.f,0.f),game::player1->roll)*
+                    mat3x3f::rotate(vec3f(1.f,0.f,0.f),game::player1->pitch);
+  const camera cam(game::player1->o, -r.vz, -r.vy, fovy, aspect);
+  const lvl1grid &grid = *root.elem[0][0][0];
+  const vec3f cellsz(one), boxorg(zero);
+  const vec3i icelln = vec3i(lvl1x,lvl1y,lvl1z);
+  const aabb box(boxorg, cellsz*vec3f(lvl1x,lvl1y,lvl1z));
+  for (int y = 0; y < h; ++y) {
+    for (int x = 0; x < w; ++x) {
+      const int offset = x+w*y;
+      const ray r = cam.generate(w, h, x, y);
+      const vec3b signs = r.dir > vec3f(zero);
+      const vec3i step = select(signs, vec3i(one), -vec3i(one));
+      const vec3i justout = select(signs, vec3i(lvl1x,lvl1y,lvl1z), -vec3i(one));
+      const vec3f delta = abs(r.rdir*cellsz);
+      const slabres res = slab(box, r.org, r.rdir, r.tfar);
+      if (!res.isec) {
+        pixels[offset] = 0;
+        continue;
+      }
+
+      const vec3f entry = r.org+res.t*r.dir;
+      vec3i xyz = min(vec3i((entry-boxorg)/cellsz), icelln-vec3i(one));
+      const vec3f floorentry = vec3f(xyz)*cellsz+boxorg;
+      const vec3f exit = floorentry + select(signs, cellsz, vec3f(zero));
+      vec3f tmax = (exit-entry)*r.rdir;
+      tmax = select(r.dir==vec3f(zero),vec3f(FLT_MAX),tmax);
+      bool isec = false;
+      for (;;) {
+        const auto &cube = grid.get(xyz);
+        if (cube.mat == FULL) {
+          isec = true;
+          break;
+        }
+        if (tmax.x < tmax.y) {
+          if (tmax.x < tmax.z) {
+            xyz.x += step.x;
+            if (xyz.x == justout.x) break;
+            tmax.x += delta.x;
+          } else {
+            xyz.z += step.z;
+            if (xyz.z == justout.z) break;
+            tmax.z += delta.z;
+          }
+        } else {
+          if (tmax.y < tmax.z) {
+            xyz.y += step.y;
+            if (xyz.y == justout.y) break;
+            tmax.y += delta.y;
+          } else {
+            xyz.z += step.z;
+            if (xyz.z == justout.z) break;
+            tmax.z += delta.z;
+          }
+        }
+      }
+      pixels[offset] = isec?~0:0;
+    }
+    printf("\r%i%%               ",100*y/h);
+  }
+  writebmp(pixels, w, h, "hop.bmp");
+
+  free(pixels);
+}
+#endif
 
 void init(int w, int h) {
 #if !defined(EMSCRIPTEN)
@@ -1153,7 +1367,10 @@ void drawframe(int w, int h, float curfps) {
   disablev(GL_CULL_FACE);
 
   drawhudgun(fovy, aspect, farplane);
-  castray(fovy, aspect, farplane);
+  if (raycast) {
+    castray(fovy, aspect, farplane);
+    raycast = 0;
+  }
 
   int nquads = 0;
 

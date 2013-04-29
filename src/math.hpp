@@ -86,6 +86,10 @@ INLINE double log2 (double x) {return ::log(x) / 0.69314718055994530941723212145
 INLINE double log10(double x) {return ::log10(x);}
 INLINE double rcp  (double x) {return 1.0/x;}
 INLINE double rsqrt(double x) {return 1.0/::sqrt(x);}
+INLINE bool   select(bool s, bool  t , bool f) { return s ? t : f; }
+INLINE int    select(bool s, int   t,   int f) { return s ? t : f; }
+INLINE float  select(bool s, float t, float f) { return s ? t : f; }
+INLINE double select(bool s, double t, double f) { return s ? t : f; }
 TINLINE T max (T a, T b) {return a<b? b:a;}
 TINLINE T min (T a, T b) {return a<b? a:b;}
 TINLINE T min (T a, T b, T c) {return min(min(a,b),c);}
@@ -167,6 +171,9 @@ TINLINE vec2<bool> op>= (v2arg a, v2arg b) {return vec2<bool>(a.x>=b.x,a.y>=b.y)
 TINLINE v2 select (bool s, v2arg t, v2arg f) {
   return v2(select(s,t.x,f.x), select(s,t.y,f.y));
 }
+TINLINE v2 select (vec2<bool> s, v2arg t, v2arg f) {
+  return v2(select(s.x,t.x,f.x), select(s.y,t.y,f.y));
+}
 INLINE bool any(const vec2<bool> &v) {return v.x||v.y;}
 INLINE bool all(const vec2<bool> &v) {return v.x&&v.y;}
 
@@ -236,6 +243,9 @@ TINLINE v3 min (v3arg a, v3arg b) {return v3(min(a.x,b.x),min(a.y,b.y),min(a.z,b
 TINLINE v3 max (v3arg a, v3arg b) {return v3(max(a.x,b.x),max(a.y,b.y),max(a.z,b.z));}
 TINLINE v3 select (bool s, v3arg t, v3arg f) {
   return v3(select(s,t.x,f.x), select(s,t.y,f.y), select(s,t.z,f.z));
+}
+TINLINE v3 select (vec3<bool> s, v3arg t, v3arg f) {
+  return v3(select(s.x,t.x,f.x), select(s.y,t.y,f.y), select(s.z,t.z,f.z));
 }
 TINLINE T length (v3arg a) {return sqrt(dot(a,a));}
 TINLINE T dot (v3arg a, v3arg b) {return a.x*b.x + a.y*b.y + a.z*b.z;}
@@ -315,6 +325,9 @@ TINLINE v4 normalize(v4arg a) {return a*rsqrt(dot(a,a));}
 TINLINE T distance (v4arg a, v4arg b) {return length(a-b);}
 TINLINE v4 select (bool s, v4arg t, v4arg f) {
   return v4(select(s,t.x,f.x), select(s,t.y,f.y), select(s,t.z,f.z), select(s,t.w,f.w));
+}
+TINLINE v4 select (vec4<bool> s, v4arg t, v4arg f) {
+  return v4(select(s.x,t.x,f.x), select(s.y,t.y,f.y), select(s.z,t.z,f.z), select(s.w,t.w,f.w));
 }
 INLINE bool any(const vec4<bool> &v) {return v.x||v.y||v.z||v.w;}
 INLINE bool all(const vec4<bool> &v) {return v.x&&v.y&&v.z&&v.w;}
