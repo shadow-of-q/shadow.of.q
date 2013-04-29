@@ -682,8 +682,13 @@ struct brick : public noncopyable {
     vbo = ibo = 0u;
     elemnum = 0;
   }
-  INLINE vec3i size(void) const { return vec3i(x,y,z); }
+  static INLINE vec3i size(void) { return vec3i(x,y,z); }
+  static INLINE vec3i global(void) { return size(); }
+  static INLINE vec3i local(void) { return size(); }
+  static INLINE vec3i cuben(void) { return size(); }
+  static INLINE vec3i subcuben(void) { return vec3i(one); }
   INLINE brickcube get(vec3i v) const { return elem[v.x][v.y][v.z]; }
+  INLINE brickcube subgrid(vec3i v) const { return get(v); }
   INLINE void set(vec3i v, const brickcube &cube) { elem[v.x][v.y][v.z]=cube; }
   INLINE brick &getbrick(vec3i idx) { return *this; }
   template <typename F> INLINE void forallcubes(const F &f, vec3i org) {
@@ -706,12 +711,13 @@ struct brick : public noncopyable {
 // recursive sparse grid
 template <typename T, int locx, int locy, int locz, int globx, int globy, int globz>
 struct grid : public noncopyable {
+  typedef T childtype;
   enum {cubenx=locx*T::cubenx, cubeny=locy*T::cubeny, cubenz=locz*T::cubenz};
   INLINE grid(void) { memset(elem, 0, sizeof(elem)); }
-  INLINE vec3i local(void) const { return vec3i(locx,locy,locz); }
-  INLINE vec3i global(void) const { return vec3i(globx,globy,globz); }
-  INLINE vec3i cuben(void) const { return vec3i(cubenx, cubeny, cubenz); }
-  INLINE vec3i subcuben(void) const { return vec3i(T::cubenx, T::cubeny, T::cubenz); }
+  static INLINE vec3i local(void) { return vec3i(locx,locy,locz); }
+  static INLINE vec3i global(void) { return vec3i(globx,globy,globz); }
+  static INLINE vec3i cuben(void) { return vec3i(cubenx, cubeny, cubenz); }
+  static INLINE vec3i subcuben(void) { return T::cuben(); }
   INLINE vec3i index(vec3i p) const {
     return any(p<vec3i(zero))?local():p*local()/global();
   }
@@ -753,7 +759,7 @@ static const int lvl3x = 4,  lvl3y = 4,  lvl3z = 4;
 #else
 static const int lvl1x = 16, lvl1y = 16, lvl1z = 16;
 static const int lvl2x = 4,  lvl2y = 4,  lvl2z = 4;
-//static const int lvl3x = 1,  lvl3y = 1,  lvl3z = 1;
+static const int lvl3x = 4,  lvl3y = 4,  lvl3z = 4;
 #endif
 static const int lvlt1x = lvl1x, lvlt1y = lvl1y, lvlt1z = lvl1z;
 
@@ -763,7 +769,7 @@ static const int lvlt##N##x = lvl##N##x * lvlt##M##x;\
 static const int lvlt##N##y = lvl##N##y * lvlt##M##y;\
 static const int lvlt##N##z = lvl##N##z * lvlt##M##z;
 LVL_TOT(2,1)
-//LVL_TOT(3,2)
+LVL_TOT(3,2)
 #undef LVL_TOT
 
 // define a type for one level of the hierarchy
@@ -771,14 +777,17 @@ LVL_TOT(2,1)
 typedef grid<CHILD,lvl##N##x,lvl##N##y,lvl##N##z,lvlt##N##x,lvlt##N##y,lvlt##N##z> lvl##N##grid;
 typedef brick<lvl1x,lvl1y,lvl1z> lvl1grid;
 GRID(lvl1grid,2)
-//GRID(lvl2grid,3)
+GRID(lvl2grid,3)
 #undef GRID
 
 // our world and its total dimension
-//static lvl3grid root;
+static lvl3grid root;
+//static const int worldsizex=lvlt2x, worldsizey=lvlt2y, worldsizez=lvlt2z;
 //static const vec3i worldisize(lvlt3x,lvlt3y,lvlt3z);
-static lvl2grid root;
-static const vec3i worldisize(lvlt2x,lvlt2y,lvlt2z);
+//static lvl2grid root;
+static const int worldsizex=lvlt3x, worldsizey=lvlt3y, worldsizez=lvlt3z;
+static const vec3i worldisize(worldsizex,worldsizey,worldsizez);
+static const vec3f worldfsize(worldsizex,worldsizey,worldsizez);
 
 template <typename F> static void forallbricks(const F &f) { root.forallbricks(f, zero); }
 template <typename F> static void forallcubes(const F &f) { root.forallcubes(f, zero); }
@@ -862,6 +871,9 @@ static void buildgridmesh(lvl1grid &b, vec3i org) {
 static void fillgrid(void) {
   loop(x,worldisize.x) loop(y,worldisize.y) root.set(vec3i(x,y,0), brickcube(FULL));
   loop(z,worldisize.z) root.set(vec3i(6,6,z), brickcube(FULL));
+  loop(z,worldisize.z) root.set(vec3i(16+6,6,z), brickcube(FULL));
+  loop(z,worldisize.z) root.set(vec3i(16+6,16+6,z), brickcube(FULL));
+  loop(z,worldisize.z) root.set(vec3i(6,16+6,z), brickcube(FULL));
   forallbricks(buildgridmesh);
 }
 
@@ -931,69 +943,11 @@ struct slabres {
   bool isec;
 };
 INLINE slabres slab(const aabb &box, vec3f org, vec3f rdir, float t) {
-  const vec3f l1 = (box.pmin-org) * rdir;
-  const vec3f l2 = (box.pmax-org) * rdir;
+  const vec3f l1 = (box.pmin-org)*rdir;
+  const vec3f l2 = (box.pmax-org)*rdir;
   const float tfar = reducemin(max(l1,l2));
   const float tnear = reducemax(min(l1,l2));
-  return slabres(tnear, (tfar >= tnear) & (tfar >= 0.f) & (tnear < t));
-}
-
-struct bmphdr {
-  //   2 bytes of magic here, "BM", total header size is 54 bytes!
-  int filesize;		//   4 total file size incl header
-  short as0, as1;		//   8 app specific
-  int bmpoffset;		//  12 ofset of bmp data 
-  int headerbytes;	//  16 bytes in header from this point (40 actually)
-  int width;		//  20 
-  int height;		//  24 
-  short nplanes;		//  26 no of color planes
-  short bpp;		//  28 bits/pixel
-  int compression;	//  32 BI_RGB = 0 = no compression
-  int sizeraw;		//  36 size of raw bmp file, excluding header, incl padding
-  int hres;		//  40 horz resolutions pixels/meter
-  int vres;		//  44
-  int npalcolors;		//  48 No of colors in palette
-  int nimportant;		//  52 No of important colors
-  // raw b, g, r data here, dword aligned per scan line
-};
-
-static int *readbmp(const char *bmppath, int *width, int *height)
-{
-  struct bmphdr hdr;
-  FILE *fp = fopen(bmppath, "rb");
-  assert(fp);
-
-  char magic[2];
-  fread(&magic[0], 1, 2, fp);
-  assert(magic[0] == 'B' && magic[1] == 'M');
-
-  fread(&hdr, sizeof(hdr), 1, fp);
-  assert(hdr.width > 0 && hdr.height > 0 && hdr.nplanes == 1 && hdr.compression == 0);
-
-  int *rgb32 = (int *) malloc(hdr.width * hdr.height * sizeof(int));
-  assert(rgb32);
-  int x, y;
-
-  int *dst = rgb32;
-  for (y = 0; y < hdr.height; y++) {
-    for (x = 0; x < hdr.width; x++) {
-      assert(!feof(fp));
-      int b = (getc(fp) & 0x0ff);
-      int g = (getc(fp) & 0x0ff);
-      int r = (getc(fp) & 0x0ff);
-      *dst++ = (r | (g << 8) | (b << 16) | 0xff000000);	/* abgr */
-    }
-    while (x & 3) {
-      getc(fp);
-      x++;
-    }		// each scanline padded to dword
-    // printf("read row %d\n", y);
-    // fflush(stdout);
-  }
-  fclose(fp);
-  *width = hdr.width;
-  *height = hdr.height;
-  return rgb32;
+  return slabres(max(0.f,tnear), (tfar >= tnear) & (tfar >= 0.f) & (tnear < t));
 }
 
 static void writebmp(const int *data, int width, int height, const char *filename)
@@ -1001,8 +955,25 @@ static void writebmp(const int *data, int width, int height, const char *filenam
   int x, y;
   FILE *fp = fopen(filename, "wb");
   assert(fp);
+  struct bmphdr {
+    int filesize;
+    short as0, as1;
+    int bmpoffset;
+    int headerbytes;
+    int width;
+    int height;
+    short nplanes;
+    short bpp;
+    int compression;
+    int sizeraw;
+    int hres;
+    int vres;
+    int npalcolors;
+    int nimportant;
+  };
 
-  char *raw = (char *) malloc(width * height * sizeof(int));	// at most
+  const char magic[2] = { 'B', 'M' };
+  char *raw = (char *) malloc(width * height * sizeof(int)); // at most
   assert(raw);
   char *p = raw;
 
@@ -1035,126 +1006,115 @@ static void writebmp(const int *data, int width, int height, const char *filenam
   hdr.bpp = 24;
   hdr.compression = 0;
   hdr.sizeraw = sizeraw;
-  hdr.hres = 0;		// 2834;
-  hdr.vres = 0;		// 2834;
+  hdr.hres = 0;  // 2834;
+  hdr.vres = 0;  // 2834;
   hdr.npalcolors = 0;
   hdr.nimportant = 0;
 
-  /* Now write bmp file */
-  char magic[2] = { 'B', 'M' };
   fwrite(&magic[0], 1, 2, fp);
   fwrite(&hdr, 1, sizeof(hdr), fp);
   fwrite(raw, 1, hdr.sizeraw, fp);
-
   fclose(fp);
   free(raw);
 }
 
 VAR(raycast, 0, 0, 1);
-#if 0
-static void castray(float fovy, float aspect, float farplane) {
-  vector<aabb> boxes;
-  forallcubes([&](const brickcube &cube, const vec3i &xyz) {
-    boxes.add(aabb(vec3f(xyz), vec3f(xyz)+vec3f(one)));
-  });
-  const int w = 1280, h = 768;
-  int *pixels = (int*)malloc(w*h*sizeof(int));
-  using namespace game;
-  const mat3x3f r = mat3x3f::rotate(vec3f(0.f,0.f,1.f),game::player1->yaw)*
-                    mat3x3f::rotate(vec3f(0.f,1.f,0.f),game::player1->roll)*
-                    mat3x3f::rotate(vec3f(1.f,0.f,0.f),game::player1->pitch);
 
-  const camera cam(game::player1->o, -r.vz, -r.vy, fovy, aspect);
-  for (int y = 0; y < h; ++y) {
-    for (int x = 0; x < w; ++x) {
-      const ray r = cam.generate(w, h, x, y);
-      bool isec = false;
-      for (int i = 0; i < boxes.length(); ++i) {
-        if (slab(boxes[i], r.org, r.rdir, r.tfar)) {
-          isec = true;
-          break;
-        }
-      }
-      const int offset = x+w*y;
-      pixels[offset] = isec ? ~0x0 : 0x0;
-    }
-    printf("\r%i%%               ",100*y/h);
+template <typename T> struct gridpolicy {
+  enum { updatetmin = 1 };
+  static INLINE vec3f cellorg(vec3f boxorg, vec3i xyz, vec3f cellsize) {
+    return boxorg+vec3f(xyz)*cellsize;
   }
-  writebmp(pixels, w, h, "hop.bmp");
+};
+template <> struct gridpolicy<lvl1grid> {
+  enum { updatetmin = 0 };
+  static INLINE vec3f cellorg(vec3f boxorg, vec3i xyz, vec3f cellsize) {
+    return vec3f(zero);
+  }
+};
 
-  free(pixels);
+INLINE bool intersect(const brickcube &cube, const vec3f &boxorg, const ray &ray, float t) {
+  return cube.mat == FULL;
 }
-#else
+
+template <typename G>
+NOINLINE bool intersect(const G *grid, const vec3f &boxorg, const ray &ray, float t) {
+  if (grid == NULL) return false;
+  const bool update = gridpolicy<G>::updatetmin == 1;
+  const vec3b signs = ray.dir > vec3f(zero);
+  const vec3f cellsize = grid->subcuben();
+  const vec3i step = select(signs, vec3i(one), -vec3i(one));
+  const vec3i out = select(signs, grid->global(), -vec3i(one));
+  const vec3f delta = abs(ray.rdir*cellsize);
+  const vec3f entry = ray.org+t*ray.dir;
+  vec3i xyz = min(vec3i((entry-boxorg)/cellsize), grid->local()-vec3i(one));
+  const vec3f floorentry = vec3f(xyz)*cellsize+boxorg;
+  const vec3f exit = floorentry + select(signs, cellsize, vec3f(zero));
+  vec3f tmax = vec3f(t)+(exit-entry)*ray.rdir;
+  tmax = select(ray.dir==vec3f(zero),vec3f(FLT_MAX),tmax);
+  for (;;) {
+    const vec3f cellorg = gridpolicy<G>::cellorg(boxorg, xyz, cellsize);
+    if (intersect(grid->subgrid(xyz), cellorg, ray, t))
+      return true;
+    if (tmax.x < tmax.y) {
+      if (tmax.x < tmax.z) {
+        xyz.x += step.x;
+        if (xyz.x == out.x) return false;
+        if (update) t = tmax.x;
+        tmax.x += delta.x;
+      } else {
+        xyz.z += step.z;
+        if (xyz.z == out.z) return false;
+        if (update) t = tmax.z;
+        tmax.z += delta.z;
+      }
+    } else {
+      if (tmax.y < tmax.z) {
+        xyz.y += step.y;
+        if (xyz.y == out.y) return false;
+        if (update) t = tmax.y;
+        tmax.y += delta.y;
+      } else {
+        xyz.z += step.z;
+        if (xyz.z == out.z) return false;
+        if (update) t = tmax.z;
+        tmax.z += delta.z;
+      }
+    }
+  }
+  return false;
+}
+
 static void castray(float fovy, float aspect, float farplane) {
-  const int w = 1280, h = 768;
+  const int w = 1024, h = 768;
   int *pixels = (int*)malloc(w*h*sizeof(int));
   using namespace game;
   const mat3x3f r = mat3x3f::rotate(vec3f(0.f,0.f,1.f),game::player1->yaw)*
                     mat3x3f::rotate(vec3f(0.f,1.f,0.f),game::player1->roll)*
-                    mat3x3f::rotate(vec3f(1.f,0.f,0.f),game::player1->pitch);
+                    mat3x3f::rotate(vec3f(-1.f,0.f,0.f),game::player1->pitch);
   const camera cam(game::player1->o, -r.vz, -r.vy, fovy, aspect);
-  const lvl1grid &grid = *root.elem[0][0][0];
-  const vec3f cellsz(one), boxorg(zero);
-  const vec3i icelln = vec3i(lvl1x,lvl1y,lvl1z);
-  const aabb box(boxorg, cellsz*vec3f(lvl1x,lvl1y,lvl1z));
+  const vec3f cellsize(one), boxorg(zero);
+  const aabb box(boxorg, cellsize*vec3f(root.global()));
+  const int start = SDL_GetTicks();
   for (int y = 0; y < h; ++y) {
     for (int x = 0; x < w; ++x) {
       const int offset = x+w*y;
-      const ray r = cam.generate(w, h, x, y);
-      const vec3b signs = r.dir > vec3f(zero);
-      const vec3i step = select(signs, vec3i(one), -vec3i(one));
-      const vec3i justout = select(signs, vec3i(lvl1x,lvl1y,lvl1z), -vec3i(one));
-      const vec3f delta = abs(r.rdir*cellsz);
-      const slabres res = slab(box, r.org, r.rdir, r.tfar);
+      const ray ray = cam.generate(w, h, x, y);
+      const slabres res = slab(box, ray.org, ray.rdir, ray.tfar);
       if (!res.isec) {
         pixels[offset] = 0;
         continue;
       }
-
-      const vec3f entry = r.org+res.t*r.dir;
-      vec3i xyz = min(vec3i((entry-boxorg)/cellsz), icelln-vec3i(one));
-      const vec3f floorentry = vec3f(xyz)*cellsz+boxorg;
-      const vec3f exit = floorentry + select(signs, cellsz, vec3f(zero));
-      vec3f tmax = (exit-entry)*r.rdir;
-      tmax = select(r.dir==vec3f(zero),vec3f(FLT_MAX),tmax);
-      bool isec = false;
-      for (;;) {
-        const auto &cube = grid.get(xyz);
-        if (cube.mat == FULL) {
-          isec = true;
-          break;
-        }
-        if (tmax.x < tmax.y) {
-          if (tmax.x < tmax.z) {
-            xyz.x += step.x;
-            if (xyz.x == justout.x) break;
-            tmax.x += delta.x;
-          } else {
-            xyz.z += step.z;
-            if (xyz.z == justout.z) break;
-            tmax.z += delta.z;
-          }
-        } else {
-          if (tmax.y < tmax.z) {
-            xyz.y += step.y;
-            if (xyz.y == justout.y) break;
-            tmax.y += delta.y;
-          } else {
-            xyz.z += step.z;
-            if (xyz.z == justout.z) break;
-            tmax.z += delta.z;
-          }
-        }
-      }
+      const bool isec = intersect(&root, box.pmin, ray, res.t);
       pixels[offset] = isec?~0:0;
     }
-    printf("\r%i%%               ",100*y/h);
+    //printf("\r%i%%               ",100*y/h);
   }
+  const int ms = SDL_GetTicks()-start;
+  printf("\n%i ms, %f ray/s\n", ms, 1000.f*(w*h)/ms);
   writebmp(pixels, w, h, "hop.bmp");
-
   free(pixels);
 }
-#endif
 
 void init(int w, int h) {
 #if !defined(EMSCRIPTEN)
