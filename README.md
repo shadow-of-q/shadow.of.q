@@ -1,6 +1,11 @@
-This code is a fork of the CUBE engine. Mostly OGL code has been revamped to
+This code is a fork of the CUBE engine. OGL code has been revamped to
 remove dependencies to GLU and dependencies to OGL1.x only features. So, the
 code is basically using only gles 2 features making it compatible with webgl.
+
+I also started to play with differents ideas to represent the world. It is
+mostly a mix of cube, sauerbraten and minecraft ideas. Roughly, the world is
+represented by a deformable voxel (usually called "surface nets"). The voxel
+itself is stored in a recursive multi-grid (also called "brick maps").
 
 You need to dowload the data from sourceforge. They are here:
 
@@ -16,8 +21,8 @@ On Linux:
 
 `> make`
 
-On Windows, open the solution and compile
-
+On Windows, open the solution and compile. It is not tested carefully. So, it
+may certainly be broken.
 
 Javascript build
 ----------------

@@ -757,7 +757,7 @@ static const int lvl2x = 4,  lvl2y = 4,  lvl2z = 4;
 static const int lvl3x = 4,  lvl3y = 4,  lvl3z = 4;
 static const int lvlt1x = lvl1x, lvlt1y = lvl1y, lvlt1z = lvl1z;
 
-// compute the total number of cube for one level
+// compute the total number of cubes for each level
 #define LVL_TOT(N, M)\
 static const int lvlt##N##x = lvl##N##x * lvlt##M##x;\
 static const int lvlt##N##y = lvl##N##y * lvlt##M##y;\
@@ -1015,19 +1015,19 @@ template <typename T> struct gridpolicy {
   }
 };
 template <> struct gridpolicy<lvl1grid> {
-  enum { updatetmin = 0 };
+  enum { updatetmin = 1 };
   static INLINE vec3f cellorg(vec3f boxorg, vec3i xyz, vec3f cellsize) {
     return vec3f(zero);
   }
 };
 
-INLINE bool intersect(const brickcube &cube, const vec3f &boxorg, const ray &ray, float t) {
-  return cube.mat == FULL;
+INLINE isecres intersect(const brickcube &cube, const vec3f &boxorg, const ray &ray, float t) {
+  return isecres(cube.mat == FULL, t);
 }
 
 template <typename G>
-NOINLINE bool intersect(const G *grid, const vec3f &boxorg, const ray &ray, float t) {
-  if (grid == NULL) return false;
+NOINLINE isecres intersect(const G *grid, const vec3f &boxorg, const ray &ray, float t) {
+  if (grid == NULL) return isecres(false);
   const bool update = gridpolicy<G>::updatetmin == 1;
   const vec3b signs = ray.dir > vec3f(zero);
   const vec3f cellsize = grid->subcuben();
@@ -1042,35 +1042,35 @@ NOINLINE bool intersect(const G *grid, const vec3f &boxorg, const ray &ray, floa
   tmax = select(ray.dir==vec3f(zero),vec3f(FLT_MAX),tmax);
   for (;;) {
     const vec3f cellorg = gridpolicy<G>::cellorg(boxorg, xyz, cellsize);
-    if (intersect(grid->subgrid(xyz), cellorg, ray, t))
-      return true;
+    const auto isec = intersect(grid->subgrid(xyz), cellorg, ray, t);
+    if (isec.isec) return isec;
     if (tmax.x < tmax.y) {
       if (tmax.x < tmax.z) {
         xyz.x += step.x;
-        if (xyz.x == out.x) return false;
+        if (xyz.x == out.x) return isecres(false);
         if (update) t = tmax.x;
         tmax.x += delta.x;
       } else {
         xyz.z += step.z;
-        if (xyz.z == out.z) return false;
+        if (xyz.z == out.z) return isecres(false);
         if (update) t = tmax.z;
         tmax.z += delta.z;
       }
     } else {
       if (tmax.y < tmax.z) {
         xyz.y += step.y;
-        if (xyz.y == out.y) return false;
+        if (xyz.y == out.y) return isecres(false);
         if (update) t = tmax.y;
         tmax.y += delta.y;
       } else {
         xyz.z += step.z;
-        if (xyz.z == out.z) return false;
+        if (xyz.z == out.z) return isecres(false);
         if (update) t = tmax.z;
         tmax.z += delta.z;
       }
     }
   }
-  return false;
+  return isecres(false);
 }
 
 static void castray(float fovy, float aspect, float farplane) {
@@ -1093,8 +1093,13 @@ static void castray(float fovy, float aspect, float farplane) {
         pixels[offset] = 0;
         continue;
       }
-      const bool isec = intersect(&root, box.pmin, ray, res.t);
-      pixels[offset] = isec?~0:0;
+      const auto isec = intersect(&root, box.pmin, ray, res.t);
+      if (isec.isec) {
+        const int d = min(int(isec.t), 255);
+        pixels[offset] = d|(d<<8)|(d<<16)|(0xff<<24);
+      } else
+        pixels[offset] = 0;
+
     }
     //printf("\r%i%%               ",100*y/h);
   }
