@@ -5,6 +5,10 @@
 #include <cfloat>
 
 namespace cube {
+
+/*-------------------------------------------------------------------------
+ - 3D graphics related linear algebra (vectors, matrices)
+ -------------------------------------------------------------------------*/
 template<typename T> struct vec2;
 template<typename T> struct vec3;
 template<typename T> struct vec4;
@@ -140,6 +144,7 @@ TINLINE v2 abs (v2arg a)  {return v2(abs(a.x), abs(a.y));}
 TINLINE v2 rcp (v2arg a)  {return v2(rcp(a.x), rcp(a.y));}
 TINLINE v2 sqrt (v2arg a) {return v2(sqrt(a.x), sqrt(a.y));}
 TINLINE v2 rsqrt(v2arg a) {return v2(rsqrt(a.x), rsqrt(a.y));}
+TINLINE v2 floor (v2arg a) {return v2(floor(a.x), floor(a.y));}
 TINLINE v2 op+ (v2arg a, v2arg b) {return v2(a.x+b.x, a.y+b.y);}
 TINLINE v2 op- (v2arg a, v2arg b) {return v2(a.x-b.x, a.y-b.y);}
 TINLINE v2 op* (v2arg a, v2arg b) {return v2(a.x*b.x, a.y*b.y);}
@@ -211,6 +216,7 @@ TINLINE v3 abs (v3arg a) {return v3(abs(a.x), abs(a.y), abs(a.z));}
 TINLINE v3 rcp (v3arg a) {return v3(rcp(a.x), rcp(a.y), rcp(a.z));}
 TINLINE v3 sqrt (v3arg a) {return v3(sqrt (a.x), sqrt (a.y), sqrt(a.z));}
 TINLINE v3 rsqrt (v3arg a) {return v3(rsqrt(a.x), rsqrt(a.y), rsqrt(a.z));}
+TINLINE v3 floor (v3arg a) {return v3(floor(a.x), floor(a.y), floor(a.z));}
 TINLINE v3 op+ (v3arg a) {return v3(+a.x, +a.y, +a.z);}
 TINLINE v3 op- (v3arg a) {return v3(-a.x, -a.y, -a.z);}
 TINLINE v3 op+ (v3arg a, v3arg b) {return v3(a.x+b.x, a.y+b.y, a.z+b.z);}
@@ -319,6 +325,7 @@ TINLINE v4 abs (v4arg a) {return v4(abs(a.x), abs(a.y), abs(a.z), abs(a.w));}
 TINLINE v4 rcp (v4arg a) {return v4(rcp(a.x), rcp(a.y), rcp(a.z), rcp(a.w));}
 TINLINE v4 sqrt (v4arg a) {return v4(sqrt (a.x), sqrt (a.y), sqrt (a.z), sqrt (a.w));}
 TINLINE v4 rsqrt(v4arg a) {return v4(rsqrt(a.x), rsqrt(a.y), rsqrt(a.z), rsqrt(a.w));}
+TINLINE v4 floor (v4arg a) {return v4(floor(a.x), floor(a.y), floor(a.z), floor(a.w));}
 TINLINE T length(v4arg a) {return sqrt(dot(a,a));}
 TINLINE T dot (v4arg a, v4arg b) {return a.x*b.x + a.y*b.y + a.z*b.z + a.w*b.w;}
 TINLINE v4 normalize(v4arg a) {return a*rsqrt(dot(a,a));}
@@ -700,5 +707,54 @@ template <int n> using vveci = vvec<int,n>;
 #undef sw30
 #undef sw41
 #undef sw40
+
+// array to define unit cube
+extern const vec3i cubeiverts[8]; // unit cube in integers
+extern const vec3f cubefverts[8]; // unit cube in floats
+extern const vec3i cubetris[12];  // triangle indices
+extern const vec3i cubenorms[6];  // triangle indices
+extern const vec4i cubequads[6];  // quad face indices
+extern const vec2i cubeedges[12]; // edges indices
+
+/*-------------------------------------------------------------------------
+ - raytracing / visibility related stuff
+ -------------------------------------------------------------------------*/
+struct ray {
+  INLINE ray(void) {}
+  INLINE ray(vec3f org, vec3f dir, float near = 0.f, float far = FLT_MAX)
+    : org(org), dir(dir), rdir(rcp(dir)), tnear(near), tfar(far) {}
+  vec3f org, dir, rdir;
+  float tnear, tfar;
+};
+
+struct camera {
+  camera(vec3f org, vec3f up, vec3f view, float fov, float ratio);
+  INLINE ray generate(int w, int h, int x, int y) const {
+    const float rw = rcp(float(w)), rh = rcp(float(h));
+    const vec3f sxaxis = xaxis*rw, szaxis = zaxis*rh;
+    const vec3f dir = normalize(imgplaneorg + float(x)*sxaxis + float(y)*szaxis);
+    return ray(org, dir);
+  }
+  vec3f org, up, view, imgplaneorg, xaxis, zaxis;
+  float fov, ratio, dist;
+};
+
+struct aabb {
+  INLINE aabb(vec3f m, vec3f M) : pmin(m), pmax(M) {}
+  vec3f pmin, pmax;
+};
+struct isecres {
+  INLINE isecres(bool isec = false, float t = 0.f) : t(t), isec(isec) {}
+  float t;
+  bool isec;
+};
+INLINE isecres slab(const aabb &box, vec3f org, vec3f rdir, float t) {
+  const vec3f l1 = (box.pmin-org)*rdir;
+  const vec3f l2 = (box.pmax-org)*rdir;
+  const float tfar = reducemin(max(l1,l2));
+  const float tnear = reducemax(min(l1,l2));
+  return isecres((tfar >= tnear) & (tfar >= 0.f) & (tnear < t), max(0.f,tnear));
+}
+
 } // namespace cube
 

@@ -304,10 +304,9 @@ DIRECTION(right,    strafe, -1, k_right, k_left);
 static void attack(bool on) {
   if (intermission)
     return;
-//  if (editmode)
-//    edit::editdrag(on);
-//  else
-  if ((player1->attacking = on) != 0)
+  if (edit::mode())
+    edit::editdrag(on);
+  else if ((player1->attacking = on) != 0)
     respawn();
 }
 COMMAND(attack, ARG_DOWN);

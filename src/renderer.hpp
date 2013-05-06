@@ -24,7 +24,7 @@ void draw_envbox(int t, int fogdist);
 
 // renderextras
 void line(int x1, int y1, float z1, int x2, int y2, float z2);
-void box(const block &b, float z1, float z2, float z3, float z4);
+void box(const vec3i &start, const vec3i &size, const vec3f &col);
 void dot(int x, int y, float z);
 void linestyle(float width, int r, int g, int b);
 void newsphere(const vec3f &o, float max, int type);

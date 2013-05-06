@@ -20,16 +20,16 @@ void linestyle(float width, int r, int g, int b) {
   OGL(VertexAttrib3f,ogl::COL,float(r)/255.f,float(g)/255.f,float(b)/255.f);
 }
 
-void box(const world::block &b, float z1, float z2, float z3, float z4) {
-  const vvecf<3> verts[] = {
-    vvecf<3>(float(b.x),      z1, float(b.y)),
-    vvecf<3>(float(b.x+b.xs), z2, float(b.y)),
-    vvecf<3>(float(b.x+b.xs), z3, float(b.y+b.ys)),
-    vvecf<3>(float(b.x),      z4, float(b.y+b.ys))
-  };
+void box(const vec3i &start, const vec3i &size, const vec3f &col) {
+  const vec3f fstart(start), fsize(size);
+  vec3f v[2*ARRAY_ELEM_N(cubeedges)];
+  loopi(int(ARRAY_ELEM_N(cubeedges))) {
+    v[2*i+0] = fsize*cubefverts[cubeedges[i].x]+fstart;
+    v[2*i+1] = fsize*cubefverts[cubeedges[i].y]+fstart;
+  }
   ogl::bindshader(ogl::COLOR_ONLY);
-  ogl::immdraw(GL_LINE_LOOP, 3, 0, 0, 4, &verts[0][0]);
-  ogl::xtraverts += 4;
+  OGL(VertexAttrib3fv, ogl::COL, &col.x);
+  ogl::immdraw(GL_LINES, 3, 0, 0, ARRAY_ELEM_N(v), &v[0][0]);
 }
 
 void dot(int x, int y, float z) {
@@ -238,9 +238,10 @@ VARP(crosshairfx, 0, 1, 1);
 
 void drawhud(int w, int h, int curfps, int nquads, int curvert, bool underwater) {
   readmatrices();
-  if (edit::mode())
+  if (edit::mode()) {
     if (cursordepth==1.0f) game::setworldpos(game::player1->o);
-
+    edit::cursorupdate();
+  }
   ogl::disablev(GL_DEPTH_TEST);
   invertperspective();
   ogl::pushmatrix();

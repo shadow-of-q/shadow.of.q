@@ -3,6 +3,12 @@
 #include <SDL/SDL_image.h>
 
 namespace cube {
+
+// XXX just for now
+namespace world{
+extern int raycast;
+extern void castray(float fovy, float aspect, float farplane);
+}
 namespace rr { extern int curvert; }
 namespace ogl {
 
@@ -117,18 +123,22 @@ void immdrawelements(int mode, int count, int type, const void *indices) {
 void immdraw(int mode, int pos, int tex, int col, size_t n, const float *data) {
   const int sz = (pos+tex+col)*sizeof(float);
   immvertices(n*sz, data);
+  disableattribarray(POS1);
   if (pos) {
     immattrib(ogl::POS0, pos, GL_FLOAT, sz, (tex+col)*sizeof(float));
     enableattribarrayv(POS0);
-  }
+  } else
+    disableattribarray(POS0);
   if (tex) {
     immattrib(ogl::TEX, tex, GL_FLOAT, sz, col*sizeof(float));
     enableattribarrayv(TEX);
-  }
+  } else
+    disableattribarray(TEX);
   if (col) {
     immattrib(ogl::COL, col, GL_FLOAT, sz, 0);
     enableattribarrayv(COL);
-  }
+  } else
+    disableattribarray(COL);
   immdrawarrays(mode, 0, n);
 }
 
@@ -584,7 +594,112 @@ static void buildubershader(shader &shader, uint rules) {
   buildshader(shader, ubervert, uberfrag, rules);
 }
 
-// display the binded md2 model
+
+/*--------------------------------------------------------------------------
+ - world mesh handling (very simple for now)
+ -------------------------------------------------------------------------*/
+struct brickmeshctx {
+  brickmeshctx(const world::lvl1grid &b) : b(b) {}
+  void clear(int orientation) {
+    dir = orientation;
+    memset(indices, 0xff, sizeof(indices));
+  }
+  INLINE u16 get(vec3i p) const { return indices[p.x][p.y][p.z]; }
+  INLINE void set(vec3i p, u16 idx) { indices[p.x][p.y][p.z] = idx; }
+  const world::lvl1grid &b;
+  vector<vvecf<5>> vbo;
+  vector<u16> ibo;
+  u16 indices[world::lvl1x+1][world::lvl1y+1][world::lvl1z+1];
+  int dir;
+};
+
+static INLINE void buildfaces(brickmeshctx &ctx, vec3i xyz, vec3i idx) {
+  const int chan = ctx.dir/2; // basically: x (==0), y (==1) or z (==2)
+  if (world::getcube(xyz).mat == world::EMPTY) // nothing here
+    return;
+  if (world::getcube(xyz+cubenorms[ctx.dir]).mat != world::EMPTY) // invisible face
+    return;
+
+  // build both triangles. we reuse already output vertices
+  const int idx0 = 2*ctx.dir+0, idx1 = 2*ctx.dir+1;
+  const vec3i tris[] = {cubetris[idx0], cubetris[idx1]};
+  loopi(2) { // build both triangles
+    loopj(3) { // build each vertex
+      const vec3i local = idx+cubeiverts[tris[i][j]];
+      const vec3i global = xyz+cubeiverts[tris[i][j]];
+      u16 id = ctx.get(local);
+      if (id == 0xffff) {
+        const vec3f pos = vec3f(global);//+vec3f(root.get(global).p);
+        const vec2f tex = chan==0?pos.yz():(chan==1?pos.xz():pos.xy());
+        id = ctx.vbo.length();
+        ctx.vbo.add(vvecf<5>(pos.xzy(),tex));
+        ctx.set(local, id);
+      }
+      ctx.ibo.add(id);
+    }
+  }
+}
+
+static void buildgridmesh(world::lvl1grid &b, vec3i org) {
+  if (b.dirty==0) return;
+  brickmeshctx ctx(b);
+  loopi(6) {
+    ctx.clear(i);
+    loopxyz(0, b.size(), buildfaces(ctx, org+xyz, xyz));
+  }
+  if (ctx.vbo.length() > 0xffff) fatal("too many vertices in the VBO");
+  if (b.vbo) OGL(DeleteBuffers, 1, &b.vbo);
+  if (b.ibo) OGL(DeleteBuffers, 1, &b.ibo);
+  OGL(GenBuffers, 1, &b.vbo);
+  OGL(GenBuffers, 1, &b.ibo);
+  ogl::bindbuffer(ogl::ARRAY_BUFFER, b.vbo);
+  ogl::bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, b.ibo);
+  OGL(BufferData, GL_ARRAY_BUFFER, ctx.vbo.length()*sizeof(vvecf<5>), &ctx.vbo[0][0], GL_STATIC_DRAW);
+  OGL(BufferData, GL_ELEMENT_ARRAY_BUFFER, ctx.ibo.length()*sizeof(u16), &ctx.ibo[0], GL_STATIC_DRAW);
+  bindbuffer(ogl::ARRAY_BUFFER, 0);
+  bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, 0);
+  b.elemnum = ctx.ibo.length();
+  b.dirty = 0;
+}
+
+void buildgrid(void) { forallbricks(buildgridmesh); }
+COMMAND(buildgrid, ARG_NONE);
+
+static void fillgrid(void) {
+  using namespace world;
+  loop(x,isize.x) loop(y,isize.y) world::setcube(vec3i(x,y,0), brickcube(FULL));
+  for (int x = 8; x < isize.x; x += 32)
+  for (int y = 8; y < isize.y; y += 32)
+    loop(z,isize.z) world::setcube(vec3i(x,y,z), brickcube(FULL));
+  buildgrid();
+}
+
+static void drawgrid(void) {
+  using namespace world;
+  static bool initialized = false;
+  if (!initialized) {
+    texturereset();
+    texture("0", "ikbase/ik_floor_met128e.jpg");
+    fillgrid();
+    initialized = true;
+  }
+  ogl::bindtexture(GL_TEXTURE_2D, ogl::lookuptex(0));
+  ogl::enableattribarrayv(ogl::POS0, ogl::TEX);
+  ogl::disableattribarrayv(ogl::COL, ogl::POS1);
+  ogl::bindshader(ogl::DIFFUSETEX);
+  forallbricks([&](const lvl1grid &b, const vec3i org) {
+    ogl::bindbuffer(ogl::ARRAY_BUFFER, b.vbo);
+    ogl::bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, b.ibo);
+    OGL(VertexAttribPointer, ogl::TEX, 2, GL_FLOAT, 0, sizeof(float[5]), (const void*) sizeof(float[3]));
+    OGL(VertexAttribPointer, ogl::POS0, 3, GL_FLOAT, 0, sizeof(float[5]), (const void*) 0);
+    ogl::drawelements(GL_TRIANGLES, b.elemnum, GL_UNSIGNED_SHORT, 0);
+    ogl::xtraverts += b.elemnum;
+  });
+}
+
+/*--------------------------------------------------------------------------
+ - render md2 model
+ -------------------------------------------------------------------------*/
 void rendermd2(const float *pos0, const float *pos1, float lerp, int n) {
   OGL(VertexAttribPointer, TEX, 2, GL_FLOAT, 0, sizeof(float[5]), pos0);
   OGL(VertexAttribPointer, POS0, 3, GL_FLOAT, 0, sizeof(float[5]), pos0+2);
@@ -641,473 +756,6 @@ void drawelements(int mode, int count, int type, const void *indices) {
 #include "GL/ogl300.hxx"
 #undef GL_PROC
 #endif // EMSCRIPTEN
-
-template <int x> struct powerof2policy { enum {value = !!((x&(x-1))==0)}; };
-#define GRIDPOLICY(x,y,z) \
-  static_assert(powerof2policy<x>::value,"x must be power of 2");\
-  static_assert(powerof2policy<y>::value,"y must be power of 2");\
-  static_assert(powerof2policy<z>::value,"z must be power of 2");
-
-// cube material
-enum  {
-  EMPTY = 0, // nothing at all
-  FULL = 1 // contains a deformed cube
-};
-
-// data contained in the most lower grid
-struct brickcube {
-  INLINE brickcube(u8 m) : p(0,0,0), mat(m), extra(0) {}
-  INLINE brickcube(vec3<u8> o = vec3<u8>(0,0,0), u8 m = EMPTY) : p(o), mat(m), extra(0) {}
-  vec3<u8> p;
-  u8 mat;
-  u32 extra;
-};
-// empty (== air) cube and no displacement
-static const brickcube emptycube;
-
-#define loopxyz(org, end, body)\
-  for (int X = vec3i(org).x; X < vec3i(end).x; ++X)\
-  for (int Y = vec3i(org).y; Y < vec3i(end).y; ++Y)\
-  for (int Z = vec3i(org).z; Z < vec3i(end).z; ++Z) do {\
-    const vec3i xyz(X,Y,Z);\
-    body;\
-  } while (0)
-#undef INLINE
-#define INLINE
-
-// actually contains the data (geometries)
-template <int x, int y, int z>
-struct brick : public noncopyable {
-  INLINE brick(void) {
-    vbo = ibo = 0u;
-    elemnum = 0;
-  }
-  static INLINE vec3i size(void) { return vec3i(x,y,z); }
-  static INLINE vec3i global(void) { return size(); }
-  static INLINE vec3i local(void) { return size(); }
-  static INLINE vec3i cuben(void) { return size(); }
-  static INLINE vec3i subcuben(void) { return vec3i(one); }
-  INLINE brickcube get(vec3i v) const { return elem[v.x][v.y][v.z]; }
-  INLINE brickcube subgrid(vec3i v) const { return get(v); }
-  INLINE void set(vec3i v, const brickcube &cube) { elem[v.x][v.y][v.z]=cube; }
-  INLINE brick &getbrick(vec3i idx) { return *this; }
-  template <typename F> INLINE void forallcubes(const F &f, vec3i org) {
-    loopxyz(zero, size(), {
-      auto cube = get(xyz);
-      if (cube.mat != EMPTY)
-        f(cube, org + xyz);
-    });
-  }
-  template <typename F> INLINE void forallbricks(const F &f, vec3i org) {
-    f(*this, org);
-  }
-  brickcube elem[x][y][z];
-  GRIDPOLICY(x,y,z);
-  enum {cubenx=x, cubeny=y, cubenz=z};
-  GLuint vbo, ibo;
-  u32 elemnum;
-};
-
-// recursive sparse grid
-template <typename T, int locx, int locy, int locz, int globx, int globy, int globz>
-struct grid : public noncopyable {
-  typedef T childtype;
-  enum {cubenx=locx*T::cubenx, cubeny=locy*T::cubeny, cubenz=locz*T::cubenz};
-  INLINE grid(void) { memset(elem, 0, sizeof(elem)); }
-  static INLINE vec3i local(void) { return vec3i(locx,locy,locz); }
-  static INLINE vec3i global(void) { return vec3i(globx,globy,globz); }
-  static INLINE vec3i cuben(void) { return vec3i(cubenx, cubeny, cubenz); }
-  static INLINE vec3i subcuben(void) { return T::cuben(); }
-  INLINE vec3i index(vec3i p) const {
-    return any(p<vec3i(zero))?local():p*local()/global();
-  }
-  INLINE T *subgrid(vec3i idx) const {
-    if (any(idx>=local())) return NULL;
-    return elem[idx.x][idx.y][idx.z];
-  }
-  INLINE brickcube get(vec3i v) const {
-    auto idx = index(v);
-    auto e = subgrid(idx);
-    if (e == NULL) return emptycube;
-    return e->get(v-idx*subcuben());
-  }
-  INLINE void set(vec3i v, const brickcube &cube) {
-    auto idx = index(v);
-    if (any(idx>=local())) return;
-    auto &e = elem[idx.x][idx.y][idx.z];
-    if (e == NULL) e = new T;
-    e->set(v-idx*subcuben(), cube);
-  }
-  template <typename F> INLINE void forallcubes(const F &f, vec3i org) {
-    loopxyz(zero, local(), if (T *e = subgrid(xyz))
-      e->forallcubes(f, org + xyz*global()/local()));
-  }
-  template <typename F> INLINE void forallbricks(const F &f, vec3i org) {
-    loopxyz(zero, local(), if (T *e = subgrid(xyz))
-      e->forallbricks(f, org + xyz*global()/local()););
-  }
-  T *elem[locx][locy][locz]; // each elem may be null when empty
-  GRIDPOLICY(locx,locy,locz);
-  GRIDPOLICY(globx,globy,globz);
-};
-
-// all levels of details for our world
-static const int lvl1x = 16, lvl1y = 16, lvl1z = 16;
-static const int lvl2x = 4,  lvl2y = 4,  lvl2z = 4;
-static const int lvl3x = 4,  lvl3y = 4,  lvl3z = 4;
-static const int lvlt1x = lvl1x, lvlt1y = lvl1y, lvlt1z = lvl1z;
-
-// compute the total number of cubes for each level
-#define LVL_TOT(N, M)\
-static const int lvlt##N##x = lvl##N##x * lvlt##M##x;\
-static const int lvlt##N##y = lvl##N##y * lvlt##M##y;\
-static const int lvlt##N##z = lvl##N##z * lvlt##M##z;
-LVL_TOT(2,1)
-LVL_TOT(3,2)
-#undef LVL_TOT
-
-// define a type for one level of the hierarchy
-#define GRID(CHILD,N)\
-typedef grid<CHILD,lvl##N##x,lvl##N##y,lvl##N##z,lvlt##N##x,lvlt##N##y,lvlt##N##z> lvl##N##grid;
-typedef brick<lvl1x,lvl1y,lvl1z> lvl1grid;
-GRID(lvl1grid,2)
-GRID(lvl2grid,3)
-#undef GRID
-
-// our world and its total dimension
-static lvl3grid root;
-static const int worldsizex=lvlt3x, worldsizey=lvlt3y, worldsizez=lvlt3z;
-static const vec3i worldisize(worldsizex,worldsizey,worldsizez);
-static const vec3f worldfsize(worldsizex,worldsizey,worldsizez);
-
-template <typename F> static void forallbricks(const F &f) { root.forallbricks(f, zero); }
-template <typename F> static void forallcubes(const F &f) { root.forallcubes(f, zero); }
-
-static const int cubedirnum = 6;
-static const int cubevertnum = 8;
-static const int cubetrinum = 12;
-static const vec3i cubeverts[cubevertnum] = {
-  vec3i(0,0,0)/*0*/, vec3i(0,0,1)/*1*/, vec3i(0,1,1)/*2*/, vec3i(0,1,0)/*3*/,
-  vec3i(1,0,0)/*4*/, vec3i(1,0,1)/*5*/, vec3i(1,1,1)/*6*/, vec3i(1,1,0)/*7*/
-};
-static const vec3i cubetris[cubetrinum] = {
-  vec3i(0,1,2), vec3i(0,2,3), vec3i(4,7,6), vec3i(4,6,5), // -x,+x triangles
-  vec3i(0,4,5), vec3i(0,5,1), vec3i(2,6,7), vec3i(2,7,3), // -y,+y triangles
-  vec3i(3,7,4), vec3i(3,4,0), vec3i(1,5,6), vec3i(1,6,2)  // -z,+z triangles
-};
-static const vec3i cubenorms[cubedirnum] = {
-  vec3i(-1,0,0), vec3i(+1,0,0),
-  vec3i(0,-1,0), vec3i(0,+1,0),
-  vec3i(0,0,-1), vec3i(0,0,+1)
-};
-
-struct brickmeshctx {
-  brickmeshctx(const lvl1grid &b) : b(b) {}
-  void clear(int orientation) {
-    dir = orientation;
-    memset(indices, 0xff, sizeof(indices));
-  }
-  INLINE u16 get(vec3i p) const { return indices[p.x][p.y][p.z]; }
-  INLINE void set(vec3i p, u16 idx) { indices[p.x][p.y][p.z] = idx; }
-  const lvl1grid &b;
-  vector<vvecf<5>> vbo;
-  vector<u16> ibo;
-  u16 indices[lvl1x+1][lvl1y+1][lvl1z+1];
-  int dir;
-};
-
-static INLINE void buildfaces(brickmeshctx &ctx, vec3i xyz, vec3i idx) {
-  const int chan = ctx.dir/2; // basically: x (==0), y (==1) or z (==2)
-  if (root.get(xyz).mat == EMPTY) return; // nothing here
-  if (root.get(xyz+cubenorms[ctx.dir]).mat != EMPTY) return; // invisible face
-
-  // build both triangles. we reuse already output vertices
-  const int idx0 = 2*ctx.dir+0, idx1 = 2*ctx.dir+1;
-  const vec3i tris[] = {cubetris[idx0], cubetris[idx1]};
-  loopi(2) { // build both triangles
-    loopj(3) { // build each vertex
-      const vec3i local = idx+cubeverts[tris[i][j]];
-      const vec3i global = xyz+cubeverts[tris[i][j]];
-      u16 id = ctx.get(local);
-      if (id == 0xffff) {
-        const vec3f pos = vec3f(global);//+vec3f(root.get(global).p);
-        const vec2f tex = chan==0?pos.yz():(chan==1?pos.xz():pos.xy());
-        id = ctx.vbo.length();
-        ctx.vbo.add(vvecf<5>(pos.xzy(),tex));
-        ctx.set(local, id);
-      }
-      ctx.ibo.add(id);
-    }
-  }
-}
-
-static void buildgridmesh(lvl1grid &b, vec3i org) {
-  brickmeshctx ctx(b);
-  loopi(6) {
-    ctx.clear(i);
-    loopxyz(0, b.size(), buildfaces(ctx, org+xyz, xyz));
-  }
-  if (ctx.vbo.length() > 0xffff) fatal("too many vertices in the VBO");
-  OGL(GenBuffers, 1, &b.vbo);
-  OGL(GenBuffers, 1, &b.ibo);
-  ogl::bindbuffer(ogl::ARRAY_BUFFER, b.vbo);
-  ogl::bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, b.ibo);
-  OGL(BufferData, GL_ARRAY_BUFFER, ctx.vbo.length()*sizeof(vvecf<5>), &ctx.vbo[0][0], GL_STATIC_DRAW);
-  OGL(BufferData, GL_ELEMENT_ARRAY_BUFFER, ctx.ibo.length()*sizeof(u16), &ctx.ibo[0], GL_STATIC_DRAW);
-  bindbuffer(ogl::ARRAY_BUFFER, 0);
-  bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, 0);
-  b.elemnum = ctx.ibo.length();
-}
-
-static void fillgrid(void) {
-  loop(x,worldisize.x) loop(y,worldisize.y) root.set(vec3i(x,y,0), brickcube(FULL));
-  for (int x = 8; x < worldisize.x; x += 32)
-  for (int y = 8; y < worldisize.y; y += 32)
-    loop(z,worldisize.z) root.set(vec3i(x,y,z), brickcube(FULL));
-  forallbricks(buildgridmesh);
-}
-
-static void drawgrid(void) {
-  static bool initialized = false;
-  if (!initialized) {
-    texturereset();
-    texture("0", "ikbase/ik_floor_met128e.jpg");
-    fillgrid();
-    initialized = true;
-  }
-  ogl::bindtexture(GL_TEXTURE_2D, ogl::lookuptex(0));
-  enableattribarrayv(POS0, TEX);
-  disableattribarrayv(COL, POS1);
-  bindshader(DIFFUSETEX);
-  forallbricks([&](const lvl1grid &b, const vec3i org) {
-    ogl::bindbuffer(ogl::ARRAY_BUFFER, b.vbo);
-    ogl::bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, b.ibo);
-    OGL(VertexAttribPointer, TEX, 2, GL_FLOAT, 0, sizeof(float[5]), (const void*) sizeof(float[3]));
-    OGL(VertexAttribPointer, POS0, 3, GL_FLOAT, 0, sizeof(float[5]), (const void*) 0);
-    ogl::drawelements(GL_TRIANGLES, b.elemnum, GL_UNSIGNED_SHORT, 0);
-    ogl::xtraverts += b.elemnum;
-  });
-}
-
-struct ray {
-  INLINE ray(void) {}
-  INLINE ray(vec3f org, vec3f dir, float near = 0.f, float far = FLT_MAX)
-    : org(org), dir(dir), rdir(rcp(dir)), tnear(near), tfar(far) {}
-  vec3f org, dir, rdir;
-  float tnear, tfar;
-};
-
-struct camera {
-  INLINE camera(vec3f org, vec3f up, vec3f view, float fov, float ratio) :
-    org(org), up(up), view(view), fov(fov), ratio(ratio)
-  {
-    const float left = -ratio * 0.5f;
-    const float top = 0.5f;
-    dist = 0.5f / tan(fov * float(pi) / 360.f);
-    view = normalize(view);
-    up = normalize(up);
-    xaxis = cross(view, up);
-    xaxis = normalize(xaxis);
-    zaxis = cross(view, xaxis);
-    zaxis = normalize(zaxis);
-    imgplaneorg = dist*view + left*xaxis - top*zaxis;
-    xaxis *= ratio;
-  }
-  INLINE ray generate(int w, int h, int x, int y) const {
-    const float rw = rcp(float(w)), rh = rcp(float(h));
-    const vec3f sxaxis = xaxis*rw, szaxis = zaxis*rh;
-    const vec3f dir = normalize(imgplaneorg + float(x)*sxaxis + float(y)*szaxis);
-    return ray(org, dir);
-  }
-  vec3f org, up, view, imgplaneorg, xaxis, zaxis;
-  float fov, ratio, dist;
-};
-
-struct aabb {
-  INLINE aabb(vec3f m, vec3f M) : pmin(m), pmax(M) {}
-  vec3f pmin, pmax;
-};
-struct isecres {
-  INLINE isecres(bool isec = false, float t = 0.f) : t(t), isec(isec) {}
-  float t;
-  bool isec;
-};
-INLINE isecres slab(const aabb &box, vec3f org, vec3f rdir, float t) {
-  const vec3f l1 = (box.pmin-org)*rdir;
-  const vec3f l2 = (box.pmax-org)*rdir;
-  const float tfar = reducemin(max(l1,l2));
-  const float tnear = reducemax(min(l1,l2));
-  return isecres((tfar >= tnear) & (tfar >= 0.f) & (tnear < t), max(0.f,tnear));
-}
-
-static void writebmp(const int *data, int width, int height, const char *filename) {
-  int x, y;
-  FILE *fp = fopen(filename, "wb");
-  assert(fp);
-  struct bmphdr {
-    int filesize;
-    short as0, as1;
-    int bmpoffset;
-    int headerbytes;
-    int width;
-    int height;
-    short nplanes;
-    short bpp;
-    int compression;
-    int sizeraw;
-    int hres;
-    int vres;
-    int npalcolors;
-    int nimportant;
-  };
-
-  const char magic[2] = { 'B', 'M' };
-  char *raw = (char *) malloc(width * height * sizeof(int)); // at most
-  assert(raw);
-  char *p = raw;
-
-  for (y = 0; y < height; y++) {
-    for (x = 0; x < width; x++) {
-      int c = *data++;
-      *p++ = ((c >> 16) & 0xff);
-      *p++ = ((c >> 8) & 0xff);
-      *p++ = ((c >> 0) & 0xff);
-    }
-    while (x & 3) {
-      *p++ = 0;
-      x++;
-    } // pad to dword
-  }
-  int sizeraw = p - raw;
-  int scanline = (width * 3 + 3) & ~3;
-  assert(sizeraw == scanline * height);
-
-  struct bmphdr hdr;
-
-  hdr.filesize = scanline * height + sizeof(hdr) + 2;
-  hdr.as0 = 0;
-  hdr.as1 = 0;
-  hdr.bmpoffset = sizeof(hdr) + 2;
-  hdr.headerbytes = 40;
-  hdr.width = width;
-  hdr.height = height;
-  hdr.nplanes = 1;
-  hdr.bpp = 24;
-  hdr.compression = 0;
-  hdr.sizeraw = sizeraw;
-  hdr.hres = 0;
-  hdr.vres = 0;
-  hdr.npalcolors = 0;
-  hdr.nimportant = 0;
-  fwrite(&magic[0], 1, 2, fp);
-  fwrite(&hdr, 1, sizeof(hdr), fp);
-  fwrite(raw, 1, hdr.sizeraw, fp);
-  fclose(fp);
-  free(raw);
-}
-
-VAR(raycast, 0, 0, 1);
-
-template <typename T> struct gridpolicy {
-  enum { updatetmin = 1 };
-  static INLINE vec3f cellorg(vec3f boxorg, vec3i xyz, vec3f cellsize) {
-    return boxorg+vec3f(xyz)*cellsize;
-  }
-};
-template <> struct gridpolicy<lvl1grid> {
-  enum { updatetmin = 1 };
-  static INLINE vec3f cellorg(vec3f boxorg, vec3i xyz, vec3f cellsize) {
-    return vec3f(zero);
-  }
-};
-
-INLINE isecres intersect(const brickcube &cube, const vec3f &boxorg, const ray &ray, float t) {
-  return isecres(cube.mat == FULL, t);
-}
-
-template <typename G>
-NOINLINE isecres intersect(const G *grid, const vec3f &boxorg, const ray &ray, float t) {
-  if (grid == NULL) return isecres(false);
-  const bool update = gridpolicy<G>::updatetmin == 1;
-  const vec3b signs = ray.dir > vec3f(zero);
-  const vec3f cellsize = grid->subcuben();
-  const vec3i step = select(signs, vec3i(one), -vec3i(one));
-  const vec3i out = select(signs, grid->global(), -vec3i(one));
-  const vec3f delta = abs(ray.rdir*cellsize);
-  const vec3f entry = ray.org+t*ray.dir;
-  vec3i xyz = min(vec3i((entry-boxorg)/cellsize), grid->local()-vec3i(one));
-  const vec3f floorentry = vec3f(xyz)*cellsize+boxorg;
-  const vec3f exit = floorentry + select(signs, cellsize, vec3f(zero));
-  vec3f tmax = vec3f(t)+(exit-entry)*ray.rdir;
-  tmax = select(ray.dir==vec3f(zero),vec3f(FLT_MAX),tmax);
-  for (;;) {
-    const vec3f cellorg = gridpolicy<G>::cellorg(boxorg, xyz, cellsize);
-    const auto isec = intersect(grid->subgrid(xyz), cellorg, ray, t);
-    if (isec.isec) return isec;
-    if (tmax.x < tmax.y) {
-      if (tmax.x < tmax.z) {
-        xyz.x += step.x;
-        if (xyz.x == out.x) return isecres(false);
-        if (update) t = tmax.x;
-        tmax.x += delta.x;
-      } else {
-        xyz.z += step.z;
-        if (xyz.z == out.z) return isecres(false);
-        if (update) t = tmax.z;
-        tmax.z += delta.z;
-      }
-    } else {
-      if (tmax.y < tmax.z) {
-        xyz.y += step.y;
-        if (xyz.y == out.y) return isecres(false);
-        if (update) t = tmax.y;
-        tmax.y += delta.y;
-      } else {
-        xyz.z += step.z;
-        if (xyz.z == out.z) return isecres(false);
-        if (update) t = tmax.z;
-        tmax.z += delta.z;
-      }
-    }
-  }
-  return isecres(false);
-}
-
-static void castray(float fovy, float aspect, float farplane) {
-  const int w = 1024, h = 768;
-  int *pixels = (int*)malloc(w*h*sizeof(int));
-  using namespace game;
-  const mat3x3f r = mat3x3f::rotate(vec3f(0.f,0.f,1.f),game::player1->yaw)*
-                    mat3x3f::rotate(vec3f(0.f,1.f,0.f),game::player1->roll)*
-                    mat3x3f::rotate(vec3f(-1.f,0.f,0.f),game::player1->pitch);
-  const camera cam(game::player1->o, -r.vz, -r.vy, fovy, aspect);
-  const vec3f cellsize(one), boxorg(zero);
-  const aabb box(boxorg, cellsize*vec3f(root.global()));
-  const int start = SDL_GetTicks();
-  for (int y = 0; y < h; ++y) {
-    for (int x = 0; x < w; ++x) {
-      const int offset = x+w*y;
-      const ray ray = cam.generate(w, h, x, y);
-      const isecres res = slab(box, ray.org, ray.rdir, ray.tfar);
-      if (!res.isec) {
-        pixels[offset] = 0;
-        continue;
-      }
-      const auto isec = intersect(&root, box.pmin, ray, res.t);
-      if (isec.isec) {
-        const int d = min(int(isec.t), 255);
-        pixels[offset] = d|(d<<8)|(d<<16)|(0xff<<24);
-      } else
-        pixels[offset] = 0;
-
-    }
-    //printf("\r%i%%               ",100*y/h);
-  }
-  const int ms = SDL_GetTicks()-start;
-  printf("\n%i ms, %f ray/s\n", ms, 1000.f*(w*h)/ms);
-  writebmp(pixels, w, h, "hop.bmp");
-  free(pixels);
-}
 
 void init(int w, int h) {
 #if !defined(EMSCRIPTEN)
@@ -1316,13 +964,13 @@ void drawframe(int w, int h, float curfps) {
   rr::renderspheres(game::curtime());
   rr::renderents();
   enablev(GL_CULL_FACE);
-  ogl::drawgrid();
+  drawgrid();
   disablev(GL_CULL_FACE);
 
   drawhudgun(fovy, aspect, farplane);
-  if (raycast) {
-    castray(fovy, aspect, farplane);
-    raycast = 0;
+  if (world::raycast) {
+    world::castray(fovy, aspect, farplane);
+    world::raycast = 0;
   }
 
   int nquads = 0;

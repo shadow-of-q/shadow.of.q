@@ -57,5 +57,50 @@ mat4x4<T> mat4x4<T>::inverse(void) const {
 template mat4x4<float> mat4x4<float>::inverse(void) const;
 template mat4x4<double> mat4x4<double>::inverse(void) const;
 
+const vec3i cubeiverts[8] = {
+  vec3i(0,0,0)/*0*/, vec3i(0,0,1)/*1*/, vec3i(0,1,1)/*2*/, vec3i(0,1,0)/*3*/,
+  vec3i(1,0,0)/*4*/, vec3i(1,0,1)/*5*/, vec3i(1,1,1)/*6*/, vec3i(1,1,0)/*7*/
+};
+const vec3f cubefverts[8] = {
+  vec3f(0.f,0.f,0.f), vec3f(0.f,1.f,0.f), vec3f(0.f,1.f,1.f), vec3f(0.f,0.f,1.f),
+  vec3f(1.f,0.f,0.f), vec3f(1.f,1.f,0.f), vec3f(1.f,1.f,1.f), vec3f(1.f,0.f,1.f)
+};
+const vec3i cubetris[12] = {
+  vec3i(0,1,2), vec3i(0,2,3), vec3i(4,7,6), vec3i(4,6,5), // -x,+x triangles
+  vec3i(0,4,5), vec3i(0,5,1), vec3i(2,6,7), vec3i(2,7,3), // -y,+y triangles
+  vec3i(3,7,4), vec3i(3,4,0), vec3i(1,5,6), vec3i(1,6,2)  // -z,+z triangles
+};
+const vec3i cubenorms[6] = {
+  vec3i(-1,0,0), vec3i(+1,0,0),
+  vec3i(0,-1,0), vec3i(0,+1,0),
+  vec3i(0,0,-1), vec3i(0,0,+1)
+};
+const vec2i cubeedges[12] = {
+  vec2i(0,1),vec2i(1,2),vec2i(2,3),vec2i(3,0),
+  vec2i(4,5),vec2i(5,6),vec2i(6,7),vec2i(7,4),
+  vec2i(1,5),vec2i(2,6),vec2i(0,4),vec2i(3,7)
+};
+const vec4i cubequads[6] = {
+  vec4i(0,1,2,3), vec4i(4,5,6,7),
+  vec4i(0,4,7,3), vec4i(1,5,6,2),
+  vec4i(0,4,5,1), vec4i(2,3,7,6)
+};
+
+camera::camera(vec3f org, vec3f up, vec3f view, float fov, float ratio) :
+  org(org), up(up), view(view), fov(fov), ratio(ratio)
+{
+  const float left = -ratio * 0.5f;
+  const float top = 0.5f;
+  dist = 0.5f / tan(fov * float(pi) / 360.f);
+  view = normalize(view);
+  up = normalize(up);
+  xaxis = cross(view, up);
+  xaxis = normalize(xaxis);
+  zaxis = cross(view, xaxis);
+  zaxis = normalize(zaxis);
+  imgplaneorg = dist*view + left*xaxis - top*zaxis;
+  xaxis *= ratio;
+}
+
 } // namespace cube
 
