@@ -238,12 +238,11 @@ brickcube getcube(const vec3i &xyz) {return world::root.get(xyz);}
 void setcube(const vec3i &xyz, const brickcube &cube) {
   root.set(xyz, cube);
   const vec3i m = xyz % brickisize;
-  if (m.x+1 == brickisize.x) root.set(xyz+ixaxis, root.get(xyz+ixaxis));
-  if (m.y+1 == brickisize.y) root.set(xyz+iyaxis, root.get(xyz+iyaxis));
-  if (m.z+1 == brickisize.z) root.set(xyz+izaxis, root.get(xyz+izaxis));
-  if (m.x == 0) root.set(xyz-ixaxis, root.get(xyz-ixaxis));
-  if (m.y == 0) root.set(xyz-iyaxis, root.get(xyz-iyaxis));
-  if (m.z == 0) root.set(xyz-izaxis, root.get(xyz-izaxis));
+  loopi(3) // reset neighbors to force rebuild of neighbor bricks
+    if (m[i] == brickisize.x-1)
+      root.set(xyz+iaxis[i], root.get(xyz+iaxis[i]));
+    else if (m[i] == 0)
+      root.set(xyz-iaxis[i], root.get(xyz-iaxis[i]));
 }
 
 static void writebmp(const int *data, int width, int height, const char *filename) {
