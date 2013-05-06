@@ -708,7 +708,15 @@ template <int n> using vveci = vvec<int,n>;
 #undef sw41
 #undef sw40
 
-// array to define unit cube
+// various vector constants used all over the place
+extern const vec3f axis[];
+extern const vec3i iaxis[];
+static const vec3f &xaxis=axis[0], &yaxis=axis[1], &zaxis=axis[2];
+static const vec3i &ixaxis=iaxis[0], &iyaxis=iaxis[1], &izaxis=iaxis[2];
+static const vec3f &red=axis[0], &green=axis[1], &blue=axis[2];
+extern const vec3f  white;
+
+// arrays to define unit cube
 extern const vec3i cubeiverts[8]; // unit cube in integers
 extern const vec3f cubefverts[8]; // unit cube in floats
 extern const vec3i cubetris[12];  // triangle indices

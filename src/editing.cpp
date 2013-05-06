@@ -1,7 +1,6 @@
 #include "cube.hpp"
 
 namespace cube {
-namespace ogl { void buildgrid(); }// XXX
 namespace edit {
 
 VAR(editing,0,0,1);
@@ -86,6 +85,91 @@ void editdrag(bool isdown) {
   }
 }
 
+/*-------------------------------------------------------------------------
+ - undo / redo
+ -------------------------------------------------------------------------*/
+struct clone {
+  INLINE clone(world::brickcube c, vec3i xyz, s32 action = 0) : c(c), xyz(xyz), action(action) {}
+  INLINE clone(const clone &other) : c(other.c), xyz(other.xyz), action(other.action) {}
+  world::brickcube c;
+  vec3i xyz;
+  int action;
+};
+
+vector<clone> undobuffer;
+static int undocursor = 0, undoaction = 0;
+static bool newundoaction = false;
+
+static void newundobuffer(void) { newundoaction = true; }
+static void setcube(vec3i xyz, const world::brickcube &c) {
+  if (newundoaction) {
+    newundoaction=false;
+    undoaction++;
+    undobuffer.setsize(undocursor);
+  }
+  const auto copy = clone(world::getcube(xyz), xyz, undoaction);
+  if (undocursor == undobuffer.length())
+    undobuffer.add(copy);
+  else
+    undobuffer[undocursor] = copy;
+  undocursor++;
+  world::setcube(xyz, c);
+}
+
+static void undo(void) {
+  if (undocursor == 0 || undobuffer.length() == 0) {
+    console::out("nothing to undo");
+    return;
+  }
+  int last = undocursor-1;
+  const int action = undobuffer[last].action;
+  for (;;) {
+    if (undobuffer[last].action != action) break;
+    auto old = undobuffer[last];
+    undobuffer[last] = clone(world::getcube(old.xyz),old.xyz,action);
+    world::setcube(old.xyz, old.c);
+    last = --undocursor-1;
+    if (last == -1) break;
+  }
+}
+COMMAND(undo, ARG_NONE);
+
+static void redo(void) {
+  if (undocursor == undobuffer.length()) {
+    console::out("nothing to redo");
+    return;
+  }
+  const int action = undobuffer[undocursor].action;
+  for (;;) {
+    auto old = undobuffer[undocursor];
+    undobuffer[undocursor] = clone(world::getcube(old.xyz),old.xyz,action);
+    world::setcube(old.xyz, old.c);
+    if (++undocursor == undobuffer.length() || undobuffer[undocursor].action != action)
+      break;
+  }
+}
+COMMAND(redo, ARG_NONE);
+
+/*-------------------------------------------------------------------------
+ - copy / paste
+ -------------------------------------------------------------------------*/
+static vector<clone> copies;
+
+static void copy(void) {
+  copies.clear();
+  const vec3i m = min(selectedstart, selectedend);
+  const vec3i M = max(selectedstart, selectedend) + vec3i(one);
+  loopxyz(m,M,copies.add(clone(world::getcube(xyz),xyz-m)));
+}
+COMMAND(copy, ARG_NONE);
+
+static void paste(void) {
+  newundobuffer();
+  const auto org = selectedstart + cubenorms[selectedface];
+  loopv(copies) edit::setcube(copies[i].xyz+org,copies[i].c);
+}
+COMMAND(paste, ARG_NONE);
+
 struct selectiongrid { vec3i start, end; u16 n, face; };
 static selectiongrid getselectiongrid(void) {
   selectiongrid grid;
@@ -121,20 +205,20 @@ static void drawselectiongrid(void) {
     }
   }
   ogl::bindshader(ogl::COLOR_ONLY);
-  OGL(VertexAttrib3f, ogl::COL, 1.f,0.f,0.f);
+  OGL(VertexAttrib3fv, ogl::COL, &red.x);
   ogl::immdraw(GL_LINES, 3, 0, 0, lines.length(), &lines[0].x);
 }
 
 static void drawselectionbox(void) {
   const auto grid = getselectiongrid();
   const vec3f start(grid.start.xzy()), end(grid.end.xzy()+vec3i(one));
-  rr::box(start, end-start, vec3f(1.f,1.f,1.f));
+  rr::box(start, end-start, white);
 }
 
 void cursorupdate(void) { // called every frame from hud
-  const auto r = mat3x3f::rotate(vec3f(0.f,0.f,1.f),game::player1->yaw)*
-                 mat3x3f::rotate(vec3f(0.f,1.f,0.f),game::player1->roll)*
-                 mat3x3f::rotate(vec3f(-1.f,0.f,0.f),game::player1->pitch);
+  const auto r = mat3x3f::rotate(zaxis,game::player1->yaw)*
+                 mat3x3f::rotate(yaxis,game::player1->roll)*
+                 mat3x3f::rotate(-xaxis,game::player1->pitch);
   const camera cam(game::player1->o, -r.vz, -r.vy, 90.f, 1.f);
   const auto ray = cam.generate(2,2,1,1); // center of screen
   const auto res = world::castray(ray);
@@ -150,7 +234,7 @@ void cursorupdate(void) { // called every frame from hud
   OGL(LineWidth, 2.f);
   OGL(DepthFunc, GL_LEQUAL);
   rr::box(vec3i(q).xzy(), vec3i(one), vec3f(one)); // cube under cursor
-  drawcursorface(q, vec3f(0.f,0.f,1.f), face);
+  drawcursorface(q, blue, face);
   if (anyselected) {
     drawselectionbox();
     drawselectiongrid();
@@ -166,15 +250,15 @@ static vec3i extrusionvector(int face) {
 }
 
 static void editcube(int dir) { // +1 or -1
-  using namespace world;
   if (!editmode || !anyselected) return;
+  newundobuffer();
   const auto extr = extrusionvector(selectedface);
-  const auto mat = dir==1 ? FULL : EMPTY;
+  const auto mat = dir==1 ? world::FULL : world::EMPTY;
   if (dir==1) disttoselected++;
   const auto grid = getselectiongrid();
-  loopxyz(grid.start, grid.end+vec3i(one), setcube(extr*disttoselected+xyz, brickcube(mat)));
+  loopxyz(grid.start, grid.end+vec3i(one),
+    edit::setcube(extr*disttoselected+xyz, world::brickcube(mat)));
   if (dir!=1) disttoselected--;
-  ogl::buildgrid();
 }
 COMMAND(editcube, ARG_1INT);
 

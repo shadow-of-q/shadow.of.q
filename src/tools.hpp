@@ -87,6 +87,7 @@ namespace cube {
 #define loopk(m) loop(k,m)
 #define loopl(m) loop(l,m)
 #define loopv(v)    for(int i = 0; i<(v).length(); ++i)
+#define loopvj(v)    for(int j = 0; j<(v).length(); ++j)
 #define loopvrev(v) for(int i = (v).length()-1; i>=0; --i)
 
 // integer types
@@ -190,6 +191,12 @@ INLINE void NAME##v(First first, Rest... rest) {\
       INLINE noncopyable(const noncopyable&) {}
       INLINE noncopyable& operator= (const noncopyable&) {return *this;}
   };
+  template<class T> struct remove_reference      {typedef T type;};
+  template<class T> struct remove_reference<T&>  {typedef T type;};
+  template<class T> struct remove_reference<T&&> {typedef T type;};
+  template<class T> typename remove_reference<T>::type&& move(T&& t) {
+    return static_cast<typename remove_reference<T>::type&&>(t);
+  }
 
   /* memory pool that uses buckets and linear allocation for small objects
    * VERY fast, and reasonably good memory reuse

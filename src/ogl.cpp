@@ -928,6 +928,7 @@ void drawframe(int w, int h, float curfps) {
   float fovy = (float)fov*h/w;
   float aspect = w/(float)h;
 
+  buildgrid();
   forceglstate();
   dofog(underwater);
   OGL(Clear, (game::player1->outsidemap ? GL_COLOR_BUFFER_BIT : 0) | GL_DEPTH_BUFFER_BIT);

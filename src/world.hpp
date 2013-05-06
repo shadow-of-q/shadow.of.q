@@ -60,7 +60,10 @@ struct brick : public noncopyable {
   static INLINE vec3i subcuben(void) { return vec3i(one); }
   INLINE brickcube get(vec3i v) const { return elem[v.x][v.y][v.z]; }
   INLINE brickcube subgrid(vec3i v) const { return get(v); }
-  INLINE void set(vec3i v, const brickcube &cube) { dirty=1; elem[v.x][v.y][v.z]=cube; }
+  INLINE void set(vec3i v, const brickcube &cube) {
+    dirty=1;
+    elem[v.x][v.y][v.z]=cube;
+  }
   INLINE brick &getbrick(vec3i idx) { return *this; }
   template <typename F> INLINE void forallcubes(const F &f, vec3i org) {
     loopxyz(zero, size(), {
@@ -76,8 +79,8 @@ struct brick : public noncopyable {
   GRIDPOLICY(x,y,z);
   enum {cubenx=x, cubeny=y, cubenz=z};
   GLuint vbo, ibo;
-  u32 elemnum:31;
-  u32 dirty:1;
+  u32 elemnum:31; // number of elements to draw in the vbo
+  u32 dirty:1; // true if the ogl data need to be rebuilt
 };
 
 // recursive sparse grid
@@ -118,7 +121,8 @@ struct grid : public noncopyable {
     loopxyz(zero, local(), if (T *e = subgrid(xyz))
       e->forallbricks(f, org + xyz*global()/local()););
   }
-  T *elem[locx][locy][locz]; // each elem may be null when empty
+  T *elem[locx][locy][locz]; // each element may be null when empty
+  uint32_t dirty:1; // true if anything changed in the child grids
   GRIDPOLICY(locx,locy,locz);
   GRIDPOLICY(globx,globy,globz);
 };
@@ -129,6 +133,7 @@ static const int lvl1x = 16, lvl1y = 16, lvl1z = 16;
 static const int lvl2x = 4,  lvl2y = 4,  lvl2z = 4;
 static const int lvl3x = 4,  lvl3y = 4,  lvl3z = 4;
 static const int lvlt1x = lvl1x, lvlt1y = lvl1y, lvlt1z = lvl1z;
+static const vec3i brickisize(lvl1x, lvl1y, lvl1z);
 
 // compute the total number of cubes for each level
 #define LVL_TOT(N, M)\
