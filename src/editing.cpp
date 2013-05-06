@@ -97,7 +97,7 @@ struct clone {
 };
 
 vector<clone> undobuffer;
-static int undocursor = 0, undoaction = 0;
+static int undocurr = 0, undoaction = 0;
 static bool newundoaction = false;
 
 static void newundobuffer(void) { newundoaction = true; }
@@ -105,46 +105,48 @@ static void setcube(vec3i xyz, const world::brickcube &c) {
   if (newundoaction) {
     newundoaction=false;
     undoaction++;
-    undobuffer.setsize(undocursor);
+    undobuffer.setsize(undocurr);
   }
   const auto copy = clone(world::getcube(xyz), xyz, undoaction);
-  if (undocursor == undobuffer.length())
+  if (undocurr == undobuffer.length())
     undobuffer.add(copy);
   else
-    undobuffer[undocursor] = copy;
-  undocursor++;
+    undobuffer[undocurr] = copy;
+  undocurr++;
   world::setcube(xyz, c);
 }
 
+static void switchcubes(int which) {
+  auto old = undobuffer[which];
+  undobuffer[which] = clone(world::getcube(old.xyz),old.xyz,old.action);
+  world::setcube(old.xyz, old.c);
+}
+
 static void undo(void) {
-  if (undocursor == 0 || undobuffer.length() == 0) {
+  if (undocurr == 0 || undobuffer.length() == 0) {
     console::out("nothing to undo");
     return;
   }
-  int last = undocursor-1;
+  int last = undocurr-1;
   const int action = undobuffer[last].action;
   for (;;) {
     if (undobuffer[last].action != action) break;
-    auto old = undobuffer[last];
-    undobuffer[last] = clone(world::getcube(old.xyz),old.xyz,action);
-    world::setcube(old.xyz, old.c);
-    last = --undocursor-1;
+    switchcubes(last);
+    last = --undocurr-1;
     if (last == -1) break;
   }
 }
 COMMAND(undo, ARG_NONE);
 
 static void redo(void) {
-  if (undocursor == undobuffer.length()) {
+  if (undocurr == undobuffer.length()) {
     console::out("nothing to redo");
     return;
   }
-  const int action = undobuffer[undocursor].action;
+  const int action = undobuffer[undocurr].action;
   for (;;) {
-    auto old = undobuffer[undocursor];
-    undobuffer[undocursor] = clone(world::getcube(old.xyz),old.xyz,action);
-    world::setcube(old.xyz, old.c);
-    if (++undocursor == undobuffer.length() || undobuffer[undocursor].action != action)
+    switchcubes(undocurr);
+    if (++undocurr == undobuffer.length() || undobuffer[undocurr].action != action)
       break;
   }
 }
