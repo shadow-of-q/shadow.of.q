@@ -22,9 +22,9 @@ enum  {
 
 // data contained in the most lower grid
 struct brickcube {
-  INLINE brickcube(u8 m) : p(0,0,0), mat(m), extra(0) {}
-  INLINE brickcube(vec3<u8> o = vec3<u8>(0,0,0), u8 m = EMPTY) : p(o), mat(m), extra(0) {}
-  vec3<u8> p;
+  INLINE brickcube(u8 m) : p(zero), mat(m), extra(0) {}
+  INLINE brickcube(vec3<s8> o = vec3<s8>(zero), u8 m = EMPTY) : p(o), mat(m), extra(0) {}
+  vec3<s8> p;
   u8 mat;
   u32 extra;
 };
@@ -35,7 +35,7 @@ static const brickcube emptycube;
   for (int X = vec3i(org).x; X < vec3i(end).x; ++X)\
   for (int Y = vec3i(org).y; Y < vec3i(end).y; ++Y)\
   for (int Z = vec3i(org).z; Z < vec3i(end).z; ++Z) do {\
-    const vec3i xyz(X,Y,Z);\
+    vec3i xyz(X,Y,Z);\
     body;\
   } while (0)
 
@@ -164,6 +164,17 @@ template <typename F> static void forallcubes(const F &f) { root.forallcubes(f, 
 // get and set the cube at position (x,y,z)
 brickcube getcube(const vec3i &xyz);
 void setcube(const vec3i &xyz, const brickcube &cube);
+INLINE vec3f getpos(vec3i xyz) {
+  return vec3f(xyz)+vec3f(world::getcube(xyz).p)/256.f;
+}
+INLINE void setpos(vec3f xyz) {
+  const auto p = vec3i(xyz+vec3f(0.5f));
+  const auto delta = clamp(vec3<s8>(256.f*(xyz-vec3f(p))), vec3<s8>(-128), vec3<s8>(127));
+  auto c = world::getcube(p);
+  c.p = delta;
+  world::setcube(p,c);
+}
+
 // cast a ray in the world and return the intersection result
 isecres castray(const ray &ray);
 void setup(int factor);

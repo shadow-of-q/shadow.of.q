@@ -105,9 +105,9 @@ MAKE_VARIADIC(enable);
 MAKE_VARIADIC(disable);
 
 // immediate mode rendering
-void immvertices(int sz, const void *data);
-void immattrib(int attrib, int n, int type, int sz, int offset);
-void immdrawelements(int mode, int count, int type, const void *indices);
+void immvertexsize(int sz);
+void immattrib(int attrib, int n, int type, int offset);
+void immdrawelements(int mode, int count, int type, const void *indices, const void *vertices);
 void immdrawarrays(int mode, int first, int count);
 void immdraw(int mode, int pos, int tex, int col, size_t n, const float *data);
 

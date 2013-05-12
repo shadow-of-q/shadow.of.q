@@ -59,7 +59,7 @@ template mat4x4<double> mat4x4<double>::inverse(void) const;
 
 const vec3f axis[] = {vec3f(1.f,0.f,0.f), vec3f(0.f,1.f,0.f), vec3f(0.f,0.f,1.f)};
 const vec3i iaxis[] = {vec3i(1,0,0), vec3i(0,1,0), vec3f(0,0,1)};
-const vec3f white(1.f,1.f,1.f);
+const vec3f white(1.f,1.f,1.f), yellow(1.f,1.f,0.f), purple(1.f,0.f,1.f), cyan(0.f,1.f,1.f);
 
 const vec3i cubeiverts[8] = {
   vec3i(0,0,0)/*0*/, vec3i(0,0,1)/*1*/, vec3i(0,1,1)/*2*/, vec3i(0,1,0)/*3*/,
@@ -86,8 +86,8 @@ const vec2i cubeedges[12] = {
 };
 const vec4i cubequads[6] = {
   vec4i(0,1,2,3), vec4i(4,5,6,7),
-  vec4i(0,4,7,3), vec4i(1,5,6,2),
-  vec4i(0,4,5,1), vec4i(2,3,7,6)
+  vec4i(0,4,5,1), vec4i(2,3,7,6),
+  vec4i(0,4,7,3), vec4i(1,5,6,2)
 };
 
 camera::camera(vec3f org, vec3f up, vec3f view, float fov, float ratio) :

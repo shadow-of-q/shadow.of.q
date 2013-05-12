@@ -59,7 +59,12 @@ void bindbuffer(uint target, uint buffer) {
   }
 }
 
+// attributes in the vertex buffer
+static struct {int n, type, offset;} immattribs[ATTRIB_NUM];
+static int immvertexsz = 0;
+
 // we use two big circular buffers to handle immediate mode
+static int immbuffersize = 16*MB;
 static int bigvbooffset=0, bigibooffset=0;
 static int drawibooffset=0, drawvbooffset=0;
 static GLuint bigvbo=0u, bigibo=0u;
@@ -71,20 +76,33 @@ static void initbuffer(GLuint &bo, int target, int size) {
   bindbuffer(target, 0);
 }
 
-static void immbufferinit(int size) {
-  initbuffer(bigvbo, ARRAY_BUFFER, size);
-  initbuffer(bigibo, ELEMENT_ARRAY_BUFFER, size);
+static void imminit(void) {
+  initbuffer(bigvbo, ARRAY_BUFFER, immbuffersize);
+  initbuffer(bigibo, ELEMENT_ARRAY_BUFFER, immbuffersize);
+  memset(immattribs, 0, sizeof(immattribs));
 }
 
-VARF(immbuffersize, 1*MB, 4*MB, 16*MB, immbufferinit(immbuffersize));
-
-void immattrib(int attrib, int n, int type, int sz, int offset) {
-  const void *fake = (const void *) intptr_t(drawvbooffset+offset);
-  OGL(VertexAttribPointer, attrib, n, type, 0, sz, fake);
+void immattrib(int attrib, int n, int type, int offset) {
+  immattribs[attrib].n = n;
+  immattribs[attrib].type = type;
+  immattribs[attrib].offset = offset;
 }
 
-static void immsetdata(int target, int sz, const void *data) {
-  assert(sz < immbuffersize);
+void immvertexsize(int sz) { immvertexsz = sz; }
+
+static void immsetallattribs(void) {
+  loopi(ATTRIB_NUM) {
+    if (!enabledattribarray[i]) continue;
+    const void *fake = (const void *) intptr_t(drawvbooffset+immattribs[i].offset);
+    OGL(VertexAttribPointer, i, immattribs[i].n, immattribs[i].type, 0, immvertexsz, fake);
+  }
+}
+
+static bool immsetdata(int target, int sz, const void *data) {
+  if (sz >= immbuffersize) {
+    console::out("too many immediate items to render");
+    return false;
+  }
   GLuint &bo = target==ARRAY_BUFFER ? bigvbo : bigibo;
   int &offset = target==ARRAY_BUFFER ? bigvbooffset : bigibooffset;
   int &drawoffset = target==ARRAY_BUFFER ? drawvbooffset : drawibooffset;
@@ -98,47 +116,62 @@ static void immsetdata(int target, int sz, const void *data) {
   OGL(BufferSubData, glbufferbinding[target], offset, sz, data);
   drawoffset = offset;
   offset += sz;
+  return true;
 }
 
-void immvertices(int sz, const void *vertices) {
-  immsetdata(ARRAY_BUFFER, sz, vertices);
+static bool immvertices(int sz, const void *vertices) {
+  return immsetdata(ARRAY_BUFFER, sz, vertices);
 }
 
 void immdrawarrays(int mode, int count, int type) {
   drawarrays(mode,count,type);
 }
 
-void immdrawelements(int mode, int count, int type, const void *indices) {
-  int sz = count;
+void immdrawelements(int mode, int count, int type, const void *indices, const void *vertices) {
+  int indexsz = count;
+  int maxindex = 0;
   switch (type) {
-    case GL_UNSIGNED_SHORT: sz*=sizeof(ushort); break;
-    case GL_UNSIGNED_BYTE: sz*=sizeof(uchar); break;
-    case GL_UNSIGNED_INT: sz*=sizeof(uint); break;
+    case GL_UNSIGNED_INT:
+      indexsz*=sizeof(u32);
+      loopi(count) maxindex = max(maxindex,int(((u32*)indices)[i]));
+    break;
+    case GL_UNSIGNED_SHORT:
+      indexsz*=sizeof(u16);
+      loopi(count) maxindex = max(maxindex,int(((u16*)indices)[i]));
+    break;
+    case GL_UNSIGNED_BYTE:
+      indexsz*=sizeof(u8);
+      loopi(count) maxindex = max(maxindex,int(((u8*)indices)[i]));
+    break;
   };
-  immsetdata(ELEMENT_ARRAY_BUFFER, sz, indices);
+  if (!immsetdata(ELEMENT_ARRAY_BUFFER, indexsz, indices)) return;
+  if (!immvertices((maxindex+1)*immvertexsz, vertices)) return;
+  immsetallattribs();
   const void *fake = (const void *) intptr_t(drawibooffset);
   drawelements(mode, count, type, fake);
 }
 
 void immdraw(int mode, int pos, int tex, int col, size_t n, const float *data) {
   const int sz = (pos+tex+col)*sizeof(float);
-  immvertices(n*sz, data);
-  disableattribarray(POS1);
+  if (!immvertices(n*sz, data)) return;
+  disableattribarrayv(POS1,NOR);
   if (pos) {
-    immattrib(ogl::POS0, pos, GL_FLOAT, sz, (tex+col)*sizeof(float));
+    immattrib(ogl::POS0, pos, GL_FLOAT, (tex+col)*sizeof(float));
     enableattribarrayv(POS0);
   } else
     disableattribarray(POS0);
   if (tex) {
-    immattrib(ogl::TEX, tex, GL_FLOAT, sz, col*sizeof(float));
+    immattrib(ogl::TEX, tex, GL_FLOAT, col*sizeof(float));
     enableattribarrayv(TEX);
   } else
     disableattribarray(TEX);
   if (col) {
-    immattrib(ogl::COL, col, GL_FLOAT, sz, 0);
+    immattrib(ogl::COL, col, GL_FLOAT, 0);
     enableattribarrayv(COL);
   } else
     disableattribarray(COL);
+  immvertexsize(sz);
+  immsetallattribs();
   immdrawarrays(mode, 0, n);
 }
 
@@ -629,7 +662,7 @@ static INLINE void buildfaces(brickmeshctx &ctx, vec3i xyz, vec3i idx) {
       const vec3i global = xyz+cubeiverts[tris[i][j]];
       u16 id = ctx.get(local);
       if (id == 0xffff) {
-        const vec3f pos = vec3f(global);//+vec3f(root.get(global).p);
+        const vec3f pos = world::getpos(global);
         const vec2f tex = chan==0?pos.yz():(chan==1?pos.xz():pos.xy());
         id = ctx.vbo.length();
         ctx.vbo.add(vvecf<5>(pos.xzy(),tex));
@@ -647,6 +680,7 @@ static void buildgridmesh(world::lvl1grid &b, vec3i org) {
     ctx.clear(i);
     loopxyz(0, b.size(), buildfaces(ctx, org+xyz, xyz));
   }
+  if (ctx.vbo.length() == 0 || ctx.ibo.length() == 0) return;
   if (ctx.vbo.length() > 0xffff) fatal("too many vertices in the VBO");
   if (b.vbo) OGL(DeleteBuffers, 1, &b.vbo);
   if (b.ibo) OGL(DeleteBuffers, 1, &b.ibo);
@@ -811,7 +845,7 @@ void init(int w, int h) {
   OGLR(watershader.uduv, GetUniformLocation, watershader.program, "duv");
   OGLR(watershader.udxy, GetUniformLocation, watershader.program, "dxy");
   OGLR(watershader.uhf, GetUniformLocation, watershader.program, "hf");
-  immbufferinit(immbuffersize); // for immediate mode
+  imminit();
   loopi(ATTRIB_NUM) enabledattribarray[i] = 0;
   loopi(BUFFER_NUM) bindedvbo[i] = 0;
 }

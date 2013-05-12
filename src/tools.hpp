@@ -183,20 +183,20 @@ INLINE void NAME##v(First first, Rest... rest) {\
 #define PI  (3.1415927f)
 #define PI2 (2*PI)
 
-  class noncopyable {
-    protected:
-      INLINE noncopyable(void) {}
-      INLINE ~noncopyable(void) {}
-    private:
-      INLINE noncopyable(const noncopyable&) {}
-      INLINE noncopyable& operator= (const noncopyable&) {return *this;}
-  };
-  template<class T> struct remove_reference      {typedef T type;};
-  template<class T> struct remove_reference<T&>  {typedef T type;};
-  template<class T> struct remove_reference<T&&> {typedef T type;};
-  template<class T> typename remove_reference<T>::type&& move(T&& t) {
-    return static_cast<typename remove_reference<T>::type&&>(t);
-  }
+class noncopyable {
+protected:
+  INLINE noncopyable(void) {}
+  INLINE ~noncopyable(void) {}
+private:
+  INLINE noncopyable(const noncopyable&) {}
+  INLINE noncopyable& operator= (const noncopyable&) {return *this;}
+};
+template<class T> struct remove_reference      {typedef T type;};
+template<class T> struct remove_reference<T&>  {typedef T type;};
+template<class T> struct remove_reference<T&&> {typedef T type;};
+template<class T> INLINE typename remove_reference<T>::type&& move(T&& t) {
+  return static_cast<typename remove_reference<T>::type&&>(t);
+}
 
   /* memory pool that uses buckets and linear allocation for small objects
    * VERY fast, and reasonably good memory reuse

@@ -155,6 +155,7 @@ TINLINE v2 op/ (v2arg a, const T &b)  {return v2(a.x/b, a.y /b);}
 TINLINE v2 op/ (const T &a, v2arg b)  {return v2(a/b.x, a/b.y);}
 TINLINE v2 min(v2arg a, v2arg b)  {return v2(min(a.x,b.x), min(a.y,b.y));}
 TINLINE v2 max(v2arg a, v2arg b)  {return v2(max(a.x,b.x), max(a.y,b.y));}
+TINLINE v2 clamp(v2arg v, v2arg m, v2arg M)  {return v2(clamp(v.x,m.x,M.x),clamp(v.y,m.y,M.y));}
 TINLINE T dot(v2arg a, v2arg b)   {return a.x*b.x + a.y*b.y;}
 TINLINE T length(v2arg a)      {return sqrt(dot(a,a));}
 TINLINE v2 normalize(v2arg a)  {return a*rsqrt(dot(a,a));}
@@ -247,6 +248,7 @@ TINLINE T reducemin (v3arg a) {return min(a.x,a.y,a.z);}
 TINLINE T reducemax (v3arg a) {return max(a.x,a.y,a.z);}
 TINLINE v3 min (v3arg a, v3arg b) {return v3(min(a.x,b.x),min(a.y,b.y),min(a.z,b.z));}
 TINLINE v3 max (v3arg a, v3arg b) {return v3(max(a.x,b.x),max(a.y,b.y),max(a.z,b.z));}
+TINLINE v3 clamp(v3arg v, v3arg m, v3arg M)  {return v3(clamp(v.x,m.x,M.x),clamp(v.y,m.y,M.y),clamp(v.z,m.z,M.z));}
 TINLINE v3 select (bool s, v3arg t, v3arg f) {
   return v3(select(s,t.x,f.x), select(s,t.y,f.y), select(s,t.z,f.z));
 }
@@ -321,6 +323,7 @@ TINLINE T reducemin(v4arg a) {return min(a.x, a.y, a.z, a.w);}
 TINLINE T reducemax(v4arg a) {return max(a.x, a.y, a.z, a.w);}
 TINLINE v4 min(v4arg a, v4arg b) {return v4(min(a.x,b.x), min(a.y,b.y), min(a.z,b.z), min(a.w,b.w));}
 TINLINE v4 max(v4arg a, v4arg b) {return v4(max(a.x,b.x), max(a.y,b.y), max(a.z,b.z), max(a.w,b.w));}
+TINLINE v4 clamp(v4arg v, v4arg m, v4arg M)  {return v4(clamp(v.x,m.x,M.x),clamp(v.y,m.y,M.y),clamp(v.z,m.z,M.z),clamp(v.w,m.w,M.w));}
 TINLINE v4 abs (v4arg a) {return v4(abs(a.x), abs(a.y), abs(a.z), abs(a.w));}
 TINLINE v4 rcp (v4arg a) {return v4(rcp(a.x), rcp(a.y), rcp(a.z), rcp(a.w));}
 TINLINE v4 sqrt (v4arg a) {return v4(sqrt (a.x), sqrt (a.y), sqrt (a.z), sqrt (a.w));}
@@ -714,7 +717,7 @@ extern const vec3i iaxis[];
 static const vec3f &xaxis=axis[0], &yaxis=axis[1], &zaxis=axis[2];
 static const vec3i &ixaxis=iaxis[0], &iyaxis=iaxis[1], &izaxis=iaxis[2];
 static const vec3f &red=axis[0], &green=axis[1], &blue=axis[2];
-extern const vec3f  white;
+extern const vec3f white, yellow, purple, cyan;
 
 // arrays to define unit cube
 extern const vec3i cubeiverts[8]; // unit cube in integers

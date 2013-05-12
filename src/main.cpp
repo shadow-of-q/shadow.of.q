@@ -32,7 +32,6 @@ void quit(void) { // normal exit
 void fatal(const char *s, const char *o) { // failure exit
   sprintf_sd(msg)("%s%s (%s)\n", s, o, SDL_GetError());
   cleanup(msg);
-  assert(0);
 }
 
 void *alloc(int s) { // for some big chunks... most other allocs use the memory pool
@@ -75,7 +74,7 @@ void keyrepeat(bool on) {
 
 VARF(gamespeed, 10, 100, 1000, if (client::multiplayer()) gamespeed = 100);
 VARP(minmillis, 0, 5, 1000);
-VARF(grabmouse, 0, 0, 1, {SDL_WM_GrabInput(grabmouse ? SDL_GRAB_ON : SDL_GRAB_OFF);});
+VARF(grabmouse, 0, 1, 1, {SDL_WM_GrabInput(grabmouse ? SDL_GRAB_ON : SDL_GRAB_OFF);});
 
 int ignore = 5;
 

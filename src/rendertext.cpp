@@ -163,13 +163,13 @@ void draw_text(const char *str, int left, int top, int gl_num) {
     vert += 4;
   }
   ogl::enableattribarrayv(ogl::POS0, ogl::TEX);
-  ogl::disableattribarrayv(ogl::POS1, ogl::COL);
-  ogl::immvertices(vert*sizeof(float[4]), &verts[0][0]);
-  ogl::immattrib(ogl::POS0, 2, GL_FLOAT, sizeof(float[4]), sizeof(float[2]));
-  ogl::immattrib(ogl::TEX, 2, GL_FLOAT, sizeof(float[4]), 0);
+  ogl::disableattribarrayv(ogl::POS1, ogl::COL, ogl::NOR);
+  ogl::immvertexsize(sizeof(float[4]));
+  ogl::immattrib(ogl::POS0, 2, GL_FLOAT, sizeof(float[2]));
+  ogl::immattrib(ogl::TEX, 2, GL_FLOAT, 0);
   ogl::bindshader(ogl::DIFFUSETEX);
-  IF_NOT_EMSCRIPTEN(ogl::immdrawelements(GL_TRIANGLES, index, GL_UNSIGNED_INT, indices));
-  IF_EMSCRIPTEN(ogl::immdrawelements(GL_TRIANGLES, index, GL_UNSIGNED_SHORT, indices));
+  IF_NOT_EMSCRIPTEN(ogl::immdrawelements(GL_TRIANGLES, index, GL_UNSIGNED_INT, indices, &verts[0][0]));
+  IF_EMSCRIPTEN(ogl::immdrawelements(GL_TRIANGLES, index, GL_UNSIGNED_SHORT, indices, &verts[0][0]));
 }
 
 static void drawenvboxface(float s0, float t0, int x0, int y0, int z0,
@@ -184,11 +184,11 @@ static void drawenvboxface(float s0, float t0, int x0, int y0, int z0,
   verts[3] = vvecf<5>(s0, t0, float(x0), float(y0), float(z0));
 
   ogl::bindtexture(GL_TEXTURE_2D, texture);
-  ogl::immvertices(4*sizeof(vvecf<5>), &verts[0][0]);
-  ogl::immattrib(ogl::POS0, 3, GL_FLOAT, sizeof(vvecf<5>), sizeof(float[2]));
-  ogl::immattrib(ogl::TEX, 2, GL_FLOAT, sizeof(vvecf<5>), 0);
-  IF_NOT_EMSCRIPTEN(ogl::immdrawelements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, twotriangles));
-  IF_EMSCRIPTEN(ogl::immdrawelements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, twotriangles));
+  ogl::immvertexsize(sizeof(float[5]));
+  ogl::immattrib(ogl::POS0, 3, GL_FLOAT, sizeof(float[2]));
+  ogl::immattrib(ogl::TEX, 2, GL_FLOAT, 0);
+  IF_NOT_EMSCRIPTEN(ogl::immdrawelements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, twotriangles, &verts[0][0]));
+  IF_EMSCRIPTEN(ogl::immdrawelements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, twotriangles, &verts[0][0]));
   ogl::xtraverts += 4;
 }
 
@@ -196,7 +196,7 @@ void draw_envbox(int t, int w) {
   OGL(DepthMask, GL_FALSE);
   ogl::bindshader(ogl::DIFFUSETEX);
   ogl::enableattribarrayv(ogl::POS0, ogl::TEX);
-  ogl::disableattribarrayv(ogl::POS1, ogl::COL);
+  ogl::disableattribarrayv(ogl::POS1, ogl::COL, ogl::NOR);
   drawenvboxface(1.0f, 1.0f, -w, -w,  w,
                  0.0f, 1.0f,  w, -w,  w,
                  0.0f, 0.0f,  w, -w, -w,
