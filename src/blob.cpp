@@ -8,6 +8,7 @@
 #include "main.cpp"
 #include "menu.cpp"
 #include "monster.cpp"
+#include "network.cpp"
 #include "physics.cpp"
 #include "rendercubes.cpp"
 #include "renderextras.cpp"

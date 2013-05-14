@@ -7,8 +7,8 @@ CXXFLAGS=$(CXXOPTFLAGS) -I../enet/include -I../include `sdl-config --cflags`
 CLIENT_LIBS=-L../enet -lenet `sdl-config --libs` -lSDL_image -lSDL_mixer -lz -lGL -lX11
 #CLIENT_OBJS=blob.o
 CLIENT_OBJS= \
+	game.o \
 	client.o \
-	clientgame.o \
 	command.o \
 	console.o \
 	editing.o \
@@ -18,6 +18,7 @@ CLIENT_OBJS= \
 	math.o \
 	menu.o \
 	monster.o \
+	network.o \
 	physics.o \
 	rendercubes.o \
 	renderextras.o \

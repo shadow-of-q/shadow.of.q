@@ -20,7 +20,7 @@
     <ClCompile Include="..\enet\protocol.c" />
     <ClCompile Include="..\enet\win32.c" />
     <ClCompile Include="..\src\client.cpp" />
-    <ClCompile Include="..\src\clientgame.cpp" />
+    <ClCompile Include="..\src\game.cpp" />
     <ClCompile Include="..\src\command.cpp" />
     <ClCompile Include="..\src\console.cpp" />
     <ClCompile Include="..\src\demo.cpp" />
@@ -29,6 +29,7 @@
     <ClCompile Include="..\src\main.cpp" />
     <ClCompile Include="..\src\menu.cpp" />
     <ClCompile Include="..\src\monster.cpp" />
+    <ClCompile Include="..\src\network.cpp" />
     <ClCompile Include="..\src\ogl.cpp" />
     <ClCompile Include="..\src\physics.cpp" />
     <ClCompile Include="..\src\rendercubes.cpp" />
@@ -47,7 +48,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\client.hpp" />
-    <ClInclude Include="..\src\clientgame.hpp" />
+    <ClInclude Include="..\src\game.hpp" />
     <ClInclude Include="..\src\command.hpp" />
     <ClInclude Include="..\src\console.hpp" />
     <ClInclude Include="..\src\cube.h" />
@@ -57,6 +58,7 @@
     <ClInclude Include="..\src\math.hpp" />
     <ClInclude Include="..\src\menu.hpp" />
     <ClInclude Include="..\src\monster.hpp" />
+    <ClCompile Include="..\src\network.cpp" />
     <ClInclude Include="..\src\ogl.hpp" />
     <ClInclude Include="..\src\physics.hpp" />
     <ClInclude Include="..\src\protos.h" />

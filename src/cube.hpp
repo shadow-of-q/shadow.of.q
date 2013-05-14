@@ -1,5 +1,5 @@
+#include "game.hpp"
 #include "client.hpp"
-#include "clientgame.hpp"
 #include "command.hpp"
 #include "console.hpp"
 #include "demo.hpp"

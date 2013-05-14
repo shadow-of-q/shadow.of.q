@@ -10,6 +10,7 @@
 #include "src/main.cpp"
 #include "src/math.cpp"
 #include "src/menu.cpp"
+#include "src/network.cpp"
 #include "src/monster.cpp"
 #include "src/ogl.cpp"
 #include "src/physics.cpp"
