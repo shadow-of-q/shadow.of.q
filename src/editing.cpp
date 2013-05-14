@@ -51,6 +51,8 @@ static vec3i cubestart(zero), cubeend(zero); // start / end of cube dragging
 static vec3i cornerstart(zero), cornerend(zero); // start / end of corner dragging
 static int selectedface = 0, disttoselected = 0;
 
+static u32 symmetrydir = 0; // round robin symmetries
+
 static bool dragging = false;
 void editdrag(bool isdown) {
   if (isdown) {
@@ -64,6 +66,7 @@ void editdrag(bool isdown) {
     dragging = false;
     cubeend = undercursorcube;
     cornerend = undercursorcorner;
+    symmetrydir = 0;
   }
 }
 
@@ -71,11 +74,21 @@ void editdrag(bool isdown) {
  - undo / redo
  -------------------------------------------------------------------------*/
 struct clone {
-  INLINE clone(world::brickcube c, vec3i xyz, s32 action = 0) : c(c), xyz(xyz), action(action) {}
-  INLINE clone(const clone &other) : c(other.c), xyz(other.xyz), action(other.action) {}
+  INLINE clone(world::brickcube c, vec3i xyz, u32 action = 0, bool onlypos = false) :
+    c(c), xyz(xyz), action(action), onlypos(onlypos) {}
+  INLINE clone(const clone &other) :
+    c(other.c), xyz(other.xyz), action(other.action), onlypos(other.onlypos) {}
+  INLINE clone &operator= (const clone &other) {
+    c = other.c;
+    xyz = other.xyz;
+    action = other.action;
+    onlypos = other.onlypos;
+    return *this;
+  }
   world::brickcube c;
   vec3i xyz;
-  int action;
+  s32 action;
+  bool onlypos;
 };
 
 static vector<clone> undobuffer;
@@ -145,21 +158,17 @@ static vector<clone> copies;
 static void copy(void) {
   copies.clear();
   const vec3i m = min(cubestart, cubeend);
-  const vec3i M = max(cubestart, cubeend) + vec3i(one);
-  loopxyz(m,M+vec3i(one),
-    if ((all(xyz>=m) && all(xyz<M)) || world::getcube(xyz).mat == world::EMPTY)
-    copies.add(clone(world::getcube(xyz),xyz-m)));
+  const vec3i M = max(cubestart, cubeend);
+  loopxyz(m,M+vec3i(two),copies.add(clone(world::getcube(xyz),xyz-m,0,any(xyz>M))));
 }
 COMMAND(copy, ARG_NONE);
 
 static void paste(void) {
   newundobuffer();
-  const auto org = cubestart + cubenorms[selectedface];
   loopv(copies) {
     auto c = copies[i].c;
-    if (c.mat == world::EMPTY)
-      c.mat = world::getcube(copies[i].xyz+org).mat;
-    edit::setcube(copies[i].xyz+org,c);
+    if (copies[i].onlypos) c.mat = world::getcube(copies[i].xyz+cubestart).mat;
+    edit::setcube(copies[i].xyz+cubestart,c);
   }
 }
 COMMAND(paste, ARG_NONE);
@@ -171,7 +180,8 @@ struct selectiongrid { vec3i start, end; u16 n, face; };
 static selectiongrid getselectiongrid(void) {
   selectiongrid grid;
   grid.start = editcorner?cornerstart:cubestart;
-  grid.end = dragging?undercursorcube:(editcorner?cornerend:cubeend);
+  grid.end = dragging?(editcorner?undercursorcorner:undercursorcube):
+    (editcorner?cornerend:cubeend);
   const auto m = min(grid.start, grid.end);
   const auto M = max(grid.start, grid.end);
   const u32 cn = selectedface/2;
@@ -318,7 +328,10 @@ static void editcube(int dir) {
   if (dir==1) disttoselected++;
   const auto grid = getselectiongrid();
   loopxyz(grid.start, grid.end+vec3i(one),
-    edit::setcube(extr*disttoselected+xyz, world::brickcube(mat)));
+    const auto idx = extr*disttoselected+xyz;
+    auto c = world::getcube(idx);
+    c.mat = mat;
+    edit::setcube(idx, c));
   if (dir!=1) disttoselected--;
 }
 
@@ -327,42 +340,45 @@ static void editvertex(int dir) {
   loopxyz(grid.start, grid.end+vec3i(one), {
     auto n = dir==1?cubenorms[selectedface]:-cubenorms[selectedface];
     auto c = world::getcube(xyz);
-    const vec3i p = clamp(vec3i(c.p)+n, vec3i(-128), vec3i(127));
+    const vec3i p = clamp(vec3i(c.p)+16*n, vec3i(-128), vec3i(127));
     c.p = vec3<s8>(p);
     edit::setcube(xyz,c);
   });
 }
 
-static u32 symmetryaxis = 0;
 static void symmetry(bool isdown) {
   if (!anyselected || !isdown) return;
   newundobuffer();
+  const u32 symmetryaxis=symmetrydir/2;
   const auto m = min(cubestart, cubeend);
   const auto M = max(cubestart, cubeend);
   loopxyz(m,M+vec3i(two),saveundocube(xyz));
-  const float axis = float(m[symmetryaxis]+M[symmetryaxis]+1)*0.5f;
   auto doswappos = [&](const vec3i &xyz) {
-    vec3i from(xyz), to(xyz);
-    to[symmetryaxis] = M[symmetryaxis]-xyz[symmetryaxis]+m[symmetryaxis]+1;
-    auto p0 = world::getpos(from), p1 = world::getpos(to);
-    p0[symmetryaxis] = 2.f*axis-float(p0[symmetryaxis]);
-    p1[symmetryaxis] = 2.f*axis-float(p1[symmetryaxis]);
-    world::setpos(p1);
-    world::setpos(p0);
+    vec3i idx0(xyz), idx1(xyz);
+    idx1[symmetryaxis] = M[symmetryaxis]-xyz[symmetryaxis]+m[symmetryaxis]+1;
+    auto c0 = world::getcube(idx0), c1 = world::getcube(idx1);
+    const auto p = c1.p;
+    c1.p = c0.p;
+    c1.p[symmetryaxis] = -1 - c0.p[symmetryaxis];
+    c0.p = p;
+    c0.p[symmetryaxis] = -1 - p[symmetryaxis];
+    world::setcube(idx0, c0);
+    world::setcube(idx1, c1);
   };
   auto doswapmat = [&](const vec3i &xyz) {
-    auto from = xyz, to = xyz;
-    auto c0 = world::getcube(from), c1 = world::getcube(to);
-    world::setcube(from, c1);
-    world::setcube(to, c0);
+    auto idx0 = xyz, idx1 = xyz;
+    idx1[symmetryaxis] = M[symmetryaxis]-xyz[symmetryaxis]+m[symmetryaxis];
+    auto c0 = world::getcube(idx0), c1 = world::getcube(idx1);
+    world::setcube(idx0, c1);
+    world::setcube(idx1, c0);
   };
   auto end = M+vec3i(one);
   end[symmetryaxis] = (M[symmetryaxis]+m[symmetryaxis])/2+1;
   loopxyz(m,end,doswapmat(xyz));
-  end[(symmetryaxis+1)%3]++;
-  end[(symmetryaxis+2)%3]++;
+  ++end[(symmetryaxis+1)%3];
+  ++end[(symmetryaxis+2)%3];
   loopxyz(m,end,doswappos(xyz));
-  symmetryaxis = (symmetryaxis+1)%3;
+  symmetrydir = (symmetrydir+1)%6;
 }
 COMMAND(symmetry, ARG_DOWN);
 

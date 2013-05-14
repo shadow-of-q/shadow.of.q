@@ -40,8 +40,8 @@ void *alloc(int s) { // for some big chunks... most other allocs use the memory 
   return b;
 }
 
-int scr_w = 1280;
-int scr_h = 768;
+int scr_w = 800;
+int scr_h = 600;
 
 void screenshot(void) {
 #if !defined(EMSCRIPTEN)
