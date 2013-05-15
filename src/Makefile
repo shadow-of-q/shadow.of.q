@@ -1,7 +1,7 @@
 CXX=g++
 #CXX=clang++
 #CXX=~/src/emscripten/em++
-CXXOPTFLAGS=-Wall -O3 -g -fsigned-char -std=c++0x
+CXXOPTFLAGS=-Wall -g -O3 -fsigned-char -std=c++0x
 CXXFLAGS=$(CXXOPTFLAGS) -I../enet/include -I../include `sdl-config --cflags`
 
 CLIENT_LIBS=-L../enet -lenet `sdl-config --libs` -lSDL_image -lSDL_mixer -lz -lGL -lX11
@@ -38,6 +38,7 @@ CLIENT_OBJS= \
 SERVER_LIBS=-L../enet -lenet
 SERVER_OBJS= \
 	math.o \
+	network.o \
 	standalone.o \
 	serverms.o \
 	server.o \

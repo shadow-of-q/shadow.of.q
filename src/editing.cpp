@@ -30,12 +30,6 @@ void toggleedit(void) {
 }
 COMMANDN(edittoggle, toggleedit, ARG_NONE);
 
-bool noteditmode(void) {
-  if (!editmode)
-    console::out("this function is only allowed in edit mode");
-  return !editmode;
-}
-
 void pruneundos(int maxremain) {}
 
 // two mode of editions: extrusion of cubes / displacement of corners
@@ -52,6 +46,20 @@ static vec3i cornerstart(zero), cornerend(zero); // start / end of corner draggi
 static int selectedface = 0, disttoselected = 0;
 
 static u32 symmetrydir = 0; // round robin symmetries
+
+bool noteditmode(void) {
+  if (!editmode)
+    console::out("this function is only allowed in edit mode");
+  return !editmode;
+}
+
+static bool noselection(void) {
+  if (!anyselected) console::out("no selection");
+  return !anyselected;
+}
+
+#define EDIT    if (noteditmode()) return;
+#define EDITSEL if (noteditmode() || noselection()) return;
 
 static bool dragging = false;
 void editdrag(bool isdown) {
@@ -109,18 +117,26 @@ static void saveundocube(const vec3i &xyz) {
     undobuffer[undocurr] = copy;
   undocurr++;
 }
-static void setcube(const vec3i &xyz, const world::brickcube &c) {
-  saveundocube(xyz);
+
+void setcube(const vec3i &xyz, const world::brickcube &c, bool undoable) {
+  if (world::getcube(xyz) == c) return;
+  if (undoable) saveundocube(xyz);
   world::setcube(xyz, c);
+}
+
+static void set(const vec3i &xyz, const world::brickcube &c, bool undoable = true) {
+  edit::setcube(xyz, c, undoable);
+  client::addmsg(1, 9, SV_CUBE, xyz.x, xyz.y, xyz.z, c.p.x, c.p.y, c.p.z, c.mat, c.extra);
 }
 
 static void switchcubes(int which) {
   auto old = undobuffer[which];
   undobuffer[which] = clone(world::getcube(old.xyz),old.xyz,old.action);
-  world::setcube(old.xyz, old.c);
+  set(old.xyz, old.c, false);
 }
 
 static void undo(void) {
+  EDIT
   if (undocurr == 0 || undobuffer.length() == 0) {
     console::out("nothing to undo");
     return;
@@ -137,6 +153,7 @@ static void undo(void) {
 COMMAND(undo, ARG_NONE);
 
 static void redo(void) {
+  EDIT
   if (undocurr == undobuffer.length()) {
     console::out("nothing to redo");
     return;
@@ -156,6 +173,7 @@ COMMAND(redo, ARG_NONE);
 static vector<clone> copies;
 
 static void copy(void) {
+  EDITSEL
   copies.clear();
   const vec3i m = min(cubestart, cubeend);
   const vec3i M = max(cubestart, cubeend);
@@ -164,11 +182,12 @@ static void copy(void) {
 COMMAND(copy, ARG_NONE);
 
 static void paste(void) {
+  EDITSEL
   newundobuffer();
   loopv(copies) {
     auto c = copies[i].c;
     if (copies[i].onlypos) c.mat = world::getcube(copies[i].xyz+cubestart).mat;
-    edit::setcube(copies[i].xyz+cubestart,c);
+    set(copies[i].xyz+cubestart,c);
   }
 }
 COMMAND(paste, ARG_NONE);
@@ -331,7 +350,7 @@ static void editcube(int dir) {
     const auto idx = extr*disttoselected+xyz;
     auto c = world::getcube(idx);
     c.mat = mat;
-    edit::setcube(idx, c));
+    set(idx, c));
   if (dir!=1) disttoselected--;
 }
 
@@ -342,12 +361,13 @@ static void editvertex(int dir) {
     auto c = world::getcube(xyz);
     const vec3i p = clamp(vec3i(c.p)+16*n, vec3i(-128), vec3i(127));
     c.p = vec3<s8>(p);
-    edit::setcube(xyz,c);
+    set(xyz, c);
   });
 }
 
 static void symmetry(bool isdown) {
-  if (!anyselected || !isdown) return;
+  EDITSEL
+  if (!isdown) return;
   newundobuffer();
   const u32 symmetryaxis=symmetrydir/2;
   const auto m = min(cubestart, cubeend);
@@ -362,15 +382,15 @@ static void symmetry(bool isdown) {
     c1.p[symmetryaxis] = -1 - c0.p[symmetryaxis];
     c0.p = p;
     c0.p[symmetryaxis] = -1 - p[symmetryaxis];
-    world::setcube(idx0, c0);
-    world::setcube(idx1, c1);
+    set(idx0, c0);
+    set(idx1, c1);
   };
   auto doswapmat = [&](const vec3i &xyz) {
     auto idx0 = xyz, idx1 = xyz;
     idx1[symmetryaxis] = M[symmetryaxis]-xyz[symmetryaxis]+m[symmetryaxis];
     auto c0 = world::getcube(idx0), c1 = world::getcube(idx1);
-    world::setcube(idx0, c1);
-    world::setcube(idx1, c0);
+    set(idx0, c1);
+    set(idx1, c0);
   };
   auto end = M+vec3i(one);
   end[symmetryaxis] = (M[symmetryaxis]+m[symmetryaxis])/2+1;
@@ -383,11 +403,14 @@ static void symmetry(bool isdown) {
 COMMAND(symmetry, ARG_DOWN);
 
 static void editaction(int dir) { // +1 or -1
-  if (!editmode || !anyselected) return;
+  EDITSEL
   newundobuffer();
   if (editcorner) editvertex(dir); else editcube(dir);
 }
 COMMAND(editaction, ARG_1INT);
+
+#undef EDIT
+#undef EDITSEL
 
 } // namespace edit
 } // namespace cube

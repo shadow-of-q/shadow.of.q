@@ -23,11 +23,20 @@ enum  {
 // data contained in the most lower grid
 struct brickcube {
   INLINE brickcube(u8 m) : p(zero), mat(m), extra(0) {}
-  INLINE brickcube(vec3<s8> o = vec3<s8>(zero), u8 m = EMPTY) : p(o), mat(m), extra(0) {}
+  INLINE brickcube(vec3<s8> o = vec3<s8>(zero), u8 m = EMPTY, u32 extra = 0) :
+    p(o), mat(m), extra(extra) {}
   vec3<s8> p;
   u8 mat;
   u32 extra;
 };
+
+INLINE bool operator!= (const brickcube &c0, const brickcube &c1) {
+  return any(c0.p != c1.p) || (c0.mat != c1.mat) || (c0.extra != c1.extra);
+}
+INLINE bool operator== (const brickcube &c0, const brickcube &c1) {
+  return !(c0!=c1);
+}
+
 // empty (== air) cube and no displacement
 static const brickcube emptycube;
 
@@ -78,7 +87,7 @@ struct brick : public noncopyable {
   brickcube elem[x][y][z];
   GRIDPOLICY(x,y,z);
   enum {cubenx=x, cubeny=y, cubenz=z};
-  GLuint vbo, ibo;
+  u32 vbo, ibo;
   u32 elemnum:31; // number of elements to draw in the vbo
   u32 dirty:1; // true if the ogl data need to be rebuilt
 };
@@ -122,7 +131,7 @@ struct grid : public noncopyable {
       e->forallbricks(f, org + xyz*global()/local()););
   }
   T *elem[locx][locy][locz]; // each element may be null when empty
-  uint32_t dirty:1; // true if anything changed in the child grids
+  u32 dirty:1; // true if anything changed in the child grids
   GRIDPOLICY(locx,locy,locz);
   GRIDPOLICY(globx,globy,globz);
 };

@@ -675,12 +675,18 @@ static INLINE void buildfaces(brickmeshctx &ctx, vec3i xyz, vec3i idx) {
 
 static void buildgridmesh(world::lvl1grid &b, vec3i org) {
   if (b.dirty==0) return;
+  b.dirty = 0;
   brickmeshctx ctx(b);
   loopi(6) {
     ctx.clear(i);
     loopxyz(0, b.size(), buildfaces(ctx, org+xyz, xyz));
   }
-  if (ctx.vbo.length() == 0 || ctx.ibo.length() == 0) return;
+  if (ctx.vbo.length() == 0 || ctx.ibo.length() == 0) {
+    if (b.vbo) OGL(DeleteBuffers, 1, &b.vbo);
+    if (b.ibo) OGL(DeleteBuffers, 1, &b.ibo);
+    b.elemnum = b.vbo = b.ibo = 0;
+    return;
+  }
   if (ctx.vbo.length() > 0xffff) fatal("too many vertices in the VBO");
   if (b.vbo) OGL(DeleteBuffers, 1, &b.vbo);
   if (b.ibo) OGL(DeleteBuffers, 1, &b.ibo);
@@ -693,7 +699,6 @@ static void buildgridmesh(world::lvl1grid &b, vec3i org) {
   bindbuffer(ogl::ARRAY_BUFFER, 0);
   bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, 0);
   b.elemnum = ctx.ibo.length();
-  b.dirty = 0;
 }
 
 void buildgrid(void) { forallbricks(buildgridmesh); }

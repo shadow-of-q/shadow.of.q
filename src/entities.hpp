@@ -33,10 +33,10 @@ enum {A_BLUE, A_GREEN, A_YELLOW};
 
 // map entity
 struct persistent_entity {
-  short x, y, z; // cube aligned position
-  short attr1;
-  uchar type; // type is one of the above
-  uchar attr2, attr3, attr4;
+  s16 x, y, z; // cube aligned position
+  s16 attr1;
+  u8 type; // type is one of the above
+  u8 attr2, attr3, attr4;
 };
 
 struct entity : persistent_entity {

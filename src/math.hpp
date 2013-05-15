@@ -109,6 +109,7 @@ TINLINE T sin2cos (T x) {return sqrt(max(T(zero),T(one)-x*x));}
 TINLINE T cos2sin (T x) {return sin2cos(x);}
 
 template<typename T> struct vec2 {
+  enum {channeln = 2};
   T x, y;
   typedef T scalar;
   INLINE vec2(void) {}
@@ -184,6 +185,7 @@ INLINE bool any(const vec2<bool> &v) {return v.x||v.y;}
 INLINE bool all(const vec2<bool> &v) {return v.x&&v.y;}
 
 template<typename T> struct vec3 {
+  enum {channeln = 3};
   T x, y, z;
   typedef T scalar;
   INLINE vec3(void) {}
@@ -268,6 +270,7 @@ INLINE bool all(const vec3<bool> &v) {return v.x&&v.y&&v.z;}
 
 // 4d vector
 template<typename T> struct vec4 {
+  enum {channeln = 4};
   T x, y, z, w;
   typedef T scalar;
   INLINE vec4(void) {}

@@ -101,15 +101,15 @@ void serverms(int mode, int numplayers, int minremain, char *smapname, int secon
     len = enet_socket_receive(pongsock, &addr, &buf, 1);
     if (len < 0) return;
     p = &pong[len];
-    server::putint(p, PROTOCOL_VERSION);
-    server::putint(p, mode);
-    server::putint(p, numplayers);
-    server::putint(p, minremain);
+    putint(p, PROTOCOL_VERSION);
+    putint(p, mode);
+    putint(p, numplayers);
+    putint(p, minremain);
     string mname;
     strcpy_s(mname, isfull ? "[FULL] " : "");
     strcat_s(mname, smapname);
-    server::sendstring(mname, p);
-    server::sendstring(serverdesc, p);
+    sendstring(mname, p);
+    sendstring(serverdesc, p);
     buf.dataLength = p - pong;
     enet_socket_send(pongsock, &addr, &buf, 1);
   }

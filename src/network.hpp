@@ -1,5 +1,6 @@
 #pragma once
 #include "tools.hpp"
+#include "math.hpp"
 
 namespace cube {
 
@@ -11,7 +12,8 @@ enum {
   SV_MAPCHANGE, SV_ITEMSPAWN, SV_ITEMPICKUP, SV_DENIED,
   SV_PING, SV_PONG, SV_CLIENTPING, SV_GAMEMODE,
   SV_EDITH, SV_EDITT, SV_EDITS, SV_EDITD, SV_EDITE,
-  SV_SENDMAP, SV_RECVMAP, SV_SERVMSG, SV_ITEMLIST, SV_EXT
+  SV_SENDMAP, SV_RECVMAP, SV_SERVMSG, SV_ITEMLIST, SV_EXT,
+  SV_CUBE
 };
 
 enum { CS_ALIVE, CS_DEAD, CS_LAGGED, CS_EDITING };
@@ -23,6 +25,17 @@ enum {
   CUBE_SERVINFO_PORT = 28766,
   PROTOCOL_VERSION = 122 // bump when protocol changes
 };
+
+char msgsizelookup(int msg);
+void putint(uchar *&p, int n);
+int getint(uchar *&p);
+void sendstring(const char *t, uchar *&p);
+
+template <typename T> INLINE T getvec(uchar *&p) {
+  T v;
+  loopi(T::channeln) v[i] = (typename T::scalar)(getint(p));
+  return v;
+}
 
 static const float DMF = 16.0f;// quantizes positions
 static const float DAF = 1.0f; // quantizes angles

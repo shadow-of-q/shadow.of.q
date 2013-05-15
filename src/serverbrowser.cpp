@@ -155,7 +155,7 @@ static void pingservers(void) {
     ServerInfo &si = servers[i];
     if (si.address.host == ENET_HOST_ANY) continue;
     p = ping;
-    server::putint(p, game::lastmillis());
+    putint(p, game::lastmillis());
     buf.data = ping;
     buf.dataLength = p - ping;
     enet_socket_send(pingsock, &si.address, &buf, 1);
@@ -193,12 +193,12 @@ static void checkpings(void) {
       ServerInfo &si = servers[i];
       if (addr.host == si.address.host) {
         p = ping;
-        si.ping = game::lastmillis() - server::getint(p);
-        si.protocol = server::getint(p);
+        si.ping = game::lastmillis() - getint(p);
+        si.protocol = getint(p);
         if (si.protocol!=PROTOCOL_VERSION) si.ping = 9998;
-        si.mode = server::getint(p);
-        si.numplayers = server::getint(p);
-        si.minremain = server::getint(p);
+        si.mode = getint(p);
+        si.numplayers = getint(p);
+        si.minremain = getint(p);
         sgetstr();
         strcpy_s(si.map, text);
         sgetstr();

@@ -49,8 +49,8 @@ void weapon(char *a1, char *a2, char *a3) {
 
 COMMAND(weapon, ARG_3STR);
 
-void createrays(vec3f &from, vec3f &to)             // create random spread of rays for the shotgun
-{
+// create random spread of rays for the shotgun
+void createrays(const vec3f &from, const vec3f &to) {
   const float dist = distance(from, to);
   const float f = dist*SGSPREAD/1000;
 #define RNDD (rnd(101)-50)*f
@@ -61,9 +61,8 @@ void createrays(vec3f &from, vec3f &to)             // create random spread of r
   }
 #undef RNDD
 }
-
-bool intersect(dynent *d, vec3f &from, const vec3f &to)   // if lineseg hits entity bounding box
-{
+// if lineseg hits entity bounding box
+bool intersect(dynent *d, vec3f &from, const vec3f &to) {
   vec3f v = to, w = d->o;
   const vec3f *p;
   v -= from;
@@ -218,8 +217,7 @@ void moveprojectiles(float time) {
 }
 
 // create visual effect from a shot
-void shootv(int gun, const vec3f &from, const vec3f &to, dynent *d, bool local)
-{
+void shootv(int gun, const vec3f &from, const vec3f &to, dynent *d, bool local) {
   sound::play(guns[gun].sound, d==player1 ? NULL : &d->o);
   int pspeed = 25;
   switch (gun) {

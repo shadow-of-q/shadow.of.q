@@ -155,9 +155,9 @@ COMMAND(echo, ARG_VARI);
 
 void addmsg(int rel, int num, int type, ...) {
   if (demo::playing()) return;
-  if (num!=server::msgsizelookup(type)) {
+  if (num!=msgsizelookup(type)) {
     sprintf_sd(s)("inconsistant msg size for %d (%d != %d)",
-      type, num, server::msgsizelookup(type));
+      type, num, msgsizelookup(type));
     fatal(s);
   }
   if (messages.length()==100) {
@@ -216,64 +216,64 @@ void c2sinfo(const game::dynent *d) {
   if (toservermap[0]) { // suggest server to change map
     // do this exclusively as map change may invalidate rest of update
     packet->flags = ENET_PACKET_FLAG_RELIABLE;
-    server::putint(p, SV_MAPCHANGE);
-    server::sendstring(toservermap, p);
+    putint(p, SV_MAPCHANGE);
+    sendstring(toservermap, p);
     toservermap[0] = 0;
-    server::putint(p, game::nextmode());
+    putint(p, game::nextmode());
   } else {
-    server::putint(p, SV_POS);
-    server::putint(p, clientnum);
+    putint(p, SV_POS);
+    putint(p, clientnum);
     // quantize coordinates to 1/16th of a cube, between 1 and 3 bytes
-    server::putint(p, (int)(d->o.x*DMF));
-    server::putint(p, (int)(d->o.y*DMF));
-    server::putint(p, (int)(d->o.z*DMF));
-    server::putint(p, (int)(d->yaw*DAF));
-    server::putint(p, (int)(d->pitch*DAF));
-    server::putint(p, (int)(d->roll*DAF));
+    putint(p, (int)(d->o.x*DMF));
+    putint(p, (int)(d->o.y*DMF));
+    putint(p, (int)(d->o.z*DMF));
+    putint(p, (int)(d->yaw*DAF));
+    putint(p, (int)(d->pitch*DAF));
+    putint(p, (int)(d->roll*DAF));
     // quantize to 1/100, almost always 1 byte
-    server::putint(p, (int)(d->vel.x*DVF));
-    server::putint(p, (int)(d->vel.y*DVF));
-    server::putint(p, (int)(d->vel.z*DVF));
+    putint(p, (int)(d->vel.x*DVF));
+    putint(p, (int)(d->vel.y*DVF));
+    putint(p, (int)(d->vel.z*DVF));
     // pack rest in 1 byte: strafe:2, move:2, onfloor:1, state:3
-    server::putint(p, (d->strafe&3) |
+    putint(p, (d->strafe&3) |
               ((d->move&3)<<2) |
               (((int)d->onfloor)<<4) |
               ((edit::mode() ? CS_EDITING : d->state)<<5));
 
     if (senditemstoserver) {
       packet->flags = ENET_PACKET_FLAG_RELIABLE;
-      server::putint(p, SV_ITEMLIST);
+      putint(p, SV_ITEMLIST);
       if (!m_noitems) game::putitems(p);
-      server::putint(p, -1);
+      putint(p, -1);
       senditemstoserver = false;
       serveriteminitdone = true;
     }
     // player chat, not flood protected for now
     if (ctext[0]) {
       packet->flags = ENET_PACKET_FLAG_RELIABLE;
-      server::putint(p, SV_TEXT);
-      server::sendstring(ctext, p);
+      putint(p, SV_TEXT);
+      sendstring(ctext, p);
       ctext[0] = 0;
     }
     // tell other clients who I am
     if (!c2sinit) {
       packet->flags = ENET_PACKET_FLAG_RELIABLE;
       c2sinit = true;
-      server::putint(p, SV_INITC2S);
-      server::sendstring(game::player1->name, p);
-      server::sendstring(game::player1->team, p);
-      server::putint(p, game::player1->lifesequence);
+      putint(p, SV_INITC2S);
+      sendstring(game::player1->name, p);
+      sendstring(game::player1->team, p);
+      putint(p, game::player1->lifesequence);
     }
     // send messages collected during the previous frames
     loopv(messages) {
       ivector &msg = messages[i];
       if (msg[1]) packet->flags = ENET_PACKET_FLAG_RELIABLE;
-      loopi(msg[0]) server::putint(p, msg[i+2]);
+      loopi(msg[0]) putint(p, msg[i+2]);
     }
     messages.setsize(0);
     if (game::lastmillis()-lastping>250) {
-      server::putint(p, SV_PING);
-      server::putint(p, game::lastmillis());
+      putint(p, SV_PING);
+      putint(p, game::lastmillis());
       lastping = game::lastmillis();
     }
   }
@@ -335,10 +335,10 @@ void localservertoclient(uchar *buf, int len) {
   game::dynent *d = NULL;
   bool mapchanged = false;
 
-  while (p<end) switch (type = server::getint(p)) {
+  while (p<end) switch (type = getint(p)) {
     case SV_INITS2C: {
-      cn = server::getint(p);
-      const int prot = server::getint(p);
+      cn = getint(p);
+      const int prot = getint(p);
       if (prot!=PROTOCOL_VERSION) {
         console::out("you are using a different game protocol (you: %d, server: %d)",
                      PROTOCOL_VERSION, prot);
@@ -347,7 +347,7 @@ void localservertoclient(uchar *buf, int len) {
       }
       toservermap[0] = 0;
       clientnum = cn; // we are now fully connected
-      if (!server::getint(p)) // we are the first client on this server, set map
+      if (!getint(p)) // we are the first client on this server, set map
       strcpy_s(toservermap, game::getclientmap());
       sgetstr();
       if (text[0] && strcmp(text, clientpassword)) {
@@ -355,24 +355,24 @@ void localservertoclient(uchar *buf, int len) {
         disconnect();
         return;
       }
-      if (server::getint(p)==1)
+      if (getint(p)==1)
         console::out("server is FULL, disconnecting..");
     }
     break;
     case SV_POS: {
-      cn = server::getint(p);
+      cn = getint(p);
       d = game::getclient(cn);
       if (!d) return;
-      d->o.x   = server::getint(p)/DMF;
-      d->o.y   = server::getint(p)/DMF;
-      d->o.z   = server::getint(p)/DMF;
-      d->yaw   = server::getint(p)/DAF;
-      d->pitch = server::getint(p)/DAF;
-      d->roll  = server::getint(p)/DAF;
-      d->vel.x = server::getint(p)/DVF;
-      d->vel.y = server::getint(p)/DVF;
-      d->vel.z = server::getint(p)/DVF;
-      int f = server::getint(p);
+      d->o.x   = getint(p)/DMF;
+      d->o.y   = getint(p)/DMF;
+      d->o.z   = getint(p)/DMF;
+      d->yaw   = getint(p)/DAF;
+      d->pitch = getint(p)/DAF;
+      d->roll  = getint(p)/DAF;
+      d->vel.x = getint(p)/DVF;
+      d->vel.y = getint(p)/DVF;
+      d->vel.z = getint(p)/DVF;
+      int f = getint(p);
       d->strafe = (f&3)==3 ? -1 : f&3;
       f >>= 2; 
       d->move = (f&3)==3 ? -1 : f&3;
@@ -384,7 +384,7 @@ void localservertoclient(uchar *buf, int len) {
     }
     break;
     case SV_SOUND:
-      sound::play(server::getint(p), &d->o);
+      sound::play(getint(p), &d->o);
     break;
     case SV_TEXT:
       sgetstr();
@@ -392,7 +392,7 @@ void localservertoclient(uchar *buf, int len) {
     break;
     case SV_MAPCHANGE:
       sgetstr();
-      changemapserv(text, server::getint(p));
+      changemapserv(text, getint(p));
       mapchanged = true;
     break;
     case SV_ITEMLIST: {
@@ -401,13 +401,13 @@ void localservertoclient(uchar *buf, int len) {
         senditemstoserver = false;
         game::resetspawns();
       }
-      while ((n = server::getint(p))!=-1)
+      while ((n = getint(p))!=-1)
         if (mapchanged)
           game::setspawn(n, true);
     }
     break;
     case SV_MAPRELOAD: {
-      server::getint(p);
+      getint(p);
       sprintf_sd(nextmapalias)("nextmap_%s", game::getclientmap());
       char *map = cmd::getalias(nextmapalias); // look up map in the cycle
       changemap(map ? map : game::getclientmap());
@@ -425,34 +425,27 @@ void localservertoclient(uchar *buf, int len) {
       strcpy_s(d->name, text);
       sgetstr();
       strcpy_s(d->team, text);
-      d->lifesequence = server::getint(p);
+      d->lifesequence = getint(p);
     }
     break;
     case SV_CDIS:
-      cn = server::getint(p);
+      cn = getint(p);
       if (!(d = game::getclient(cn))) break;
       console::out("player %s disconnected",
                    d->name[0] ? d->name : "[incompatible client]"); 
       game::zapdynent(game::players[cn]);
     break;
     case SV_SHOT: {
-      const int gun = server::getint(p);
-      vec3f s, e;
-      s.x = server::getint(p)/DMF;
-      s.y = server::getint(p)/DMF;
-      s.z = server::getint(p)/DMF;
-      e.x = server::getint(p)/DMF;
-      e.y = server::getint(p)/DMF;
-      e.z = server::getint(p)/DMF;
-      if (gun==game::GUN_SG)
-        game::createrays(s, e);
+      const int gun = getint(p);
+      const vec3f s = getvec<vec3f>(p)/DMF, e = getvec<vec3f>(p)/DMF;
+      if (gun==game::GUN_SG) game::createrays(s, e);
       game::shootv(gun, s, e, d);
     }
     break;
     case SV_DAMAGE: {
-      const int target = server::getint(p);
-      const int damage = server::getint(p);
-      const int ls = server::getint(p);
+      const int target = getint(p);
+      const int damage = getint(p);
+      const int ls = getint(p);
       if (target==clientnum) {
         if (ls==game::player1->lifesequence)
           game::selfdamage(damage, cn, d);
@@ -461,7 +454,7 @@ void localservertoclient(uchar *buf, int len) {
     }
     break;
     case SV_DIED: {
-      const int actor = server::getint(p);
+      const int actor = getint(p);
       if (actor==cn)
         console::out("%s suicided", d->name);
       else if (actor==clientnum) {
@@ -488,14 +481,14 @@ void localservertoclient(uchar *buf, int len) {
     }
     break;
     case SV_FRAGS:
-      game::players[cn]->frags = server::getint(p);
+      game::players[cn]->frags = getint(p);
     break;
     case SV_ITEMPICKUP:
-      game::setspawn(server::getint(p), false);
-      server::getint(p);
+      game::setspawn(getint(p), false);
+      getint(p);
     break;
     case SV_ITEMSPAWN: {
-      uint i = server::getint(p);
+      uint i = getint(p);
       game::setspawn(i, true);
       if (i>=uint(game::ents.length()))
         break;
@@ -505,7 +498,7 @@ void localservertoclient(uchar *buf, int len) {
     }
     break;
     case SV_ITEMACC:
-      game::realpickup(server::getint(p), game::player1);
+      game::realpickup(getint(p), game::player1);
     break;
     case SV_EDITH:
     case SV_EDITT:
@@ -513,16 +506,16 @@ void localservertoclient(uchar *buf, int len) {
     case SV_EDITD:
     case SV_EDITE: {
 #if 0
-      const int x  = server::getint(p);
-      const int y  = server::getint(p);
-      const int xs = server::getint(p);
-      const int ys = server::getint(p);
-      const int v  = server::getint(p);
+      const int x  = getint(p);
+      const int y  = getint(p);
+      const int xs = getint(p);
+      const int ys = getint(p);
+      const int v  = getint(p);
       block b = { x, y, xs, ys };
 
       switch (type) {
-        case SV_EDITH: edit::editheightxy(v!=0, server::getint(p), b); break;
-        case SV_EDITT: edit::edittexxy(v, server::getint(p), b); break;
+        case SV_EDITH: edit::editheightxy(v!=0, getint(p), b); break;
+        case SV_EDITT: edit::edittexxy(v, getint(p), b); break;
         case SV_EDITS: edit::edittypexy(v, b); break;
         case SV_EDITD: edit::setvdeltaxy(v, b); break;
         case SV_EDITE: edit::editequalisexy(v!=0, b); break;
@@ -532,35 +525,43 @@ void localservertoclient(uchar *buf, int len) {
     break;
     // Coop edit of ent
     case SV_EDITENT: {
-      uint i = server::getint(p);
+      uint i = getint(p);
       while (uint(game::ents.length()) <= i)
         game::ents.add().type = game::NOTUSED;
-      game::ents[i].type = server::getint(p);
-      game::ents[i].x = server::getint(p);
-      game::ents[i].y = server::getint(p);
-      game::ents[i].z = server::getint(p);
-      game::ents[i].attr1 = server::getint(p);
-      game::ents[i].attr2 = server::getint(p);
-      game::ents[i].attr3 = server::getint(p);
-      game::ents[i].attr4 = server::getint(p);
+      game::ents[i].type = getint(p);
+      game::ents[i].x = getint(p);
+      game::ents[i].y = getint(p);
+      game::ents[i].z = getint(p);
+      game::ents[i].attr1 = getint(p);
+      game::ents[i].attr2 = getint(p);
+      game::ents[i].attr3 = getint(p);
+      game::ents[i].attr4 = getint(p);
       game::ents[i].spawned = false;
     }
     break;
     case SV_PING:
-      server::getint(p);
+      getint(p);
     break;
     case SV_PONG: 
       addmsg(0, 2, SV_CLIENTPING, game::player1->ping =
-        (game::player1->ping*5+game::lastmillis()-server::getint(p))/6);
+        (game::player1->ping*5+game::lastmillis()-getint(p))/6);
     break;
     case SV_CLIENTPING:
-      game::players[cn]->ping = server::getint(p);
+      game::players[cn]->ping = getint(p);
     break;
     case SV_GAMEMODE:
-      game::setnextmode(server::getint(p));
+      game::setnextmode(getint(p));
     break;
     case SV_TIMEUP:
-      game::timeupdate(server::getint(p));
+      game::timeupdate(getint(p));
+    break;
+    case SV_CUBE: {
+      const vec3i xyz = getvec<vec3i>(p);
+      const vec3<s8> pos = getvec<vec3<s8>>(p);
+      const u8 mat = getint(p);
+      const u32 extra = getint(p);
+      edit::setcube(xyz, world::brickcube(pos,mat,extra), false);
+    }
     break;
 #if 0
     // A new map is received
@@ -568,7 +569,7 @@ void localservertoclient(uchar *buf, int len) {
     {
       sgetstr();
       console::out("received map \"%s\" from server, reloading..", text);
-      const int mapsize = server::getint(p);
+      const int mapsize = getint(p);
       world::writemap(text, mapsize, p);
       p += mapsize;
       changemapserv(text, game::mode());
@@ -580,8 +581,8 @@ void localservertoclient(uchar *buf, int len) {
       console::out("%s", text);
     break;
     case SV_EXT:
-      for (int n = server::getint(p); n; n--)
-        server::getint(p);
+      for (int n = getint(p); n; n--)
+        getint(p);
     break;
     default:
       neterr("type");

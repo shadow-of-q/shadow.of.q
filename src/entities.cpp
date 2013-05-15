@@ -212,7 +212,7 @@ void putitems(uchar *&p) { // puts items in network stream and also spawns them 
   loopv(ents)
     if ((ents[i].type>=I_SHELLS && ents[i].type<=I_QUAD) ||
         ents[i].type==CARROT) {
-    server::putint(p, i);
+    putint(p, i);
     ents[i].spawned = true;
   }
 }

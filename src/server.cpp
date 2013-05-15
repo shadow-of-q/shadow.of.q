@@ -126,9 +126,9 @@ bool vote(char *map, int reqmode, int sender) {
   return true;
 }
 
-// server side processing of updates: does very little and most state is
-// tracked client only could be extended to move more gameplay to server (at
-// expense of lag)
+// server side processing of updates: does very little and most state is tracked
+// client only could be extended to move more gameplay to server (at expense of
+// lag)
 void process(ENetPacket * packet, int sender) { // sender may be -1
   const ushort len = *(ushort*) packet->data;
   if (ENET_NET_TO_HOST_16(len)!=packet->dataLength) {
