@@ -373,7 +373,7 @@ static GLuint spherevbo = 0;
 static int spherevertn = 0;
 
 static void buildsphere(float radius, int slices, int stacks) {
-  vector<vvecf<5>> v;
+  vector<arrayf<5>> v;
   loopj(stacks) {
     const float angle0 = M_PI * float(j) / float(stacks);
     const float angle1 = M_PI * float(j+1) / float(stacks);
@@ -391,18 +391,18 @@ static void buildsphere(float radius, int slices, int stacks) {
       loopk(start) { // stick the strips together
         const float s = 1.f-float(i)/slices, t = 1.f-float(j)/stacks;
         const float x = sin1*sin0, y = sin1*cos0, z = zLow;
-        v.add(vvecf<5>(s, t, x, y, z));
+        v.add(arrayf<5>(s, t, x, y, z));
       }
       loopk(end) { // idem
         const float s = 1.f-float(i)/slices, t = 1.f-float(j+1)/stacks;
         const float x = sin2*sin0, y = sin2*cos0, z = zHigh;
-        v.add(vvecf<5>(s, t, x, y, z));
+        v.add(arrayf<5>(s, t, x, y, z));
       }
       spherevertn += start+end;
     }
   }
 
-  const size_t sz = sizeof(vvecf<5>) * v.length();
+  const size_t sz = sizeof(arrayf<5>) * v.length();
   OGL(GenBuffers, 1, &spherevbo);
   ogl::bindbuffer(ARRAY_BUFFER, spherevbo);
   OGL(BufferData, GL_ARRAY_BUFFER, sz, &v[0][0], GL_STATIC_DRAW);
@@ -640,7 +640,7 @@ struct brickmeshctx {
   INLINE u16 get(vec3i p) const { return indices[p.x][p.y][p.z]; }
   INLINE void set(vec3i p, u16 idx) { indices[p.x][p.y][p.z] = idx; }
   const world::lvl1grid &b;
-  vector<vvecf<5>> vbo;
+  vector<arrayf<5>> vbo;
   vector<u16> ibo;
   vector<u16> tex;
   u16 indices[world::lvl1x+1][world::lvl1y+1][world::lvl1z+1];
@@ -667,7 +667,7 @@ static INLINE void buildfaces(brickmeshctx &ctx, vec3i xyz, vec3i idx) {
         const vec3f pos = world::getpos(global);
         const vec2f tex = chan==0?pos.yz():(chan==1?pos.xz():pos.xy());
         id = ctx.vbo.length();
-        ctx.vbo.add(vvecf<5>(pos.xzy(),tex));
+        ctx.vbo.add(arrayf<5>(pos.xzy(),tex));
         ctx.set(local, id);
       }
       ctx.ibo.add(id);
@@ -726,7 +726,7 @@ static void buildgridmesh(world::lvl1grid &b, vec3i org) {
   OGL(GenBuffers, 1, &b.ibo);
   ogl::bindbuffer(ogl::ARRAY_BUFFER, b.vbo);
   ogl::bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, b.ibo);
-  OGL(BufferData, GL_ARRAY_BUFFER, ctx.vbo.length()*sizeof(vvecf<5>), &ctx.vbo[0][0], GL_STATIC_DRAW);
+  OGL(BufferData, GL_ARRAY_BUFFER, ctx.vbo.length()*sizeof(arrayf<5>), &ctx.vbo[0][0], GL_STATIC_DRAW);
   OGL(BufferData, GL_ELEMENT_ARRAY_BUFFER, ctx.ibo.length()*sizeof(u16), &ctx.ibo[0], GL_STATIC_DRAW);
   bindbuffer(ogl::ARRAY_BUFFER, 0);
   bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, 0);

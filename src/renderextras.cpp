@@ -4,11 +4,11 @@ namespace cube {
 namespace rr {
 
 void line(int x1, int y1, float z1, int x2, int y2, float z2) {
-  const vvecf<3> verts[] = {
-    vvecf<3>(float(x1), z1, float(y1)),
-    vvecf<3>(float(x1), z1, float(y1)+0.01f),
-    vvecf<3>(float(x2), z2, float(y2)),
-    vvecf<3>(float(x2), z2, float(y2)+0.01f)
+  const arrayf<3> verts[] = {
+    arrayf<3>(float(x1), z1, float(y1)),
+    arrayf<3>(float(x1), z1, float(y1)+0.01f),
+    arrayf<3>(float(x2), z2, float(y2)),
+    arrayf<3>(float(x2), z2, float(y2)+0.01f)
   };
   ogl::bindshader(ogl::COLOR_ONLY);
   ogl::immdraw(GL_TRIANGLE_STRIP, 3, 0, 0, 4, &verts[0][0]);
@@ -34,11 +34,11 @@ void box(const vec3i &start, const vec3i &size, const vec3f &col) {
 
 void dot(int x, int y, float z) {
   const float DOF = 0.1f;
-  const vvecf<3> verts[] = {
-    vvecf<3>(x-DOF, float(z), y-DOF),
-    vvecf<3>(x+DOF, float(z), y-DOF),
-    vvecf<3>(x+DOF, float(z), y+DOF),
-    vvecf<3>(x-DOF, float(z), y+DOF)
+  const arrayf<3> verts[] = {
+    arrayf<3>(x-DOF, float(z), y-DOF),
+    arrayf<3>(x+DOF, float(z), y-DOF),
+    arrayf<3>(x+DOF, float(z), y+DOF),
+    arrayf<3>(x-DOF, float(z), y+DOF)
   };
   ogl::bindshader(ogl::COLOR_ONLY);
   ogl::immdraw(GL_LINE_LOOP, 3, 0, 0, 4, &verts[0][0]);
@@ -56,21 +56,21 @@ void blendbox(int x1, int y1, int x2, int y2, bool border) {
   else
     OGL(VertexAttrib3f, ogl::COL, 1.f, 1.f, 1.f);
 
-  const vvecf<2> verts0[] = {
-    vvecf<2>(float(x1), float(y1)),
-    vvecf<2>(float(x2), float(y1)),
-    vvecf<2>(float(x1), float(y2)),
-    vvecf<2>(float(x2), float(y2))
+  const arrayf<2> verts0[] = {
+    arrayf<2>(float(x1), float(y1)),
+    arrayf<2>(float(x2), float(y1)),
+    arrayf<2>(float(x1), float(y2)),
+    arrayf<2>(float(x2), float(y2))
   };
   ogl::immdraw(GL_TRIANGLE_STRIP, 2, 0, 0, 4, &verts0[0][0]);
 
   ogl::disablev(GL_BLEND);
   OGL(VertexAttrib3f, ogl::COL, .2f, .7f, .4f);
-  const vvecf<2> verts1[] = {
-    vvecf<2>(float(x1), float(y1)),
-    vvecf<2>(float(x2), float(y1)),
-    vvecf<2>(float(x2), float(y2)),
-    vvecf<2>(float(x1), float(y2))
+  const arrayf<2> verts1[] = {
+    arrayf<2>(float(x1), float(y1)),
+    arrayf<2>(float(x2), float(y1)),
+    arrayf<2>(float(x2), float(y2)),
+    arrayf<2>(float(x1), float(y2))
   };
   ogl::immdraw(GL_LINE_LOOP, 2, 0, 0, 4, &verts1[0][0]);
 
@@ -207,11 +207,11 @@ void drawicon(float tx, float ty, int x, int y) {
   tx /= 192;
   ty /= 192;
   ogl::bindtexture(GL_TEXTURE_2D, 5);
-  const vvecf<4> verts[] = {
-    vvecf<4>(tx,   ty,   x,   y),
-    vvecf<4>(tx+o, ty,   x+s, y),
-    vvecf<4>(tx,   ty+o, x,   y+s),
-    vvecf<4>(tx+o, ty+o, x+s, y+s)
+  const arrayf<4> verts[] = {
+    arrayf<4>(tx,   ty,   x,   y),
+    arrayf<4>(tx+o, ty,   x+s, y),
+    arrayf<4>(tx,   ty+o, x,   y+s),
+    arrayf<4>(tx+o, ty+o, x+s, y+s)
   };
   ogl::bindshader(ogl::DIFFUSETEX);
   ogl::immdraw(GL_TRIANGLE_STRIP, 2, 2, 0, 4, &verts[0][0]);
@@ -251,11 +251,11 @@ void drawhud(int w, int h, int curfps, int nquads, int curvert, bool underwater)
   OGL(DepthMask, GL_FALSE);
   if (dblend || underwater) {
     OGL(BlendFunc, GL_ZERO, GL_ONE_MINUS_SRC_COLOR);
-    const vvecf<2> verts[] = {
-      vvecf<2>(0.f,          0.f),
-      vvecf<2>(float(VIRTW), 0.f),
-      vvecf<2>(0.f,          float(VIRTH)),
-      vvecf<2>(float(VIRTW), float(VIRTH))
+    const arrayf<2> verts[] = {
+      arrayf<2>(0.f,          0.f),
+      arrayf<2>(float(VIRTW), 0.f),
+      arrayf<2>(0.f,          float(VIRTH)),
+      arrayf<2>(float(VIRTW), float(VIRTH))
     };
     if (dblend)
       OGL(VertexAttrib3f,ogl::COL,0.0f,0.9f,0.9f);
@@ -290,11 +290,11 @@ void drawhud(int w, int h, int curfps, int nquads, int curvert, bool underwater)
         OGL(VertexAttrib3f,ogl::COL,1.0f,0.5f,0.0f);
     }
     const float csz = float(crosshairsize);
-    const vvecf<4> verts[] = {
-      vvecf<4>(0.f, 0.f, float(VIRTW/2) - csz, float(VIRTH/2) - csz),
-      vvecf<4>(1.f, 0.f, float(VIRTW/2) + csz, float(VIRTH/2) - csz),
-      vvecf<4>(0.f, 1.f, float(VIRTW/2) - csz, float(VIRTH/2) + csz),
-      vvecf<4>(1.f, 1.f, float(VIRTW/2) + csz, float(VIRTH/2) + csz)
+    const arrayf<4> verts[] = {
+      arrayf<4>(0.f, 0.f, float(VIRTW/2) - csz, float(VIRTH/2) - csz),
+      arrayf<4>(1.f, 0.f, float(VIRTW/2) + csz, float(VIRTH/2) - csz),
+      arrayf<4>(0.f, 1.f, float(VIRTW/2) - csz, float(VIRTH/2) + csz),
+      arrayf<4>(1.f, 1.f, float(VIRTW/2) + csz, float(VIRTH/2) + csz)
     };
     ogl::bindshader(ogl::DIFFUSETEX);
     ogl::immdraw(GL_TRIANGLE_STRIP, 2, 2, 0, 4, &verts[0][0]);

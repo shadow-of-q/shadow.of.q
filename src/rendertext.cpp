@@ -132,7 +132,7 @@ void draw_text(const char *str, int left, int top, int gl_num) {
   // use a triangle mesh to display the text
   const size_t len = strlen(str);
   indextype *indices = (indextype*) alloca(6*len*sizeof(int));
-  vvecf<4> *verts = (vvecf<4>*) alloca(4*len*sizeof(vvecf<4>));
+  arrayf<4> *verts = (arrayf<4>*) alloca(4*len*sizeof(arrayf<4>));
 
   // traverse the string and build the mesh
   int index = 0, vert = 0, x = left, y = top;
@@ -152,10 +152,10 @@ void draw_text(const char *str, int left, int top, int gl_num) {
     const int in_height = char_coords[c][3] - char_coords[c][1];
 
     loopj(6) indices[index+j] = vert+twotriangles[j];
-    verts[vert+0] = vvecf<4>(in_left, in_top,   float(x),         float(y));
-    verts[vert+1] = vvecf<4>(in_right,in_top,   float(x+in_width),float(y));
-    verts[vert+2] = vvecf<4>(in_right,in_bottom,float(x+in_width),float(y+in_height));
-    verts[vert+3] = vvecf<4>(in_left, in_bottom,float(x),         float(y+in_height));
+    verts[vert+0] = arrayf<4>(in_left, in_top,   float(x),         float(y));
+    verts[vert+1] = arrayf<4>(in_right,in_top,   float(x+in_width),float(y));
+    verts[vert+2] = arrayf<4>(in_right,in_bottom,float(x+in_width),float(y+in_height));
+    verts[vert+3] = arrayf<4>(in_left, in_bottom,float(x),         float(y+in_height));
 
     ogl::xtraverts += 4;
     x += in_width + 1;
@@ -177,11 +177,11 @@ static void drawenvboxface(float s0, float t0, int x0, int y0, int z0,
                            float s2, float t2, int x2, int y2, int z2,
                            float s3, float t3, int x3, int y3, int z3,
                            int texture) {
-  vvecf<5> verts[4];
-  verts[0] = vvecf<5>(s3, t3, float(x3), float(y3), float(z3));
-  verts[1] = vvecf<5>(s2, t2, float(x2), float(y2), float(z2));
-  verts[2] = vvecf<5>(s1, t1, float(x1), float(y1), float(z1));
-  verts[3] = vvecf<5>(s0, t0, float(x0), float(y0), float(z0));
+  arrayf<5> verts[4];
+  verts[0] = arrayf<5>(s3, t3, float(x3), float(y3), float(z3));
+  verts[1] = arrayf<5>(s2, t2, float(x2), float(y2), float(z2));
+  verts[2] = arrayf<5>(s1, t1, float(x1), float(y1), float(z1));
+  verts[3] = arrayf<5>(s0, t0, float(x0), float(y0), float(z0));
 
   ogl::bindtexture(GL_TEXTURE_2D, texture);
   ogl::immvertexsize(sizeof(float[5]));

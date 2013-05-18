@@ -21,7 +21,7 @@ enum  {
 };
 
 // 6 textures (one per face)
-typedef vvec<u16,6> cubetex;
+typedef array<u16,6> cubetex;
 
 // data contained in the most lower grid
 struct brickcube {

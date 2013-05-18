@@ -608,12 +608,12 @@ TINLINE v3 unproject(v3arg win, m44arg model, m44arg proj, const vec4<int> &view
 }
 
 // convenient variable size static vector
-template <typename U, int n> struct vvec {
+template <typename U, int n> struct array {
   enum {channeln = n};
   typedef U scalar;
-  template <typename... T> INLINE vvec(T... args) {set(0,args...);}
-  INLINE vvec(zerotype) { loopi(n) v[i] = U(zero); }
-  INLINE vvec(onetype) { loopi(n) v[i] = U(one); }
+  template <typename... T> INLINE array(T... args) {set(0,args...);}
+  INLINE array(zerotype) { loopi(n) v[i] = U(zero); }
+  INLINE array(onetype) { loopi(n) v[i] = U(one); }
   template <typename First, typename... Rest>
   INLINE void set(int i, First first, Rest... rest) {
     assign(first, i);
@@ -629,12 +629,12 @@ template <typename U, int n> struct vvec {
   U v[n];
 };
 template <typename U, int n>
-INLINE bool operator!= (const vvec<U,n> &v0, const vvec<U,n> &v1) {
+INLINE bool operator!= (const array<U,n> &v0, const array<U,n> &v1) {
   loopi(n) if (v0.v[i] != v1.v[i]) return true;
   return false;
 }
 template <typename U, int n>
-INLINE bool operator== (const vvec<U,n> &v0, const vvec<U,n> &v1) {
+INLINE bool operator== (const array<U,n> &v0, const array<U,n> &v1) {
   return !(v0!=v1);
 }
 
@@ -701,9 +701,9 @@ typedef vec4<bool> vec4b;
 typedef vec4<int> vec4i;
 typedef vec4<float> vec4f;
 typedef vec4<double> vec4d;
-template <int n> using vvecd = vvec<double,n>;
-template <int n> using vvecf = vvec<float,n>;
-template <int n> using vveci = vvec<int,n>;
+template <int n> using arrayd = array<double,n>;
+template <int n> using arrayf = array<float,n>;
+template <int n> using arrayi = array<int,n>;
 
 #undef TINLINE
 #undef UINLINE
