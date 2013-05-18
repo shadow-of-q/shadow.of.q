@@ -172,13 +172,11 @@ INLINE void NAME##v(First first, Rest... rest) {\
 #define sprintf_sdv(d,fmt) sprintf_sdlv(d,fmt,fmt)
 #define ATOI(s) strtol(s, NULL, 0) // supports hexadecimal numbers
 
-#define fast_f2nat(val) ((int)(val))
-
-  extern char *path(char *s);
-  extern char *loadfile(char *fn, int *size);
-  extern void endianswap(void *, int, int);
-  extern int islittleendian(void);
-  extern void initendiancheck(void);
+char *path(char *s);
+char *loadfile(char *fn, int *size);
+void endianswap(void *, int, int);
+int islittleendian(void);
+void initendiancheck(void);
 
 #define PI  (3.1415927f)
 #define PI2 (2*PI)
@@ -238,6 +236,12 @@ template<class T> INLINE typename remove_reference<T>::type&& move(T&& t) {
     int ulen;
     pool *p;
 
+    INLINE vector(u32 size) {
+      this->p = gp();
+      ulen = alen = size;
+      buf = (T*)p->alloc(alen*sizeof(T));
+      loopi(ulen) buf[i]=T();
+    }
     INLINE vector(void) {
       this->p = gp();
       alen = 8;
@@ -346,6 +350,8 @@ template<class T> INLINE typename remove_reference<T>::type&& move(T&& t) {
   INLINE char *newstringbuf(const char *s)        { return gp()->stringbuf(s); }
 
 #define ARRAY_ELEM_N(X) (sizeof(X) / sizeof(X[0]))
+#define MEMSET(X,V) memset(X,V,sizeof(X));
+#define MEMZERO(X) MEMSET(X,0)
 
   // vertex array format
   struct vertex { float u, v, x, y, z; uchar r, g, b, a; };

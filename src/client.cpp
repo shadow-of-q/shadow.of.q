@@ -160,7 +160,7 @@ void addmsg(int rel, int num, int type, ...) {
       type, num, msgsizelookup(type));
     fatal(s);
   }
-  if (messages.length()==100) {
+  if (messages.length()==128) {
     console::out("command flood protection (type %d)", type);
     return;
   }
@@ -171,7 +171,7 @@ void addmsg(int rel, int num, int type, ...) {
   va_list marker;
   va_start(marker, type);
   loopi(num-1) msg.add(va_arg(marker, int));
-  va_end(marker); 
+  va_end(marker);
 }
 
 void server_err(void) {
@@ -556,11 +556,11 @@ void localservertoclient(uchar *buf, int len) {
       game::timeupdate(getint(p));
     break;
     case SV_CUBE: {
-      const vec3i xyz = getvec<vec3i>(p);
-      const vec3<s8> pos = getvec<vec3<s8>>(p);
+      const auto xyz = getvec<vec3i>(p);
+      const auto pos = getvec<vec3<s8>>(p);
       const u8 mat = getint(p);
-      const u32 extra = getint(p);
-      edit::setcube(xyz, world::brickcube(pos,mat,extra), false);
+      const auto tex = getvec<world::cubetex>(p);
+      edit::setcube(xyz, world::brickcube(pos,mat,tex), false);
     }
     break;
 #if 0

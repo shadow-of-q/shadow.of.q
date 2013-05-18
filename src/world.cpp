@@ -225,7 +225,7 @@ void load(const char *mname) {
     if (cmd::identexists(aliasname))
       cmd::alias(aliasname, "");
   }
-  //cmd::execfile("data/default_map_settings.cfg");
+  cmd::execfile("data/default_map_settings.cfg");
   //cmd::execfile(pcfname);
   //cmd::execfile(mcfname);
 }

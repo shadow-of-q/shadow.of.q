@@ -126,7 +126,8 @@ void setcube(const vec3i &xyz, const world::brickcube &c, bool undoable) {
 
 static void set(const vec3i &xyz, const world::brickcube &c, bool undoable = true) {
   edit::setcube(xyz, c, undoable);
-  client::addmsg(1, 9, SV_CUBE, xyz.x, xyz.y, xyz.z, c.p.x, c.p.y, c.p.z, c.mat, c.extra);
+  client::addmsg(1, 14, SV_CUBE, xyz.x, xyz.y, xyz.z, c.p.x, c.p.y, c.p.z, c.mat,
+                 c.tex[0], c.tex[1], c.tex[2], c.tex[3], c.tex[4], c.tex[5]);
 }
 
 static void switchcubes(int which) {
@@ -195,9 +196,9 @@ COMMAND(paste, ARG_NONE);
 /*-------------------------------------------------------------------------
  - draw stuff to help with editing
  -------------------------------------------------------------------------*/
-struct selectiongrid { vec3i start, end; u16 n, face; };
-static selectiongrid getselectiongrid(void) {
-  selectiongrid grid;
+struct selgrid { vec3i start, end; u16 n, face; };
+static selgrid getselgrid(void) {
+  selgrid grid;
   grid.start = editcorner?cornerstart:cubestart;
   grid.end = dragging?(editcorner?undercursorcorner:undercursorcube):
     (editcorner?cornerend:cubeend);
@@ -211,8 +212,8 @@ static selectiongrid getselectiongrid(void) {
   return grid;
 }
 
-static void drawselectiongrid(void) {
-  auto grid = getselectiongrid();
+static void drawselgrid(void) {
+  auto grid = getselgrid();
   const u32 cn = grid.n;
   grid.start[cn] = grid.end[cn] = selectedface%2?grid.end[cn]:grid.start[cn];
   const u32 delta = grid.face%2?(disttoselected+1):-disttoselected;
@@ -237,7 +238,7 @@ static void drawselectiongrid(void) {
 }
 
 static void drawselectedcorners(void) {
-  auto grid = getselectiongrid();
+  auto grid = getselgrid();
   vector<vec3f> lines;
   auto docube = [&](vec3i xyz) {
     for (u32 i=0; i<ARRAY_ELEM_N(cubeedges); ++i) {
@@ -253,8 +254,8 @@ static void drawselectedcorners(void) {
   ogl::immdraw(GL_LINES, 3, 0, 0, lines.length(), &lines[0].x);
 }
 
-static void drawselectionbox(void) {
-  const auto grid = getselectiongrid();
+static void drawselbox(void) {
+  const auto grid = getselgrid();
   const vec3f start(grid.start.xzy()), end(grid.end.xzy()+vec3i(one));
   rr::box(start, end-start, white);
 }
@@ -327,8 +328,8 @@ void cursorupdate(void) { // called every frame from hud
     if (editcorner) {
       drawselectedcorners();
     } else {
-      drawselectionbox();
-      drawselectiongrid();
+      drawselbox();
+      drawselgrid();
     }
   }
   OGL(DepthFunc, GL_LESS);
@@ -345,7 +346,7 @@ static void editcube(int dir) {
   const auto extr = extrusionvector(selectedface);
   const auto mat = dir==1 ? world::FULL : world::EMPTY;
   if (dir==1) disttoselected++;
-  const auto grid = getselectiongrid();
+  const auto grid = getselgrid();
   loopxyz(grid.start, grid.end+vec3i(one),
     const auto idx = extr*disttoselected+xyz;
     auto c = world::getcube(idx);
@@ -355,7 +356,7 @@ static void editcube(int dir) {
 }
 
 static void editvertex(int dir) {
-  const auto grid = getselectiongrid();
+  const auto grid = getselgrid();
   loopxyz(grid.start, grid.end+vec3i(one), {
     auto n = dir==1?cubenorms[selectedface]:-cubenorms[selectedface];
     auto c = world::getcube(xyz);
@@ -408,6 +409,19 @@ static void editaction(int dir) { // +1 or -1
   if (editcorner) editvertex(dir); else editcube(dir);
 }
 COMMAND(editaction, ARG_1INT);
+
+static void edittex(int dir) { // +1 or -1
+  EDITSEL;
+  newundobuffer();
+  const auto m = min(cubestart, cubeend);
+  const auto M = max(cubestart, cubeend) + vec3i(one);
+  auto doupdatetex = [&](const vec3i &xyz) {
+    auto c = world::getcube(xyz);
+    c.tex[selectedface] = (c.tex[selectedface] + dir) % ogl::MAXMAPTEX;
+  };
+  loopxyz(m,M,doupdatetex(xyz));
+}
+COMMAND(edittex, ARG_1INT);
 
 #undef EDIT
 #undef EDITSEL

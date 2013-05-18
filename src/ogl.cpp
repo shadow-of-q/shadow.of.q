@@ -251,16 +251,16 @@ static string mapname[256][MAXFRAMES];
 static void purgetextures(void) {loopi(256)loop(j,MAXFRAMES)mapping[i][j]=0;}
 
 #if defined(EMSCRIPTEN)
-static const uint ID_NUM = 2*MAXTEX;
-static GLuint generated_ids[ID_NUM];
+static const uint IDNUM = 2*MAXTEX;
+static GLuint generatedids[IDNUM];
 #endif // EMSCRIPTEN
 
 void bindtexture(uint target, uint id) {
   if (bindedtexture == id) return;
   bindedtexture = id;
 #if defined(EMSCRIPTEN)
-  if (id >= ID_NUM) fatal("out of bound texture ID");
-  OGL(BindTexture, target, generated_ids[id]);
+  if (id >= IDNUM) fatal("out of bound texture ID");
+  OGL(BindTexture, target, generatedids[id]);
 #else
   OGL(BindTexture, target, id);
 #endif
@@ -280,9 +280,9 @@ bool installtex(int tnum, const char *texname, int &xs, int &ys, bool clamp) {
     return false;
   }
 #else
-  if (tnum >= int(ID_NUM)) fatal("out of bound texture ID");
-  if (generated_ids[tnum] == 0u)
-    OGL(GenTextures, 1, generated_ids + tnum);
+  if (tnum >= int(IDNUM)) fatal("out of bound texture ID");
+  if (generatedids[tnum] == 0u)
+    OGL(GenTextures, 1, generatedids + tnum);
 #endif // EMSCRIPTEN
   bindedtexture = 0;
   console::out("loading %s (%ix%i)", texname, s->w, s->h);
@@ -634,28 +634,30 @@ static void buildubershader(shader &shader, uint rules) {
 struct brickmeshctx {
   brickmeshctx(const world::lvl1grid &b) : b(b) {}
   void clear(int orientation) {
-    dir = orientation;
-    memset(indices, 0xff, sizeof(indices));
+    face = orientation;
+    MEMSET(indices, 0xff);
   }
   INLINE u16 get(vec3i p) const { return indices[p.x][p.y][p.z]; }
   INLINE void set(vec3i p, u16 idx) { indices[p.x][p.y][p.z] = idx; }
   const world::lvl1grid &b;
   vector<vvecf<5>> vbo;
   vector<u16> ibo;
+  vector<u16> tex;
   u16 indices[world::lvl1x+1][world::lvl1y+1][world::lvl1z+1];
-  int dir;
+  int face;
 };
 
 static INLINE void buildfaces(brickmeshctx &ctx, vec3i xyz, vec3i idx) {
-  const int chan = ctx.dir/2; // basically: x (==0), y (==1) or z (==2)
+  const int chan = ctx.face/2; // basically: x (0), y (1) or z (2)
   if (world::getcube(xyz).mat == world::EMPTY) // nothing here
     return;
-  if (world::getcube(xyz+cubenorms[ctx.dir]).mat != world::EMPTY) // invisible face
+  if (world::getcube(xyz+cubenorms[ctx.face]).mat != world::EMPTY) // invisible face
     return;
 
   // build both triangles. we reuse already output vertices
-  const int idx0 = 2*ctx.dir+0, idx1 = 2*ctx.dir+1;
+  const int idx0 = 2*ctx.face+0, idx1 = 2*ctx.face+1;
   const vec3i tris[] = {cubetris[idx0], cubetris[idx1]};
+  const auto tex = world::getcube(xyz).tex[ctx.face];
   loopi(2) { // build both triangles
     loopj(3) { // build each vertex
       const vec3i local = idx+cubeiverts[tris[i][j]];
@@ -669,6 +671,35 @@ static INLINE void buildfaces(brickmeshctx &ctx, vec3i xyz, vec3i idx) {
         ctx.set(local, id);
       }
       ctx.ibo.add(id);
+      ctx.tex.add(tex);
+    }
+  }
+}
+
+static void radixsortibo(brickmeshctx &ctx) {
+  const s32 bitn=8, bucketn=1<<bitn, passn=2, mask=bucketn-1;
+  const auto len = ctx.ibo.length();
+  u16 histo[bucketn];
+  vector<u16> copytex(len), copyibo(len);
+  vector<u16> *pptex[] = {&ctx.tex, &copytex};
+  vector<u16> *ppibo[] = {&ctx.ibo, &copyibo};
+  loopi(passn) {
+    auto &fromtex = *pptex[i], &totex = *pptex[(i+1)%2];
+    auto &fromibo = *ppibo[i], &toibo = *ppibo[(i+1)%2];
+    u32 const shr = i*bitn;
+    MEMZERO(histo); // compute the histogram
+    loopj(len) histo[(fromtex[j]>>shr)&mask]++;
+    u32 pred = histo[0];
+    histo[0] = 0;
+    loopj(bucketn-1) {
+      const u32 next = histo[j+1];
+      histo[j+1] = histo[j] + pred;
+      pred = next;
+    }
+    loopj(len) { // sort using the histogram
+      const u32 k = histo[(fromtex[j]>>shr)&mask]++;
+      totex[k] = fromtex[j];
+      toibo[k] = fromibo[j];
     }
   }
 }
@@ -688,6 +719,7 @@ static void buildgridmesh(world::lvl1grid &b, vec3i org) {
     return;
   }
   if (ctx.vbo.length() > 0xffff) fatal("too many vertices in the VBO");
+  radixsortibo(ctx);
   if (b.vbo) OGL(DeleteBuffers, 1, &b.vbo);
   if (b.ibo) OGL(DeleteBuffers, 1, &b.ibo);
   OGL(GenBuffers, 1, &b.vbo);
@@ -706,7 +738,7 @@ COMMAND(buildgrid, ARG_NONE);
 
 static void fillgrid(void) {
   using namespace world;
-  loop(x,isize.x) loop(y,isize.y) world::setcube(vec3i(x,y,0), brickcube(FULL));
+  loop(x,isize.x/2) loop(y,isize.y/2) world::setcube(vec3i(x,y,0), brickcube(FULL));
   for (int x = 8; x < isize.x; x += 32)
   for (int y = 8; y < isize.y; y += 32)
     loop(z,isize.z) world::setcube(vec3i(x,y,z), brickcube(FULL));
@@ -718,7 +750,7 @@ static void drawgrid(void) {
   static bool initialized = false;
   if (!initialized) {
     texturereset();
-    texture("0", "ikbase/ik_floor_met128e.jpg");
+    texture("0", "ikbase/ik_floor_conc128a.jpg");
     fillgrid();
     initialized = true;
   }
@@ -831,8 +863,8 @@ void init(int w, int h) {
 
   OGL(Viewport, 0, 0, w, h);
 #if defined (EMSCRIPTEN)
-  for (u32 i = 0; i < sizeof(generated_ids) / sizeof(generated_ids[0]); ++i)
-    generated_ids[i] = 0;
+  for (u32 i = 0; i < sizeof(generatedids) / sizeof(generatedids[0]); ++i)
+    generatedids[i] = 0;
   OGL(ClearDepthf,1.f);
 #else
   OGL(ClearDepth,1.f);

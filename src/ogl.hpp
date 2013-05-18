@@ -63,6 +63,9 @@ namespace ogl {
 #endif // NDEBUG
 #endif // EMSCRIPTEN
 
+// maximum number of textures in a map
+static const u32 MAXMAPTEX = 256;
+
 // vertex attributes
 enum {POS0, POS1, TEX, NOR, COL, ATTRIB_NUM};
 

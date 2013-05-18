@@ -74,7 +74,7 @@ void keyrepeat(bool on) {
 
 VARF(gamespeed, 10, 100, 1000, if (client::multiplayer()) gamespeed = 100);
 VARP(minmillis, 0, 5, 1000);
-VARF(grabmouse, 0, 1, 1, {SDL_WM_GrabInput(grabmouse ? SDL_GRAB_ON : SDL_GRAB_OFF);});
+VARF(grabmouse, 0, 0, 1, {SDL_WM_GrabInput(grabmouse ? SDL_GRAB_ON : SDL_GRAB_OFF);});
 
 int ignore = 5;
 
@@ -221,7 +221,6 @@ static int main(int argc, char **argv) {
   log("localconnect");
   server::localconnect();
   client::changemap("metl3");
-  cmd::execute("loadsky \"socksky/mars\"");
 
   log("mainloop");
 #if defined(EMSCRIPTEN)

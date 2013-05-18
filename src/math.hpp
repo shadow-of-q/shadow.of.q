@@ -110,8 +110,8 @@ TINLINE T cos2sin (T x) {return sin2cos(x);}
 
 template<typename T> struct vec2 {
   enum {channeln = 2};
-  T x, y;
   typedef T scalar;
+  T x, y;
   INLINE vec2(void) {}
   INLINE vec2(const vec2& v) {x = v.x; y = v.y;}
   UINLINE vec2 (const vec2<U>& a) : x(T(a.x)), y(T(a.y)) {}
@@ -186,8 +186,8 @@ INLINE bool all(const vec2<bool> &v) {return v.x&&v.y;}
 
 template<typename T> struct vec3 {
   enum {channeln = 3};
-  T x, y, z;
   typedef T scalar;
+  T x, y, z;
   INLINE vec3(void) {}
   INLINE vec3(const vec3& v) {x = v.x; y = v.y; z = v.z;}
   UINLINE vec3(const vec3<U>& a) : x(T(a.x)), y(T(a.y)), z(T(a.z)) {}
@@ -271,8 +271,8 @@ INLINE bool all(const vec3<bool> &v) {return v.x&&v.y&&v.z;}
 // 4d vector
 template<typename T> struct vec4 {
   enum {channeln = 4};
-  T x, y, z, w;
   typedef T scalar;
+  T x, y, z, w;
   INLINE vec4(void) {}
   INLINE vec4(const vec4& v) {x = v.x; y = v.y; z = v.z; w = v.w;}
   UINLINE vec4(const vec4<U>& a) : x(T(a.x)), y(T(a.y)), z(T(a.z)), w(T(a.w)) {}
@@ -609,7 +609,11 @@ TINLINE v3 unproject(v3arg win, m44arg model, m44arg proj, const vec4<int> &view
 
 // convenient variable size static vector
 template <typename U, int n> struct vvec {
+  enum {channeln = n};
+  typedef U scalar;
   template <typename... T> INLINE vvec(T... args) {set(0,args...);}
+  INLINE vvec(zerotype) { loopi(n) v[i] = U(zero); }
+  INLINE vvec(onetype) { loopi(n) v[i] = U(one); }
   template <typename First, typename... Rest>
   INLINE void set(int i, First first, Rest... rest) {
     assign(first, i);
@@ -620,10 +624,19 @@ template <typename U, int n> struct vvec {
   INLINE void assign(vec3<U> u, int &i) {v[i++]=u.x; v[i++]=u.y; v[i++]=u.z;}
   INLINE void assign(vec4<U> u, int &i) {v[i++]=u.x; v[i++]=u.y; v[i++]=u.z; v[i++]=u.w;}
   INLINE void set(int i) {}
-  float &operator[] (int i) { return v[i]; }
-  const float &operator[] (int i) const { return v[i]; }
+  U &operator[] (int i) { return v[i]; }
+  const U &operator[] (int i) const { return v[i]; }
   U v[n];
 };
+template <typename U, int n>
+INLINE bool operator!= (const vvec<U,n> &v0, const vvec<U,n> &v1) {
+  loopi(n) if (v0.v[i] != v1.v[i]) return true;
+  return false;
+}
+template <typename U, int n>
+INLINE bool operator== (const vvec<U,n> &v0, const vvec<U,n> &v1) {
+  return !(v0!=v1);
+}
 
 // define all swizzles for vec2
 #define sw22(A,B) TINLINE v2 v2::A##B(void) const {return v2(A,B);}

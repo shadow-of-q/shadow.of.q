@@ -20,18 +20,21 @@ enum  {
   FULL = 1 // contains a deformed cube
 };
 
+// 6 textures (one per face)
+typedef vvec<u16,6> cubetex;
+
 // data contained in the most lower grid
 struct brickcube {
-  INLINE brickcube(u8 m) : p(zero), mat(m), extra(0) {}
-  INLINE brickcube(vec3<s8> o = vec3<s8>(zero), u8 m = EMPTY, u32 extra = 0) :
-    p(o), mat(m), extra(extra) {}
+  INLINE brickcube(u8 m) : tex(zero), p(zero), mat(m) {}
+  INLINE brickcube(vec3<s8> o = vec3<s8>(zero), u8 m = EMPTY, cubetex tex = cubetex(zero)) :
+    tex(tex), p(o), mat(m) {}
+  cubetex tex;
   vec3<s8> p;
   u8 mat;
-  u32 extra;
 };
 
 INLINE bool operator!= (const brickcube &c0, const brickcube &c1) {
-  return any(c0.p != c1.p) || (c0.mat != c1.mat) || (c0.extra != c1.extra);
+  return any(c0.p!= c1.p) || (c0.mat!=c1.mat) || (c0.tex!=c1.tex);
 }
 INLINE bool operator== (const brickcube &c0, const brickcube &c1) {
   return !(c0!=c1);
