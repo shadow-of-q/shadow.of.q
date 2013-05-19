@@ -186,7 +186,7 @@ template <typename F> static void forallcubes(const F &f) { root.forallcubes(f, 
 // get and set the cube at position (x,y,z)
 brickcube getcube(const vec3i &xyz);
 void setcube(const vec3i &xyz, const brickcube &cube);
-INLINE vec3f getpos(vec3i xyz) {return vec3f(xyz)+vec3f(world::getcube(xyz).p)/256.f;}
+INLINE vec3f getpos(vec3i xyz) {return vec3f(xyz)+vec3f(world::getcube(xyz).p)/255.f;}
 // cast a ray in the world and return the intersection result
 isecres castray(const ray &ray);
 void setup(int factor);

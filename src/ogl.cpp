@@ -659,18 +659,35 @@ static INLINE void buildfaces(brickmeshctx &ctx, vec3i xyz, vec3i idx) {
   const vec3i tris[] = {cubetris[idx0], cubetris[idx1]};
   const auto tex = world::getcube(xyz).tex[ctx.face];
   loopi(2) { // build both triangles
+    vec3f v[3]={zero,zero,zero}; // delay vertex creation for degenerated tris
+    vec2f t[3]={zero,zero,zero}; // idem for texture coordinates
+    vec3i locals[3]={zero,zero,zero}; 
+    bool isnew[3]={false,false,false};
     loopj(3) { // build each vertex
-      const vec3i local = idx+cubeiverts[tris[i][j]];
       const vec3i global = xyz+cubeiverts[tris[i][j]];
-      u16 id = ctx.get(local);
+      locals[j] = idx+cubeiverts[tris[i][j]];
+      u16 id = ctx.get(locals[j]);
       if (id == 0xffff) {
         const vec3f pos = world::getpos(global);
         const vec2f tex = chan==0?pos.yz():(chan==1?pos.xz():pos.xy());
         id = ctx.vbo.length();
-        ctx.vbo.add(arrayf<5>(pos.xzy(),tex));
-        ctx.set(local, id);
+        v[j] = pos.xzy();
+        t[j] = tex;
+        isnew[j] = true;
+      } else
+        v[j] = vec3f(ctx.vbo[id][0],ctx.vbo[id][1],ctx.vbo[id][2]);
+    }
+    const float mindist = 1.f/512.f;
+    if (distance(v[0], v[1]) < mindist || // degenerated triangle?
+        distance(v[1], v[2]) < mindist ||
+        distance(v[2], v[0]) < mindist)
+      continue;
+    else loopj(3) {
+      if (isnew[j]) {
+        ctx.set(locals[j], ctx.vbo.length());
+        ctx.vbo.add(arrayf<5>(v[j],t[j]));
       }
-      ctx.ibo.add(id);
+      ctx.ibo.add(ctx.get(locals[j]));
       ctx.tex.add(tex);
     }
   }
