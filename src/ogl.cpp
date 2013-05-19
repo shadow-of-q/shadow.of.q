@@ -715,7 +715,7 @@ static void buildgridmesh(world::lvl1grid &b, vec3i org) {
   if (ctx.vbo.length() == 0 || ctx.ibo.length() == 0) {
     if (b.vbo) OGL(DeleteBuffers, 1, &b.vbo);
     if (b.ibo) OGL(DeleteBuffers, 1, &b.ibo);
-    b.elemnum = b.vbo = b.ibo = 0;
+    b.vbo = b.ibo = 0;
     return;
   }
   if (ctx.vbo.length() > 0xffff) fatal("too many vertices in the VBO");
@@ -730,7 +730,16 @@ static void buildgridmesh(world::lvl1grid &b, vec3i org) {
   OGL(BufferData, GL_ELEMENT_ARRAY_BUFFER, ctx.ibo.length()*sizeof(u16), &ctx.ibo[0], GL_STATIC_DRAW);
   bindbuffer(ogl::ARRAY_BUFFER, 0);
   bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, 0);
-  b.elemnum = ctx.ibo.length();
+  s32 n=1, tex=ctx.tex[0], len=ctx.ibo.length()-1;
+  b.draws.setsize(0);
+  loopi(len)
+    if (ctx.tex[i+1]!=tex) {
+      b.draws.add(vec2i(n,tex));
+      tex=ctx.tex[i+1];
+      n=1;
+    } else
+      ++n;
+  b.draws.add(vec2i(n,tex));
 }
 
 void buildgrid(void) { forallbricks(buildgridmesh); }
@@ -738,7 +747,7 @@ COMMAND(buildgrid, ARG_NONE);
 
 static void fillgrid(void) {
   using namespace world;
-  loop(x,isize.x/2) loop(y,isize.y/2) world::setcube(vec3i(x,y,0), brickcube(FULL));
+  loop(x,isize.x) loop(y,isize.y) world::setcube(vec3i(x,y,0), brickcube(FULL));
   for (int x = 8; x < isize.x; x += 32)
   for (int y = 8; y < isize.y; y += 32)
     loop(z,isize.z) world::setcube(vec3i(x,y,z), brickcube(FULL));
@@ -749,8 +758,6 @@ static void drawgrid(void) {
   using namespace world;
   static bool initialized = false;
   if (!initialized) {
-    texturereset();
-    texture("0", "ikbase/ik_floor_conc128a.jpg");
     fillgrid();
     initialized = true;
   }
@@ -763,8 +770,16 @@ static void drawgrid(void) {
     ogl::bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, b.ibo);
     OGL(VertexAttribPointer, ogl::TEX, 2, GL_FLOAT, 0, sizeof(float[5]), (const void*) sizeof(float[3]));
     OGL(VertexAttribPointer, ogl::POS0, 3, GL_FLOAT, 0, sizeof(float[5]), (const void*) 0);
-    ogl::drawelements(GL_TRIANGLES, b.elemnum, GL_UNSIGNED_SHORT, 0);
-    ogl::xtraverts += b.elemnum;
+    u32 offset = 0;
+    loopi(b.draws.length()) {
+      const auto fake = (const void*)(uintptr_t(offset*sizeof(u16)));
+      const u32 n = b.draws[i].x;
+      const u32 tex = b.draws[i].y;
+      ogl::bindtexture(GL_TEXTURE_2D, ogl::lookuptex(tex));
+      ogl::drawelements(GL_TRIANGLES, n, GL_UNSIGNED_SHORT, fake);
+      ogl::xtraverts += n;
+      offset += n;
+    }
   });
 }
 

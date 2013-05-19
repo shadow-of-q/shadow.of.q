@@ -28,6 +28,9 @@ struct brickcube {
   INLINE brickcube(u8 m) : tex(zero), p(zero), mat(m) {}
   INLINE brickcube(vec3<s8> o = vec3<s8>(zero), u8 m = EMPTY, cubetex tex = cubetex(zero)) :
     tex(tex), p(o), mat(m) {}
+  INLINE bool isdefault(void) const {
+    return mat==EMPTY && all(p==vec3<s8>(zero));
+  }
   cubetex tex;
   vec3<s8> p;
   u8 mat;
@@ -62,8 +65,7 @@ template <int x, int y, int z>
 struct brick : public noncopyable {
   INLINE brick(void) {
     vbo = ibo = 0u;
-    elemnum = 0;
-    dirty = 1;
+    dirty = 1u;
   }
   static INLINE vec3i size(void) { return vec3i(x,y,z); }
   static INLINE vec3i global(void) { return size(); }
@@ -87,12 +89,15 @@ struct brick : public noncopyable {
   template <typename F> INLINE void forallbricks(const F &f, vec3i org) {
     f(*this, org);
   }
+  template <typename F> INLINE void forallgrids(const F &f, vec3i org) {
+    f(*this, org);
+  }
   brickcube elem[x][y][z];
   GRIDPOLICY(x,y,z);
   enum {cubenx=x, cubeny=y, cubenz=z};
   u32 vbo, ibo;
-  u32 elemnum:31; // number of elements to draw in the vbo
-  u32 dirty:1; // true if the ogl data need to be rebuilt
+  vector<vec2i> draws; // (elemnum, texid)
+  u32 dirty; // 1 if the ogl data need to be rebuilt
 };
 
 // recursive sparse grid
@@ -133,6 +138,11 @@ struct grid : public noncopyable {
     loopxyz(zero, local(), if (T *e = subgrid(xyz))
       e->forallbricks(f, org + xyz*global()/local()););
   }
+  template <typename F> INLINE void forallgrids(const F &f, vec3i org) {
+    loopxyz(zero, local(), if (T *e = subgrid(xyz))
+      e->forallgrids(f, org + xyz*global()/local()););
+    f(*this,org);
+  }
   T *elem[locx][locy][locz]; // each element may be null when empty
   u32 dirty:1; // true if anything changed in the child grids
   GRIDPOLICY(locx,locy,locz);
@@ -170,6 +180,7 @@ static const int sizex=lvlt3x, sizey=lvlt3y, sizez=lvlt3z;
 static const vec3i isize(sizex,sizey,sizez);
 static const vec3f fsize(sizex,sizey,sizez);
 
+template <typename F> static void forallgrids(const F &f) { root.forallgrids(f, zero); }
 template <typename F> static void forallbricks(const F &f) { root.forallbricks(f, zero); }
 template <typename F> static void forallcubes(const F &f) { root.forallcubes(f, zero); }
 
@@ -177,7 +188,6 @@ template <typename F> static void forallcubes(const F &f) { root.forallcubes(f, 
 brickcube getcube(const vec3i &xyz);
 void setcube(const vec3i &xyz, const brickcube &cube);
 INLINE vec3f getpos(vec3i xyz) {return vec3f(xyz)+vec3f(world::getcube(xyz).p)/256.f;}
-
 // cast a ray in the world and return the intersection result
 isecres castray(const ray &ray);
 void setup(int factor);

@@ -418,6 +418,7 @@ static void edittex(int dir) { // +1 or -1
   auto doupdatetex = [&](const vec3i &xyz) {
     auto c = world::getcube(xyz);
     c.tex[selectedface] = (c.tex[selectedface] + dir) % ogl::MAXMAPTEX;
+    world::setcube(xyz,c);
   };
   loopxyz(m,M,doupdatetex(xyz));
 }

@@ -130,6 +130,17 @@ int isoccluded(float vx, float vy, float cx, float cy, float csize) {return 0;}
 
 static string cgzname, bakname, pcfname, mcfname;
 
+struct deletegrid {
+  template <typename G> void operator()(G &g, vec3i) const {
+    if (uintptr_t(&g)!=uintptr_t(&root)) delete &g;
+  }
+};
+static void empty(void) {
+  forallgrids(deletegrid());
+  MEMZERO(root.elem);
+  root.dirty = 1;
+}
+
 void setnames(const char *name) {
   string pakname, mapname;
   const char *slash = strpbrk(name, "/\\");
@@ -176,14 +187,44 @@ void save(const char *mname) {
       gzwrite(f, &tmp, sizeof(persistent_entity));
     }
   }
+  s32 n=0;
+  forallcubes([&](const brickcube&, const vec3i&){++n;});
+  gzwrite(f, &n, sizeof(n));
+  vec3i pos(zero);
+  forallcubes([&](const brickcube &c, const vec3i &xyz) {
+    vec3i delta = xyz-pos;
+    gzwrite(f, (void*) &delta, sizeof(vec3i));
+    pos = xyz;
+  });
+  vec3i d(zero);
+  forallcubes([&](const brickcube &c, const vec3i &xyz) {
+    vec3i delta = vec3i(c.p) - d;
+    gzwrite(f, (void*) &delta, sizeof(vec3i));
+    d = vec3i(c.p);
+  });
+  s16 mat = 0;
+  forallcubes([&](const brickcube &c, const vec3i &xyz) {
+    s16 delta = c.mat - mat;
+    gzwrite(f, (void*) &delta, sizeof(s16));
+    mat = c.mat;
+  });
+  loopi(6) {
+    s16 tex = 0;
+    forallcubes([&](const brickcube &c, const vec3i &xyz) {
+      s16 delta = c.tex[i] - tex;
+      gzwrite(f, (void*) &delta, sizeof(s16));
+      tex = c.tex[i];
+    });
+  }
   gzclose(f);
-  console::out("wrote map file %s", cgzname);
+  console::out("wrote map file %s (%i cubes in total)", cgzname, n);
 }
 
 void load(const char *mname) {
   demo::stopifrecording();
   edit::pruneundos();
   setnames(mname);
+  empty();
   gzFile f = gzopen(cgzname, "rb9");
   if (!f) {
     console::out("could not read map %s", cgzname);
@@ -213,10 +254,41 @@ void load(const char *mname) {
       if (e.attr1>32) e.attr1 = 32; // 12_03 and below
     }
   }
+  s32 n;
+  gzread(f, &n, sizeof(n));
+  vector<vec3i> xyz(n);
+  vector<brickcube> cubes(n);
+  vec3i p(zero); // get all world cube positions
+  loopi(n) {
+    gzread(f, (void*) &xyz[i], sizeof(vec3i));
+    xyz[i] += p;
+    p = xyz[i];
+  }
+  vec3i d(zero); // get displacements
+  loopi(n) {
+    vec3i r;
+    gzread(f, (void*) &r, sizeof(vec3i));
+    cubes[i].p = vec3<s8>(r+d);
+    d = r+d;
+  }
+  s16 m=0; // get all material IDs
+  loopi(n) {
+    s16 r;
+    gzread(f, (void*) &r, sizeof(s16));
+    cubes[i].mat = s8(r+m);
+    m += r;
+  }
+  loopj(6) { // get all textures
+    s16 tex = 0;
+    loopi(n) {
+      gzread(f, (void*) &cubes[i].tex[j], sizeof(s16));
+      cubes[i].tex[j] += tex;
+      tex = cubes[i].tex[j];
+    }
+  }
+  loopv(xyz) { world::setcube(xyz[i], cubes[i]); }
   gzclose(f);
 
-  // int xs, ys;
-  // loopi(256) ogl::lookuptex(i, xs, ys);
   console::out("read map %s (%d milliseconds)", cgzname, SDL_GetTicks()-lastmillis());
   console::out("%s", hdr.maptitle);
   startmap(mname);

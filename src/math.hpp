@@ -607,7 +607,7 @@ TINLINE v3 unproject(v3arg win, m44arg model, m44arg proj, const vec4<int> &view
   return out.xyz() / out.w;
 }
 
-// convenient variable size static vector
+// convenient fixed size array
 template <typename U, int n> struct array {
   enum {channeln = n};
   typedef U scalar;
@@ -624,8 +624,8 @@ template <typename U, int n> struct array {
   INLINE void assign(vec3<U> u, int &i) {v[i++]=u.x; v[i++]=u.y; v[i++]=u.z;}
   INLINE void assign(vec4<U> u, int &i) {v[i++]=u.x; v[i++]=u.y; v[i++]=u.z; v[i++]=u.w;}
   INLINE void set(int i) {}
-  U &operator[] (int i) { return v[i]; }
-  const U &operator[] (int i) const { return v[i]; }
+  U &operator[] (int i) {assert(i>=0 && i<n); return v[i];}
+  const U &operator[] (int i) const {assert(i>=0 && i<n); return v[i];}
   U v[n];
 };
 template <typename U, int n>

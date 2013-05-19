@@ -48,8 +48,10 @@ void pool::dealloc(void *p, size_t size) {
 void *pool::realloc(void *p, size_t oldsize, size_t newsize) {
   void *np = alloc(newsize);
   if (!oldsize) return np;
-  memcpy(np, p, newsize>oldsize ? oldsize : newsize);
-  dealloc(p, oldsize);
+  if (oldsize) {
+    memcpy(np, p, newsize>oldsize ? oldsize : newsize);
+    dealloc(p, oldsize);
+  }
   return np;
 }
 

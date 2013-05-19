@@ -220,7 +220,7 @@ static int main(int argc, char **argv) {
 
   log("localconnect");
   server::localconnect();
-  client::changemap("metl3");
+  client::changemap("prout");
 
   log("mainloop");
 #if defined(EMSCRIPTEN)
@@ -239,4 +239,5 @@ static int main(int argc, char **argv) {
 int main(int argc, char **argv) {
   return cube::main(argc, argv);
 }
-
+#if 0
+#endif
