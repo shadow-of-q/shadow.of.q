@@ -745,22 +745,8 @@ static void buildgridmesh(world::lvl1grid &b, vec3i org) {
 void buildgrid(void) { forallbricks(buildgridmesh); }
 COMMAND(buildgrid, ARG_NONE);
 
-static void fillgrid(void) {
-  using namespace world;
-  loop(x,isize.x) loop(y,isize.y) world::setcube(vec3i(x,y,0), brickcube(FULL));
-  for (int x = 8; x < isize.x; x += 32)
-  for (int y = 8; y < isize.y; y += 32)
-    loop(z,isize.z) world::setcube(vec3i(x,y,z), brickcube(FULL));
-  buildgrid();
-}
-
 static void drawgrid(void) {
   using namespace world;
-  static bool initialized = false;
-  if (!initialized) {
-    fillgrid();
-    initialized = true;
-  }
   ogl::bindtexture(GL_TEXTURE_2D, ogl::lookuptex(0));
   ogl::enableattribarrayv(ogl::POS0, ogl::TEX);
   ogl::disableattribarrayv(ogl::COL, ogl::POS1);

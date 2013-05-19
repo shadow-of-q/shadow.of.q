@@ -82,8 +82,7 @@ struct brick : public noncopyable {
   template <typename F> INLINE void forallcubes(const F &f, vec3i org) {
     loopxyz(zero, size(), {
       auto cube = get(xyz);
-      if (cube.mat != EMPTY)
-        f(cube, org + xyz);
+      if (!cube.isdefault()) f(cube, org + xyz);
     });
   }
   template <typename F> INLINE void forallbricks(const F &f, vec3i org) {
