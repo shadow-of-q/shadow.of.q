@@ -42,7 +42,6 @@ struct persistent_entity {
 struct entity : persistent_entity {
   bool spawned; // the only dynamic state of a map entity
 };
-
 struct mapmodelinfo { int rad, h, zoff, snap; const char *name; };
 
 // players & monsters
@@ -76,6 +75,12 @@ struct dynent {
   int anger; // how many times already hit by fellow monster
   string name, team;
 };
+
+INLINE aabb getaabb(const dynent *d) {
+  const auto fmin = d->o-vec3f(d->radius, d->radius, d->eyeheight);
+  const auto fmax = d->o+vec3f(d->radius, d->radius, d->aboveeye);
+  return aabb(fmin, fmax);
+}
 
 typedef vector<dynent*> dvector;
 extern dynent *player1; // special client ent that receives input and acts as camera

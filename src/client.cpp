@@ -363,18 +363,15 @@ void localservertoclient(uchar *buf, int len) {
       cn = getint(p);
       d = game::getclient(cn);
       if (!d) return;
-      d->o.x   = getint(p)/DMF;
-      d->o.y   = getint(p)/DMF;
-      d->o.z   = getint(p)/DMF;
+      d->o     = getvec<vec3f>(p)/DMF;
+      d->o    += vec3f(0.5f/DMF); // avoid false intersection with ground
       d->yaw   = getint(p)/DAF;
       d->pitch = getint(p)/DAF;
       d->roll  = getint(p)/DAF;
-      d->vel.x = getint(p)/DVF;
-      d->vel.y = getint(p)/DVF;
-      d->vel.z = getint(p)/DVF;
+      d->vel   = getvec<vec3f>(p)/DVF;
       int f = getint(p);
       d->strafe = (f&3)==3 ? -1 : f&3;
-      f >>= 2; 
+      f >>= 2;
       d->move = (f&3)==3 ? -1 : f&3;
       d->onfloor = (f>>2)&1;
       int state = f>>3;
@@ -388,7 +385,7 @@ void localservertoclient(uchar *buf, int len) {
     break;
     case SV_TEXT:
       sgetstr();
-      console::out("%s:\f %s", d->name, text); 
+      console::out("%s:\f %s", d->name, text);
     break;
     case SV_MAPCHANGE:
       sgetstr();

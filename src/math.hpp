@@ -768,6 +768,7 @@ struct camera {
 
 struct aabb {
   INLINE aabb(vec3f m, vec3f M) : pmin(m), pmax(M) {}
+  INLINE aabb(void) : pmin(FLT_MAX), pmax(-FLT_MAX) {}
   vec3f pmin, pmax;
 };
 struct isecres {
@@ -775,6 +776,10 @@ struct isecres {
   float t;
   bool isec;
 };
+INLINE bool intersect(const aabb &b0, const aabb &b1) {
+  return !(any(b0.pmin > b1.pmax)| any(b1.pmin > b0.pmax));
+}
+
 INLINE isecres slab(const aabb &box, vec3f org, vec3f rdir, float t) {
   const vec3f l1 = (box.pmin-org)*rdir;
   const vec3f l2 = (box.pmax-org)*rdir;

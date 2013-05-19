@@ -17,9 +17,13 @@ bool mode(void) { return editmode; }
 void toggleedit(void) {
   if (game::player1->state==CS_DEAD) return; // do not allow dead players to edit to avoid state confusion
   if (!editmode && !client::allowedittoggle()) return; // not in most client::multiplayer modes
+#if 0
   if (!(editmode = !editmode))
     game::entinmap(game::player1); // find spawn closest to current floating pos
   else {
+#else
+  if ((editmode = !editmode)) {
+#endif
     game::player1->health = 100;
     if (m_classicsp) game::monsterclear(); // all monsters back at their spawns for editing
     game::projreset();

@@ -182,8 +182,10 @@ static void otherplayers(void) {
       players[i]->state = CS_LAGGED;
       continue;
     }
-    if (lagtime && players[i]->state != CS_DEAD && (!demo::playing() || i!=demo::clientnum()))
-      physics::moveplayer(players[i], 2, false); // use physics to extrapolate player position
+    // use physics to extrapolate player position
+    if (lagtime && players[i]->state != CS_DEAD &&
+      (!demo::playing() || i!=demo::clientnum()))
+      physics::moveplayer(players[i], 2, false);
   }
 }
 
@@ -257,7 +259,7 @@ void entinmap(dynent *d) {
     float dy = (rnd(21)-10)/10.0f*i;
     d->o.x += dx;
     d->o.y += dy;
-    if (physics::collide(d, true, 0, 0)) return;
+    if (physics::collide(d, true)) return;
     d->o.x -= dx;
     d->o.y -= dy;
   }
@@ -274,8 +276,7 @@ void spawnplayer(dynent *d) {
   if (spawncycle!=-1) {
     d->o.x = ents[spawncycle].x;
     d->o.y = ents[spawncycle].y;
-    //d->o.z = ents[spawncycle].z; // TODO handle real height later
-    d->o.z = 0.f;
+    d->o.z = 10.f;// TODO handle real height later
     d->yaw = ents[spawncycle].attr1;
     d->pitch = 0;
     d->roll = 0;
@@ -466,8 +467,7 @@ void renderclient(dynent *d, bool team, const char *mdlname, bool hellpig, float
   else {
     n = 14;
     speed = 1200/d->maxspeed*scale;
-    if (hellpig)
-      speed = 300/d->maxspeed;
+    if (hellpig) speed = 300/d->maxspeed;
   }
   if (hellpig) {
     n++;
@@ -475,7 +475,7 @@ void renderclient(dynent *d, bool team, const char *mdlname, bool hellpig, float
     mz -= 1.9f;
   }
   rr::rendermodel(mdlname, frame[n], range[n], 0, 1.5f, vec3f(d->o.x, mz, d->o.y),
-    d->yaw+90, d->pitch/2, team, scale, speed, 0, basetime);
+    d->yaw+90.f, d->pitch/2, team, scale, speed, 0, basetime);
 }
 
 void renderclients(void) {

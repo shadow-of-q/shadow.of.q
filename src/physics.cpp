@@ -8,96 +8,77 @@ namespace cube {
 namespace physics {
 
   // collide with player or monster
-  bool plcollide(game::dynent *d, game::dynent *o, float &headspace, float &hi, float &lo) {
+  static bool plcollide(const aabb &box, const game::dynent *o) {
     if (o->state!=CS_ALIVE) return true;
-    const float r = o->radius+d->radius;
-    if (fabs(o->o.x-d->o.x)<r && fabs(o->o.y-d->o.y)<r) {
-      if (d->o.z-d->eyeheight<o->o.z-o->eyeheight) {
-        if (o->o.z-o->eyeheight<hi)
-          hi = o->o.z-o->eyeheight-1;
-      } else if (o->o.z+o->aboveeye>lo)
-        lo = o->o.z+o->aboveeye+1;
-      if (fabs(o->o.z-d->o.z)<o->aboveeye+d->eyeheight) return false;
-      if (d->monsterstate) return false; // hack
-      headspace = d->o.z-o->o.z-o->aboveeye-d->eyeheight;
-      if (headspace<0) headspace = 10;
+    const auto oaabb = getaabb(o);
+    return !intersect(box, oaabb);
+  }
+
+  // collide with a map model
+  static bool mmcollide(const aabb &box) {
+    loopv(game::ents) {
+      game::entity &e = game::ents[i];
+      if (e.type != game::MAPMODEL) continue;
+      const game::mapmodelinfo &mmi = rr::getmminfo(e.attr2);
+      if (!&mmi || !mmi.h) continue;
+      const auto emin = vec3f(e.x,e.y,e.z)-vec3f(mmi.rad,mmi.rad,0.f);
+      const auto emax = vec3f(e.x,e.y,e.z)+vec3f(mmi.rad,mmi.rad,mmi.h);
+      const aabb eaabb(emin,emax);
+      if (intersect(box, eaabb)) return false;
     }
     return true;
   }
 
-  // collide with a map model
-  static void mmcollide(game::dynent *d, float &hi, float &lo) {
-    loopv(game::ents) {
-      game::entity &e = game::ents[i];
-      if (e.type != game::MAPMODEL) continue;
-      game::mapmodelinfo &mmi = rr::getmminfo(e.attr2);
-      if (!&mmi || !mmi.h) continue;
-      const float r = mmi.rad+d->radius;
-      if (fabs(e.x-d->o.x)<r && fabs(e.y-d->o.y)<r) {
-        const float mmz = mmi.zoff+e.attr3;
-        if (d->o.z-d->eyeheight<mmz) {
-          if (mmz<hi) hi = mmz;
-        } else if (mmz+mmi.h>lo)
-          lo = mmz+mmi.h;
-      }
+  // get bounding volume of the given _deformed_ cube
+  INLINE aabb getaabb(vec3i xyz) {
+    aabb box;
+    loopi(8) {
+      const auto v = world::getpos(xyz+cubeiverts[i]);
+      box.pmin = min(v, box.pmin);
+      box.pmax = max(v, box.pmax);
     }
+    return box;
+  }
+
+  // collide with the map
+  static bool mapcollide(const aabb &box) {
+    const auto pmin = vec3i(box.pmin)-vec3i(one);
+    const auto pmax = vec3i(box.pmax)+vec3i(one);
+    loopxyz(pmin, pmax,
+      if (world::getcube(xyz).mat != world::EMPTY && intersect(getaabb(xyz), box))
+        return false;);
+    return true;
   }
 
   // all collision happens here. spawn is a dirty side effect used in
   // spawning. drop & rise are supplied by the physics below to indicate
   // gravity/push for current mini-timestep
-  bool collide(game::dynent *d, bool spawn, float drop, float rise) {
-    float hi = 127, lo = 0;
-    if (hi-lo < d->eyeheight+d->aboveeye) return false;
+  bool collide(game::dynent *d, bool spawn) {
+    const auto box = getaabb(d);
 
-    float headspace = 10;
-    loopv(game::players) { // collide with other players
+    // collide with map
+    if (!mapcollide(box)) return false;
+
+    // collide with other players
+    loopv(game::players) {
       game::dynent *o = game::players[i];
       if (!o || o==d) continue;
-      if (!plcollide(d, o, headspace, hi, lo)) return false;
+      if (!plcollide(box, o)) return false;
     }
     if (d!=game::player1)
-      if (!plcollide(d, game::player1, headspace, hi, lo))
-        return false;
+      if (!plcollide(box, game::player1)) return false;
     auto &v = game::getmonsters();
-    // this loop can be a performance bottleneck with many monster on a slow
-    // cpu, should replace with a blockmap but seems mostly fast enough
-    loopv(v)
-      if (!rejectxy(d->o, v[i]->o, 7.0f) && d!=v[i] && !plcollide(d, v[i], headspace, hi, lo))
-        return false;
-    headspace -= 0.01f;
+    loopv(v) if (!plcollide(box, v[i])) return false;
 
-    mmcollide(d, hi, lo); // collide with map models
-
-    if (spawn) {
-      d->o.z = lo+d->eyeheight; // just drop to floor (sideeffect)
-      d->onfloor = true;
-    } else {
-      const float space = d->o.z-d->eyeheight-lo;
-      if (space<0) {
-        if (space>-0.01) d->o.z = lo+d->eyeheight; // stick on step
-        else if (space>-1.26f) d->o.z += rise; // rise thru stair
-        else return false;
-      } else
-        d->o.z -= min(min(drop, space), headspace); // gravity
-
-      const float space2 = hi-(d->o.z+d->aboveeye);
-      if (space2<0) {
-        if (space2<-0.1) return false; // hack alert!
-        d->o.z = hi-d->aboveeye; // glue to ceiling
-        d->vel.z = 0; // cancel out jumping velocity
-      }
-      d->onfloor = d->o.z-d->eyeheight-lo<0.001f;
-    }
+    // collide with map models
+    if (!mmcollide(box)) return false;
     return true;
   }
-
-  static float rad(float x) { return x*3.14159f/180; };
 
   VARP(maxroll, 0, 3, 20);
 
   static int physicsfraction = 0, physicsrepeat = 0;
-  static const int MINFRAMETIME = 20; // physics always simulated at 50fps or better
+  static const int MINFRAMETIME = 20; // physics simulated at 50fps or better
 
   void physicsframe(void) { // optimally schedule physics frames inside the graphics frames
     if (game::curtime()>=MINFRAMETIME) {
@@ -108,34 +89,34 @@ namespace physics {
       physicsrepeat = 1;
   }
 
-  // main physics routine, moves a player/monster for a curtime() step.  moveres
-  // indicated the physics precision (which is lower for monsters and
-  // client::multiplayer prediction). local is false for client::multiplayer
-  // prediction
+  // main physics routine, moves a player/monster for a curtime step.
+  // moveres indicated the physics precision (which is lower for monsters and
+  // client::multiplayer prediction).
+  // local is false for client::multiplayer prediction
   void moveplayer(game::dynent *pl, int moveres, bool local, int curtime) {
-    const bool water = world::waterlevel()>pl->o.z-0.5f;
+    const bool water = false;//world::waterlevel() > pl->o.z-0.5f;
     const bool floating = (edit::mode() && local) || pl->state==CS_EDITING;
 
     vec3f d; // vector of direction we ideally want to move in
-    d.x = float(pl->move*cos(rad(pl->yaw-90.f)));
-    d.y = float(pl->move*sin(rad(pl->yaw-90.f)));
-    d.z = 0;
+    d.x = float(pl->move*cos(deg2rad(pl->yaw-90.f)));
+    d.y = float(pl->move*sin(deg2rad(pl->yaw-90.f)));
+    d.z = 0.f;
 
     if (floating || water) {
-      d.x *= float(cos(rad(pl->pitch)));
-      d.y *= float(cos(rad(pl->pitch)));
-      d.z  = float(pl->move*sin(rad(pl->pitch)));
+      d.x *= float(cos(deg2rad(pl->pitch)));
+      d.y *= float(cos(deg2rad(pl->pitch)));
+      d.z  = float(pl->move*sin(deg2rad(pl->pitch)));
     }
 
-    d.x += float(pl->strafe*cos(rad(pl->yaw-180)));
-    d.y += float(pl->strafe*sin(rad(pl->yaw-180)));
+    d.x += float(pl->strafe*cos(deg2rad(pl->yaw-180.f)));
+    d.y += float(pl->strafe*sin(deg2rad(pl->yaw-180.f)));
 
-    const float speed = curtime/(water ? 2000.0f : 1000.0f)*pl->maxspeed;
-    const float friction = water ? 20.0f : (pl->onfloor || floating ? 6.0f : 30.0f);
+    const float speed = curtime/(water? 2000.0f : 1000.0f)*pl->maxspeed;
+    const float friction = water ? 20.0f : (pl->onfloor||floating ? 6.0f : 30.0f);
     const float fpsfric = friction/curtime*20.0f;
 
     // slowly apply friction and direction to velocity, gives a smooth movement
-    pl->vel *= fpsfric-1;
+    pl->vel *= fpsfric-1.f;
     pl->vel += d;
     pl->vel /= fpsfric;
     d = pl->vel;
@@ -146,7 +127,10 @@ namespace physics {
 
     if (floating) { // just apply velocity
       pl->o += d;
-      if (pl->jumpnext) { pl->jumpnext = false; pl->vel.z = 2;    }
+      if (pl->jumpnext) {
+        pl->jumpnext = false;
+        pl->vel.z = 2.f;
+      }
     } else { // apply velocity with collision
       if (pl->onfloor || water) {
         if (pl->jumpnext) {
@@ -171,56 +155,62 @@ namespace physics {
         pl->timeinair += curtime;
 
       const float gravity = 20.f;
-      const float f = 1.0f/moveres;
+      const float f = 1.0f/float(moveres);
       float dropf = ((gravity-1.f)+pl->timeinair/15.0f); // incorrect, but works fine
-      if (water) { dropf = 5.f; pl->timeinair = 0.f; }; // float slowly down in water
+      if (water) { // float slowly down in water
+        dropf = 5.f;
+        pl->timeinair = 0.f;
+      }
       const float drop = dropf*curtime/gravity/100/moveres; // at high fps, gravity kicks in too fast
-      const float rise = speed/moveres/1.2f; // extra smoothness when lifting up stairs
 
       loopi(moveres) { // discrete steps collision detection & sliding
+        // try to apply gravity
+        pl->o.z -= drop;
+        if (!collide(pl, false)) {
+          pl->o.z += drop;
+          pl->onfloor = true;
+        } else
+          pl->onfloor = false;
+
         // try move forward
         pl->o += f*d;
-        if (collide(pl, false, drop, rise)) continue;
+        if (collide(pl, false)) continue;
 
-        // player stuck, try slide along y axis
+        // player stuck, try slide along all axis
+        bool successful = false;
         pl->blocked = true;
-        pl->o.x -= f*d.x;
-        if (collide(pl, false, drop, rise)) {
-          d.x = 0.f;
-          continue;
+        loopi(3) {
+          pl->o[i] -= f*d[i];
+          if (collide(pl, false)) {
+            successful = true;
+            d[i] = 0.f;
+            break;
+          }
+          pl->o[i] += f*d[i];
         }
-        pl->o.x += f*d.x;
-
-        // still stuck, try x axis
-        pl->o.y -= f*d.y;
-        if (collide(pl, false, drop, rise)) {
-          d.y = 0.f;
-          continue;
-        }
-        pl->o.y += f*d.y;
+        if (successful) continue;
 
         // try just dropping down
         pl->moving = false;
         pl->o.x -= f*d.x;
         pl->o.y -= f*d.y;
-        if (collide(pl, false, drop, rise)) {
-          d.y = d.x = 0.f;
+        if (collide(pl, false)) {
+          d.x = d.y = 0.f;
           continue;
         }
         pl->o.z -= f*d.z;
         break;
       }
     }
-
     pl->outsidemap = false;
 
     // automatically apply smooth roll when strafing
     if (pl->strafe==0)
-      pl->roll = pl->roll/(1+(float)sqrt((float)curtime)/25);
+      pl->roll = pl->roll/(1.f+float(sqrt(float(curtime)))/25.f);
     else {
       pl->roll += pl->strafe*curtime/-30.0f;
-      if (pl->roll>maxroll) pl->roll = (float)maxroll;
-      if (pl->roll<-maxroll) pl->roll = (float)-maxroll;
+      if (pl->roll>maxroll) pl->roll = float(maxroll);
+      if (pl->roll<-maxroll) pl->roll = -float(maxroll);
     }
 
     // play sounds on water transitions

@@ -126,12 +126,10 @@ void teleport(int n, game::dynent *d) { // also used by monsters
     }
     if (beenhere<0) beenhere = e;
     if (ents[e].attr2==tag) {
-      d->o.x = ents[e].x;
-      d->o.y = ents[e].y;
-      d->o.z = ents[e].z;
+      d->o = vec3f(ents[e].x, ents[e].y, ents[e].z);
+      d->vel = zero;
       d->yaw = ents[e].attr1;
-      d->pitch = 0;
-      d->vel.x = d->vel.y = d->vel.z = 0;
+      d->pitch = 0.f;
       entinmap(d);
       sound::playc(sound::TELEPORT);
       break;
