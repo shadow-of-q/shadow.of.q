@@ -640,14 +640,33 @@ struct brickmeshctx {
   INLINE u16 get(vec3i p) const { return indices[p.x][p.y][p.z]; }
   INLINE void set(vec3i p, u16 idx) { indices[p.x][p.y][p.z] = idx; }
   const world::lvl1grid &b;
-  vector<arrayf<5>> vbo;
+  vector<arrayf<8>> vbo;
   vector<u16> ibo;
   vector<u16> tex;
-  u16 indices[world::lvl1x+1][world::lvl1y+1][world::lvl1z+1];
-  int face;
+  u16 indices[world::lvl1+1][world::lvl1+1][world::lvl1+1];
+  s32 face;
 };
 
-static INLINE void buildfaces(brickmeshctx &ctx, vec3i xyz, vec3i idx) {
+static const vec3f ldir = normalize(vec3f(0.5f,0.2f,0.5f));
+
+INLINE vec3f computecolor(vec3f pos, int face) {
+#if 0
+  const auto n = 0.01f*vec3f(cubenorms[face]);
+  const mat3x3f m(n);
+  float l = 0.f;
+  loopi(2) loopj(2) {
+    const vec3f u = (i*0.5f-0.5f)*m.vx;
+    const vec3f v = (j*0.5f-0.5f)*m.vz;
+    const ray r(pos+n+u+v, ldir);
+    const auto res = world::castray(r);
+    l += res.isec ? 0.5f : 1.f;
+  }
+  return vec3f(l) / 4.f;
+#endif
+  return vec3f(one);
+}
+
+INLINE void buildfaces(brickmeshctx &ctx, vec3i xyz, vec3i idx) {
   const int chan = ctx.face/2; // basically: x (0), y (1) or z (2)
   if (world::getcube(xyz).mat == world::EMPTY) // nothing here
     return;
@@ -661,6 +680,7 @@ static INLINE void buildfaces(brickmeshctx &ctx, vec3i xyz, vec3i idx) {
   loopi(2) { // build both triangles
     vec3f v[3]={zero,zero,zero}; // delay vertex creation for degenerated tris
     vec2f t[3]={zero,zero,zero}; // idem for texture coordinates
+    vec3f c[3]={zero,zero,zero}; // idem for vertex colors
     vec3i locals[3]={zero,zero,zero}; 
     bool isnew[3]={false,false,false};
     loopj(3) { // build each vertex
@@ -673,6 +693,7 @@ static INLINE void buildfaces(brickmeshctx &ctx, vec3i xyz, vec3i idx) {
         id = ctx.vbo.length();
         v[j] = pos.xzy();
         t[j] = tex;
+        c[j] = computecolor(pos, ctx.face);
         isnew[j] = true;
       } else
         v[j] = vec3f(ctx.vbo[id][0],ctx.vbo[id][1],ctx.vbo[id][2]);
@@ -685,7 +706,8 @@ static INLINE void buildfaces(brickmeshctx &ctx, vec3i xyz, vec3i idx) {
     else loopj(3) {
       if (isnew[j]) {
         ctx.set(locals[j], ctx.vbo.length());
-        ctx.vbo.add(arrayf<5>(v[j],t[j]));
+        //ctx.vbo.add(arrayf<5>(v[j],t[j]));
+        ctx.vbo.add(arrayf<8>(v[j],t[j],c[j]));
       }
       ctx.ibo.add(ctx.get(locals[j]));
       ctx.tex.add(tex);
@@ -743,7 +765,7 @@ static void buildgridmesh(world::lvl1grid &b, vec3i org) {
   OGL(GenBuffers, 1, &b.ibo);
   ogl::bindbuffer(ogl::ARRAY_BUFFER, b.vbo);
   ogl::bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, b.ibo);
-  OGL(BufferData, GL_ARRAY_BUFFER, ctx.vbo.length()*sizeof(arrayf<5>), &ctx.vbo[0][0], GL_STATIC_DRAW);
+  OGL(BufferData, GL_ARRAY_BUFFER, ctx.vbo.length()*sizeof(arrayf<8>), &ctx.vbo[0][0], GL_STATIC_DRAW);
   OGL(BufferData, GL_ELEMENT_ARRAY_BUFFER, ctx.ibo.length()*sizeof(u16), &ctx.ibo[0], GL_STATIC_DRAW);
   bindbuffer(ogl::ARRAY_BUFFER, 0);
   bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, 0);
@@ -765,14 +787,20 @@ COMMAND(buildgrid, ARG_NONE);
 static void drawgrid(void) {
   using namespace world;
   ogl::bindtexture(GL_TEXTURE_2D, ogl::lookuptex(0));
+#if 0
   ogl::enableattribarrayv(ogl::POS0, ogl::TEX);
   ogl::disableattribarrayv(ogl::COL, ogl::POS1);
-  ogl::bindshader(ogl::DIFFUSETEX);
+#else
+  ogl::enableattribarrayv(ogl::POS0, ogl::TEX, ogl::COL);
+  ogl::disableattribarrayv(ogl::POS1);
+#endif
+  ogl::bindshader(ogl::DIFFUSETEX|ogl::COLOR_ONLY);
   forallbricks([&](const lvl1grid &b, const vec3i org) {
     ogl::bindbuffer(ogl::ARRAY_BUFFER, b.vbo);
     ogl::bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, b.ibo);
-    OGL(VertexAttribPointer, ogl::TEX, 2, GL_FLOAT, 0, sizeof(float[5]), (const void*) sizeof(float[3]));
-    OGL(VertexAttribPointer, ogl::POS0, 3, GL_FLOAT, 0, sizeof(float[5]), (const void*) 0);
+    OGL(VertexAttribPointer, ogl::COL, 3, GL_FLOAT, 0, sizeof(float[8]), (const void*) sizeof(float[5]));
+    OGL(VertexAttribPointer, ogl::TEX, 2, GL_FLOAT, 0, sizeof(float[8]), (const void*) sizeof(float[3]));
+    OGL(VertexAttribPointer, ogl::POS0, 3, GL_FLOAT, 0, sizeof(float[8]), (const void*) 0);
     u32 offset = 0;
     loopi(b.draws.length()) {
       const auto fake = (const void*)(uintptr_t(offset*sizeof(u16)));

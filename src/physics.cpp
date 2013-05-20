@@ -29,7 +29,7 @@ namespace physics {
     return true;
   }
 
-  // get bounding volume of the given _deformed_ cube
+  // get bounding volume of the given deformed cube
   INLINE aabb getaabb(vec3i xyz) {
     aabb box;
     loopi(8) {

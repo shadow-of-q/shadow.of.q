@@ -401,9 +401,9 @@ template <> struct gridpolicy<lvl1grid> {
 INLINE isecres intersect(const brickcube &cube, const vec3f &boxorg, const ray &ray, float t) {
   return isecres(cube.mat == FULL, t);
 }
-
+#if 1
 template <typename G>
-NOINLINE isecres intersect(const G *grid, const vec3f &boxorg, const ray &ray, float t) {
+INLINE isecres intersect(const G *grid, const vec3f &boxorg, const ray &ray, float t) {
   if (grid == NULL) return isecres(false);
   const bool update = gridpolicy<G>::updatetmin == 1;
   const vec3b signs = ray.dir > vec3f(zero);
@@ -449,6 +449,55 @@ NOINLINE isecres intersect(const G *grid, const vec3f &boxorg, const ray &ray, f
   }
   return isecres(false);
 }
+#else
+INLINE isecres intersect(const ray &ray, float t) {
+
+  const bool update = gridpolicy<G>::updatetmin == 1;
+  const vec3b signs = ray.dir > vec3f(zero);
+  const vec3i step = select(signs, vec3i(one), -vec3i(one));
+  const vec3i out = select(signs, grid->global(), -vec3i(one));
+  const vec3f delta = abs(ray.rdir);
+  const vec3f entry = ray.org+t*ray.dir;
+  vec3i xyz = vec3i(entry);
+  const vec3f floorentry = vec3f(xyz);
+  const vec3f exit = floorentry + select(signs, cellsize, vec3f(zero));
+  vec3f tmax = vec3f(t)+(exit-entry)*ray.rdir;
+  tmax = select(ray.dir==vec3f(zero),vec3f(FLT_MAX),tmax);
+  for (;;) {
+    const vec3f cellorg = gridpolicy<G>::cellorg(boxorg, xyz, cellsize);
+    const auto isec = intersect(grid->subgrid(xyz), cellorg, ray, t);
+    if (isec.isec) return isec;
+    if (tmax.x < tmax.y) {
+      if (tmax.x < tmax.z) {
+        xyz.x += step.x;
+        if (xyz.x == out.x) return isecres(false);
+        if (update) t = tmax.x;
+        tmax.x += delta.x;
+      } else {
+        xyz.z += step.z;
+        if (xyz.z == out.z) return isecres(false);
+        if (update) t = tmax.z;
+        tmax.z += delta.z;
+      }
+    } else {
+      if (tmax.y < tmax.z) {
+        xyz.y += step.y;
+        if (xyz.y == out.y) return isecres(false);
+        if (update) t = tmax.y;
+        tmax.y += delta.y;
+      } else {
+        xyz.z += step.z;
+        if (xyz.z == out.z) return isecres(false);
+        if (update) t = tmax.z;
+        tmax.z += delta.z;
+      }
+    }
+  }
+  return isecres(false);
+}
+
+
+#endif
 
 isecres castray(const ray &ray) {
   const vec3f cellsize(one), boxorg(zero);

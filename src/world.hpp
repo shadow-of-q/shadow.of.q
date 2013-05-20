@@ -55,19 +55,16 @@ static const brickcube emptycube;
   } while (0)
 
 template <int x> struct powerof2policy { enum {value = !!((x&(x-1))==0)}; };
-#define GRIDPOLICY(x,y,z) \
-  static_assert(powerof2policy<x>::value,"x must be power of 2");\
-  static_assert(powerof2policy<y>::value,"y must be power of 2");\
-  static_assert(powerof2policy<z>::value,"z must be power of 2");
 
 // actually contains the data (geometries)
-template <int x, int y, int z>
+template <int sz>
 struct brick : public noncopyable {
+  static_assert(powerof2policy<sz>::value,"grid dimensions must be power of 2");\
   INLINE brick(void) {
     vbo = ibo = 0u;
     dirty = 1u;
   }
-  static INLINE vec3i size(void) { return vec3i(x,y,z); }
+  static INLINE vec3i size(void) { return vec3i(sz); }
   static INLINE vec3i global(void) { return size(); }
   static INLINE vec3i local(void) { return size(); }
   static INLINE vec3i cuben(void) { return size(); }
@@ -91,23 +88,22 @@ struct brick : public noncopyable {
   template <typename F> INLINE void forallgrids(const F &f, vec3i org) {
     f(*this, org);
   }
-  brickcube elem[x][y][z];
-  GRIDPOLICY(x,y,z);
-  enum {cubenx=x, cubeny=y, cubenz=z};
+  brickcube elem[sz][sz][sz];
+  enum {cubenumber=sz};
   u32 vbo, ibo;
   vector<vec2i> draws; // (elemnum, texid)
   u32 dirty; // 1 if the ogl data need to be rebuilt
 };
 
 // recursive sparse grid
-template <typename T, int locx, int locy, int locz, int globx, int globy, int globz>
+template <typename T, int loc, int glob>
 struct grid : public noncopyable {
   typedef T childtype;
-  enum {cubenx=locx*T::cubenx, cubeny=locy*T::cubeny, cubenz=locz*T::cubenz};
+  enum {cubenumber=loc*T::cubenumber};
   INLINE grid(void) { memset(elem, 0, sizeof(elem)); }
-  static INLINE vec3i local(void) { return vec3i(locx,locy,locz); }
-  static INLINE vec3i global(void) { return vec3i(globx,globy,globz); }
-  static INLINE vec3i cuben(void) { return vec3i(cubenx, cubeny, cubenz); }
+  static INLINE vec3i local(void) { return vec3i(loc); }
+  static INLINE vec3i global(void) { return vec3i(glob); }
+  static INLINE vec3i cuben(void) { return vec3i(cubenumber); }
   static INLINE vec3i subcuben(void) { return T::cuben(); }
   INLINE vec3i index(vec3i p) const {
     return any(p<vec3i(zero))?local():p*local()/global();
@@ -142,42 +138,37 @@ struct grid : public noncopyable {
       e->forallgrids(f, org + xyz*global()/local()););
     f(*this,org);
   }
-  T *elem[locx][locy][locz]; // each element may be null when empty
+  T *elem[loc][loc][loc]; // each element may be null when empty
   u32 dirty:1; // true if anything changed in the child grids
-  GRIDPOLICY(locx,locy,locz);
-  GRIDPOLICY(globx,globy,globz);
+  static_assert(powerof2policy<loc>::value,"grid dimensions must be power of 2");\
+  static_assert(powerof2policy<glob>::value,"grid dimensions must be power of 2");\
 };
 #undef GRIDPOLICY
 
 // all levels of details for our world
-static const int lvl1x = 16, lvl1y = 16, lvl1z = 16;
-static const int lvl2x = 4,  lvl2y = 4,  lvl2z = 4;
-static const int lvl3x = 4,  lvl3y = 4,  lvl3z = 4;
-static const int lvlt1x = lvl1x, lvlt1y = lvl1y, lvlt1z = lvl1z;
-static const vec3i brickisize(lvl1x, lvl1y, lvl1z);
+static const int lvl1 = 16, lvl2 = 4, lvl3 = 4;
+static const int lvlt1 = lvl1;
+static const vec3i brickisize(lvl1);
 
 // compute the total number of cubes for each level
-#define LVL_TOT(N, M)\
-static const int lvlt##N##x = lvl##N##x * lvlt##M##x;\
-static const int lvlt##N##y = lvl##N##y * lvlt##M##y;\
-static const int lvlt##N##z = lvl##N##z * lvlt##M##z;
+#define LVL_TOT(N, M) static const int lvlt##N = lvl##N * lvlt##M;
 LVL_TOT(2,1)
 LVL_TOT(3,2)
 #undef LVL_TOT
 
 // define a type for one level of the hierarchy
 #define GRID(CHILD,N)\
-typedef grid<CHILD,lvl##N##x,lvl##N##y,lvl##N##z,lvlt##N##x,lvlt##N##y,lvlt##N##z> lvl##N##grid;
-typedef brick<lvl1x,lvl1y,lvl1z> lvl1grid;
+typedef grid<CHILD,lvl##N,lvlt##N> lvl##N##grid;
+typedef brick<lvl1> lvl1grid;
 GRID(lvl1grid,2)
 GRID(lvl2grid,3)
 #undef GRID
 
 // our world and its total dimension
 extern lvl3grid root;
-static const int sizex=lvlt3x, sizey=lvlt3y, sizez=lvlt3z;
-static const vec3i isize(sizex,sizey,sizez);
-static const vec3f fsize(sizex,sizey,sizez);
+static const int size=lvlt3;
+static const vec3i isize(size);
+static const vec3f fsize(size);
 
 template <typename F> static void forallgrids(const F &f) { root.forallgrids(f, zero); }
 template <typename F> static void forallbricks(const F &f) { root.forallbricks(f, zero); }

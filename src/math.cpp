@@ -6,16 +6,18 @@ template <typename T>
 mat3x3<T>::mat3x3(const vec3<T> &n) {
   vy = n;
   if (abs(n.x) >= abs(n.y)) {
-    const float inv = rcp(sqrt(n.x*n.x + n.z*n.z));
+    const auto inv = rcp(sqrt(n.x*n.x + n.z*n.z));
     vx = vec3<T>(-n.z*inv, zero, n.x*inv);
   } else {
-    const float inv = rcp(sqrt(n.y*n.y + n.z*n.z));
+    const auto inv = rcp(sqrt(n.y*n.y + n.z*n.z));
     vx = vec3<T>(zero, n.z*inv, -n.y*inv);
   }
   vx = normalize(vx);
   vy = normalize(vy);
   vz = cross(vy,vx);
 }
+template mat3x3<float>::mat3x3(const vec3f &n);
+template mat3x3<double>::mat3x3(const vec3d &n);
 
 template <typename T>
 mat4x4<T> mat4x4<T>::inverse(void) const {
