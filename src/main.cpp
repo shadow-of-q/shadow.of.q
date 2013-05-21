@@ -3,6 +3,12 @@
 #include <enet/enet.h>
 #include <time.h>
 
+#if defined(EMSCRIPTEN)
+#error "check _mm_getcsr"
+#else
+#include <xmmintrin.h>
+#endif // EMSCRIPTEN
+
 namespace cube {
 
 void cleanup(char *msg) { // single program exit point;
@@ -130,6 +136,9 @@ static int main(int argc, char **argv) {
   int fs = SDL_FULLSCREEN, par = 0, uprate = 0, maxcl = 4;
   const char *sdesc = "", *ip = "", *passwd = "";
   const char *master = NULL;
+
+  // flush to zero and no denormals
+  _mm_setcsr(_mm_getcsr() | (1<<15) | (1<<6));
 
   initendiancheck();
 

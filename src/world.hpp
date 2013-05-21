@@ -54,12 +54,22 @@ static const brickcube emptycube;
     body;\
   } while (0)
 
-template <int x> struct powerof2policy { enum {value = !!((x&(x-1))==0)}; };
+template <int x> struct powerof2policy {enum {value = !!((x&(x-1))==0)};};
+template<size_t x>
+struct log2 {
+  enum {value = log2<x/2>::value+1};
+  static_assert(powerof2policy<x>::value,"given value must be a power of 2");
+};
+template<> struct log2<1> {enum {value= 0};};
 
 // actually contains the data (geometries)
 template <int sz>
 struct brick : public noncopyable {
   static_assert(powerof2policy<sz>::value,"grid dimensions must be power of 2");\
+  enum {
+    cubenumber=sz,
+    subcubenumber=1
+  };
   INLINE brick(void) {
     vbo = ibo = 0u;
     dirty = 1u;
@@ -71,6 +81,7 @@ struct brick : public noncopyable {
   static INLINE vec3i subcuben(void) { return vec3i(one); }
   INLINE brickcube get(vec3i v) const { return elem[v.x][v.y][v.z]; }
   INLINE brickcube subgrid(vec3i v) const { return get(v); }
+  INLINE brickcube fastsubgrid(vec3i v) const { return subgrid(v); }
   INLINE void set(vec3i v, const brickcube &cube) {
     dirty=1;
     elem[v.x][v.y][v.z]=cube;
@@ -89,7 +100,6 @@ struct brick : public noncopyable {
     f(*this, org);
   }
   brickcube elem[sz][sz][sz];
-  enum {cubenumber=sz};
   u32 vbo, ibo;
   vector<vec2i> draws; // (elemnum, texid)
   u32 dirty; // 1 if the ogl data need to be rebuilt
@@ -99,7 +109,10 @@ struct brick : public noncopyable {
 template <typename T, int loc, int glob>
 struct grid : public noncopyable {
   typedef T childtype;
-  enum {cubenumber=loc*T::cubenumber};
+  enum {
+    cubenumber=loc*T::cubenumber,
+    subcubenumber=T::cubenumber
+  };
   INLINE grid(void) { memset(elem, 0, sizeof(elem)); }
   static INLINE vec3i local(void) { return vec3i(loc); }
   static INLINE vec3i global(void) { return vec3i(glob); }
@@ -112,6 +125,7 @@ struct grid : public noncopyable {
     if (any(idx>=local())) return NULL;
     return elem[idx.x][idx.y][idx.z];
   }
+  INLINE T *fastsubgrid(vec3i idx) const { return elem[idx.x][idx.y][idx.z]; }
   INLINE brickcube get(vec3i v) const {
     auto idx = index(v);
     auto e = subgrid(idx);

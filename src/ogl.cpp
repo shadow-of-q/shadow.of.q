@@ -7,7 +7,7 @@ namespace cube {
 // XXX just for now
 namespace world{
 extern int raycast;
-extern void castray(float fovy, float aspect, float farplane);
+extern void castrayprout(float fovy, float aspect, float farplane);
 }
 namespace rr { extern int curvert; }
 namespace ogl {
@@ -1087,7 +1087,7 @@ void drawframe(int w, int h, float curfps) {
 
   drawhudgun(fovy, aspect, farplane);
   if (world::raycast) {
-    world::castray(fovy, aspect, farplane);
+    world::castrayprout(fovy, aspect, farplane);
     world::raycast = 0;
   }
 

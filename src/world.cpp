@@ -2,6 +2,251 @@
 #include <SDL/SDL.h>
 #include <zlib.h>
 
+#if defined(EMSCRIPTEN)
+#error "check sse"
+#else
+#include <xmmintrin.h>
+#endif // EMSCRIPTEN
+
+#if 1
+namespace cube {
+#define op operator
+  static const __m128 _mm_lookupmask_ps[16] = {
+    _mm_castsi128_ps(_mm_set_epi32( 0, 0, 0, 0)),
+    _mm_castsi128_ps(_mm_set_epi32( 0, 0, 0,-1)),
+    _mm_castsi128_ps(_mm_set_epi32( 0, 0,-1, 0)),
+    _mm_castsi128_ps(_mm_set_epi32( 0, 0,-1,-1)),
+    _mm_castsi128_ps(_mm_set_epi32( 0,-1, 0, 0)),
+    _mm_castsi128_ps(_mm_set_epi32( 0,-1, 0,-1)),
+    _mm_castsi128_ps(_mm_set_epi32( 0,-1,-1, 0)),
+    _mm_castsi128_ps(_mm_set_epi32( 0,-1,-1,-1)),
+    _mm_castsi128_ps(_mm_set_epi32(-1, 0, 0, 0)),
+    _mm_castsi128_ps(_mm_set_epi32(-1, 0, 0,-1)),
+    _mm_castsi128_ps(_mm_set_epi32(-1, 0,-1, 0)),
+    _mm_castsi128_ps(_mm_set_epi32(-1, 0,-1,-1)),
+    _mm_castsi128_ps(_mm_set_epi32(-1,-1, 0, 0)),
+    _mm_castsi128_ps(_mm_set_epi32(-1,-1, 0,-1)),
+    _mm_castsi128_ps(_mm_set_epi32(-1,-1,-1, 0)),
+    _mm_castsi128_ps(_mm_set_epi32(-1,-1,-1,-1))
+  };
+  struct sseb {
+    union { __m128 m128; s32 v[4]; };
+    INLINE sseb(void) {}
+    INLINE sseb(const sseb& other) { m128 = other.m128; }
+    INLINE sseb& op= (const sseb& other) { m128 = other.m128; return *this; }
+    INLINE sseb(__m128  x) : m128(x) {}
+    INLINE sseb(__m128i x) : m128(_mm_castsi128_ps(x)) {}
+    INLINE sseb(__m128d x) : m128(_mm_castpd_ps(x)) {}
+    INLINE sseb(bool x)
+      : m128(x ? _mm_castsi128_ps(_mm_cmpeq_epi32(_mm_setzero_si128(), _mm_setzero_si128())) : _mm_setzero_ps()) {}
+    INLINE sseb(bool x0, bool x1, bool x2, bool x3)
+      : m128(_mm_lookupmask_ps[(size_t(x3) << 3) | (size_t(x2) << 2) | (size_t(x1) << 1) | size_t(x0)]) {}
+    INLINE op const __m128&(void) const { return m128; }
+    INLINE op const __m128i(void) const { return _mm_castps_si128(m128); }
+    INLINE op const __m128d(void) const { return _mm_castps_pd(m128); }
+    INLINE bool op[] (const size_t index) const { assert(index < 4); return (_mm_movemask_ps(m128) >> index) & 1; }
+    INLINE s32& op[] (const size_t index) { assert(index < 4); return this->v[index]; }
+  };
+
+  INLINE const sseb op !(const sseb& a) { return _mm_xor_ps(a, sseb(~0x0)); }
+  INLINE const sseb op &(const sseb& a, const sseb& b) { return _mm_and_ps(a, b); }
+  INLINE const sseb op |(const sseb& a, const sseb& b) { return _mm_or_ps (a, b); }
+  INLINE const sseb op ^(const sseb& a, const sseb& b) { return _mm_xor_ps(a, b); }
+  INLINE sseb op &=(sseb& a, const sseb& b) { return a = a & b; }
+  INLINE sseb op |=(sseb& a, const sseb& b) { return a = a | b; }
+  INLINE sseb op ^=(sseb& a, const sseb& b) { return a = a ^ b; }
+  INLINE const sseb op !=(const sseb& a, const sseb& b) { return _mm_xor_ps(a, b); }
+  INLINE const sseb op ==(const sseb& a, const sseb& b) { return _mm_cmpeq_epi32(a, b); }
+  INLINE bool reduce_and(const sseb& a) { return _mm_movemask_ps(a) == 0xf; }
+  INLINE bool reduce_or(const sseb& a) { return _mm_movemask_ps(a) != 0x0; }
+  INLINE bool all(const sseb& b) { return _mm_movemask_ps(b) == 0xf; }
+  INLINE bool any(const sseb& b) { return _mm_movemask_ps(b) != 0x0; }
+  INLINE bool none(const sseb& b) { return _mm_movemask_ps(b) == 0x0; }
+  INLINE size_t movemask(const sseb& a) { return _mm_movemask_ps(a); }
+  INLINE sseb unmovemask(size_t m)      { return _mm_lookupmask_ps[m]; }
+  template<size_t index_0, size_t index_1, size_t index_2, size_t index_3>
+  INLINE sseb shuffle(const sseb& a) {
+    return sseb(_mm_shuffle_epi32(_mm_castps_si128(a.m128), _MM_SHUFFLE(index_3, index_2, index_1, index_0)));
+  }
+
+  struct ssei {
+    union { __m128i m128; s32 v[4]; };
+    INLINE ssei() {}
+    INLINE ssei(const ssei& other) { m128 = other.m128; }
+    INLINE ssei& operator=(const ssei& other) { m128 = other.m128; return *this; }
+    INLINE ssei(const __m128i a) : m128(a) {}
+    INLINE explicit ssei(const __m128 a) : m128(_mm_cvtps_epi32(a)) {}
+    INLINE explicit ssei(const s32* const a) : m128(_mm_loadu_si128((__m128i*)a)) {}
+    INLINE ssei(const s32 a) : m128(_mm_set1_epi32(a)) {}
+    INLINE ssei(const s32 a, const s32 b, const s32 c, const s32 d) : m128(_mm_set_epi32(d, c, b, a)) {}
+    INLINE operator const __m128i&(void) const { return m128; }
+    INLINE operator __m128i&(void) { return m128; }
+    INLINE const s32& operator [](const size_t index) const { assert(index < 4); return v[index]; }
+    INLINE s32& operator [](const size_t index) { assert(index < 4); return v[index]; }
+  };
+
+  INLINE ssei op +(const ssei& a) { return a; }
+  INLINE ssei op -(const ssei& a) { return _mm_sub_epi32(_mm_setzero_si128(), a.m128); }
+  INLINE ssei truncate(const __m128 a)  { return _mm_cvttps_epi32(a); }
+  INLINE const ssei op+ (const ssei& a, const ssei& b) { return _mm_add_epi32(a.m128, b.m128); }
+  INLINE const ssei op- (const ssei& a, const ssei& b) { return _mm_sub_epi32(a.m128, b.m128); }
+  INLINE const ssei op& (const ssei& a, const ssei& b) { return _mm_and_si128(a.m128, b.m128); }
+  INLINE const ssei op| (const ssei& a, const ssei& b) { return _mm_or_si128(a.m128, b.m128); }
+  INLINE const ssei op^ (const ssei& a, const ssei& b) { return _mm_xor_si128(a.m128, b.m128); }
+  INLINE const ssei op<< (const ssei& a, const s32 bits) { return _mm_slli_epi32(a.m128, bits); }
+  INLINE const ssei op>> (const ssei& a, const s32 bits) { return _mm_srai_epi32(a.m128, bits); }
+  INLINE const ssei op& (const ssei& a, const s32 b) { return a & ssei(b); }
+  INLINE const ssei op| (const ssei& a, const s32 b) { return a | ssei(b); }
+  INLINE const ssei op^ (const ssei& a, const s32 b) { return a ^ ssei(b); }
+  INLINE ssei& op+= (ssei& a, const ssei& b) { return a = a  + b; }
+  INLINE ssei& op-= (ssei& a, const ssei& b) { return a = a  - b; }
+  INLINE ssei& op&= (ssei& a, const ssei& b) { return a = a  & b; }
+  INLINE ssei& op&= (ssei& a, const s32 b) { return a = a  & b; }
+  INLINE ssei& op<<= (ssei& a, const s32 b) { return a = a << b; }
+  INLINE ssei& op>>= (ssei& a, const s32 b) { return a = a >> b; }
+  INLINE const ssei sra(const ssei& a, const s32 b) { return _mm_srai_epi32(a.m128, b); }
+  INLINE const ssei srl(const ssei& a, const s32 b) { return _mm_srli_epi32(a.m128, b); }
+  INLINE const ssei rotl(const ssei& a, const s32 b) { return _mm_or_si128(_mm_srli_epi32(a.m128, 32 - b), _mm_slli_epi32(a.m128, b)); }
+  INLINE const ssei rotr(const ssei& a, const s32 b) { return _mm_or_si128(_mm_slli_epi32(a.m128, 32 - b), _mm_srli_epi32(a.m128, b)); }
+  INLINE const sseb op==(const ssei& a, const ssei& b) { return _mm_cmpeq_epi32 (a.m128, b.m128); }
+  INLINE const sseb op< (const ssei& a, const ssei& b) { return _mm_cmplt_epi32 (a.m128, b.m128); }
+  INLINE const sseb op> (const ssei& a, const ssei& b) { return _mm_cmpgt_epi32 (a.m128, b.m128); }
+  INLINE const sseb op!= (const ssei& a, const ssei& b) { return !(a == b); }
+  INLINE const sseb op>= (const ssei& a, const ssei& b) { return !(a <  b); }
+  INLINE const sseb op<= (const ssei& a, const ssei& b) { return !(a >  b); }
+  INLINE const sseb cmpa(const ssei& a, const ssei& b) { return _mm_cmpgt_epi32(_mm_xor_si128(a.m128, _mm_set1_epi32(0x80000000)), _mm_xor_si128(b.m128, _mm_set1_epi32(0x80000000))); }
+  INLINE const ssei select(const sseb& mask, const ssei& a, const ssei& b) { 
+    return _mm_castps_si128(_mm_or_ps(_mm_and_ps(mask, _mm_castsi128_ps(a)), _mm_andnot_ps(mask, _mm_castsi128_ps(b)))); 
+  }
+  template<size_t index_0, size_t index_1, size_t index_2, size_t index_3>
+  INLINE const ssei shuffle(const ssei& a) {
+    return _mm_shuffle_epi32(a, _MM_SHUFFLE(index_3, index_2, index_1, index_0));
+  }
+  template<size_t index> INLINE const ssei expand(const ssei& b) { return shuffle<index, index, index, index>(b); }
+  template<size_t src> INLINE int extract(const ssei& b) { return b[src]; }
+  INLINE ssei unpacklo(const ssei& a, const ssei& b) { return _mm_castps_si128(_mm_unpacklo_ps(_mm_castsi128_ps(a.m128), _mm_castsi128_ps(b.m128))); }
+  INLINE ssei unpackhi(const ssei& a, const ssei& b) { return _mm_castps_si128(_mm_unpackhi_ps(_mm_castsi128_ps(a.m128), _mm_castsi128_ps(b.m128))); }
+
+  struct ssef {
+    union { __m128 m128; float v[4]; };
+    INLINE ssef(void) {}
+    INLINE ssef(const ssef& other) { m128 = other.m128; }
+    INLINE ssef(__m128 a) : m128(a) {}
+    INLINE explicit ssef(__m128i a) : m128(_mm_cvtepi32_ps(a)) {}
+    INLINE explicit ssef(const float *a) : m128(_mm_loadu_ps(a)) {}
+    INLINE ssef(float a) : m128(_mm_set1_ps(a)) {}
+    INLINE ssef(float a, float b, float c, float d) : m128(_mm_set_ps(d, c, b, a)) {}
+    INLINE ssef& op=(const ssef& other) { m128 = other.m128; return *this; }
+    INLINE op const __m128&(void) const { return m128; }
+    INLINE op __m128&(void) { return m128; }
+    INLINE const float& op[] (size_t index) const { assert(index < 4); return this->v[index]; }
+    INLINE float& op[] (size_t index) { assert(index < 4); return this->v[index]; }
+    static INLINE ssef load(const float *a) { return _mm_load_ps(a); }
+    static INLINE ssef uload(const float *a) { return _mm_loadu_ps(a); }
+    static INLINE void store(const ssef &x, float *a) { return _mm_store_ps(a, x.m128); }
+    static INLINE void ustore(const ssef &x, float *a) { return _mm_storeu_ps(a, x.m128); }
+  };
+
+  INLINE const ssef op+ (const ssef& a) { return a; }
+  INLINE const ssef op- (const ssef& a) {
+    const __m128 mask = _mm_castsi128_ps(_mm_set1_epi32(0x80000000));
+    return _mm_xor_ps(a.m128, mask);
+  }
+  INLINE const ssef abs  (const ssef& a) {
+    const __m128 mask = _mm_castsi128_ps(_mm_set1_epi32(0x7fffffff));
+    return _mm_and_ps(a.m128, mask);
+  }
+  INLINE const ssef rcp  (const ssef& a) { return _mm_div_ps(ssef(1.f), a.m128); }
+  INLINE const ssef sqrt (const ssef& a) { return _mm_sqrt_ps(a.m128); }
+  INLINE const ssef sqr  (const ssef& a) { return _mm_mul_ps(a,a); }
+  INLINE const ssef rsqrt(const ssef& a) {
+    const ssef r = _mm_rsqrt_ps(a.m128);
+    return _mm_add_ps(_mm_mul_ps(_mm_set_ps(1.5f, 1.5f, 1.5f, 1.5f), r),
+                        _mm_mul_ps(_mm_mul_ps(
+                          _mm_mul_ps(a, _mm_set_ps(-0.5f, -0.5f, -0.5f, -0.5f)), r),
+                            _mm_mul_ps(r, r)));
+  }
+
+  INLINE ssef op+ (const ssef& a, const ssef& b) { return _mm_add_ps(a.m128, b.m128); }
+  INLINE ssef op- (const ssef& a, const ssef& b) { return _mm_sub_ps(a.m128, b.m128); }
+  INLINE ssef op* (const ssef& a, const ssef& b) { return _mm_mul_ps(a.m128, b.m128); }
+  INLINE ssef op/ (const ssef& a, const ssef& b) { return _mm_div_ps(a.m128, b.m128); }
+  INLINE ssef op+ (const ssef& a, float b) { return a + ssef(b); }
+  INLINE ssef op- (const ssef& a, float b) { return a - ssef(b); }
+  INLINE ssef op* (const ssef& a, float b) { return a * ssef(b); }
+  INLINE ssef op/ (const ssef& a, float b) { return a / ssef(b); }
+  INLINE ssef op+ (float a, const ssef& b) { return ssef(a) + b; }
+  INLINE ssef op- (float a, const ssef& b) { return ssef(a) - b; }
+  INLINE ssef op* (float a, const ssef& b) { return ssef(a) * b; }
+  INLINE ssef op/ (float a, const ssef& b) { return ssef(a) / b; }
+  INLINE ssef& op+= (ssef& a, const ssef& b) { return a = a + b; }
+  INLINE ssef& op-= (ssef& a, const ssef& b) { return a = a - b; }
+  INLINE ssef& op*= (ssef& a, const ssef& b) { return a = a * b; }
+  INLINE ssef& op/= (ssef& a, const ssef& b) { return a = a / b; }
+  INLINE ssef& op+= (ssef& a, float b) { return a = a + b; }
+  INLINE ssef& op-= (ssef& a, float b) { return a = a - b; }
+  INLINE ssef& op*= (ssef& a, float b) { return a = a * b; }
+  INLINE ssef& op/= (ssef& a, float b) { return a = a / b; }
+  INLINE ssef max(const ssef& a, const ssef& b) { return _mm_max_ps(a.m128,b.m128); }
+  INLINE ssef min(const ssef& a, const ssef& b) { return _mm_min_ps(a.m128,b.m128); }
+  INLINE ssef max(const ssef& a, float b) { return _mm_max_ps(a.m128,ssef(b)); }
+  INLINE ssef min(const ssef& a, float b) { return _mm_min_ps(a.m128,ssef(b)); }
+  INLINE ssef max(float a, const ssef& b) { return _mm_max_ps(ssef(a),b.m128); }
+  INLINE ssef min(float a, const ssef& b) { return _mm_min_ps(ssef(a),b.m128); }
+  INLINE ssef mulss(const ssef &a, const ssef &b) { return _mm_mul_ss(a,b); }
+  INLINE ssef divss(const ssef &a, const ssef &b) { return _mm_div_ss(a,b); }
+  INLINE ssef subss(const ssef &a, const ssef &b) { return _mm_sub_ss(a,b); }
+  INLINE ssef addss(const ssef &a, const ssef &b) { return _mm_add_ss(a,b); }
+  INLINE ssef mulss(const ssef &a, float b) { return _mm_mul_ss(a,ssef(b)); }
+  INLINE ssef divss(const ssef &a, float b) { return _mm_div_ss(a,ssef(b)); }
+  INLINE ssef subss(const ssef &a, float b) { return _mm_sub_ss(a,ssef(b)); }
+  INLINE ssef addss(const ssef &a, float b) { return _mm_add_ss(a,ssef(b)); }
+  INLINE ssef mulss(float a, const ssef &b) { return _mm_mul_ss(ssef(a),b); }
+  INLINE ssef divss(float a, const ssef &b) { return _mm_div_ss(ssef(a),b); }
+  INLINE ssef subss(float a, const ssef &b) { return _mm_sub_ss(ssef(a),b); }
+  INLINE ssef addss(float a, const ssef &b) { return _mm_add_ss(ssef(a),b); }
+  INLINE ssef op^ (const ssef& a, const ssei& b) { return _mm_castsi128_ps(_mm_xor_si128(_mm_castps_si128(a.m128),b.m128)); }
+  INLINE ssef op^ (const ssef& a, const ssef& b) { return _mm_xor_ps(a.m128,b.m128); }
+  INLINE ssef op& (const ssef& a, const ssef& b) { return _mm_and_ps(a.m128,b.m128); }
+  INLINE ssef op& (const ssef& a, const ssei& b) { return _mm_and_ps(a.m128,_mm_castsi128_ps(b.m128)); }
+  INLINE ssef op| (const ssef& a, const ssef& b) { return _mm_or_ps(a.m128,b.m128); }
+  INLINE ssef op| (const ssef& a, const ssei& b) { return _mm_or_ps(a.m128,_mm_castsi128_ps(b.m128)); }
+  INLINE sseb op== (const ssef& a, const ssef& b) { return _mm_cmpeq_ps (a.m128, b.m128); }
+  INLINE sseb op!= (const ssef& a, const ssef& b) { return _mm_cmpneq_ps(a.m128, b.m128); }
+  INLINE sseb op<  (const ssef& a, const ssef& b) { return _mm_cmplt_ps (a.m128, b.m128); }
+  INLINE sseb op<= (const ssef& a, const ssef& b) { return _mm_cmple_ps (a.m128, b.m128); }
+  INLINE sseb op>  (const ssef& a, const ssef& b) { return _mm_cmpnle_ps(a.m128, b.m128); }
+  INLINE sseb op>= (const ssef& a, const ssef& b) { return _mm_cmpnlt_ps(a.m128, b.m128); }
+  INLINE sseb op== (const ssef& a, float b) {return _mm_cmpeq_ps (a.m128, ssef(b));}
+  INLINE sseb op!= (const ssef& a, float b) {return _mm_cmpneq_ps(a.m128, ssef(b));}
+  INLINE sseb op<  (const ssef& a, float b) {return _mm_cmplt_ps (a.m128, ssef(b));}
+  INLINE sseb op<= (const ssef& a, float b) {return _mm_cmple_ps (a.m128, ssef(b));}
+  INLINE sseb op>  (const ssef& a, float b) {return _mm_cmpnle_ps(a.m128, ssef(b));}
+  INLINE sseb op>= (const ssef& a, float b) {return _mm_cmpnlt_ps(a.m128, ssef(b));}
+  INLINE sseb op== (float a, const ssef& b) {return _mm_cmpeq_ps (ssef(a), b.m128);}
+  INLINE sseb op!= (float a, const ssef& b) {return _mm_cmpneq_ps(ssef(a), b.m128);}
+  INLINE sseb op<  (float a, const ssef& b) {return _mm_cmplt_ps (ssef(a), b.m128);}
+  INLINE sseb op<= (float a, const ssef& b) {return _mm_cmple_ps (ssef(a), b.m128);}
+  INLINE sseb op>  (float a, const ssef& b) {return _mm_cmpnle_ps(ssef(a), b.m128);}
+  INLINE sseb op>= (float a, const ssef& b) {return _mm_cmpnlt_ps(ssef(a), b.m128);}
+  INLINE ssef select(const sseb& mask, const ssef& a, const ssef& b) { return _mm_or_ps(_mm_and_ps(mask, a), _mm_andnot_ps(mask, b)); }
+  template<size_t i0, size_t i1, size_t i2, size_t i3>
+  INLINE const ssef shuffle(const ssef& b) {
+    return _mm_castsi128_ps(_mm_shuffle_epi32(_mm_castps_si128(b), _MM_SHUFFLE(i3, i2, i1, i0)));
+  }
+  template<size_t i> INLINE
+  ssef expand(const ssef& b) { return shuffle<i, i, i, i>(b); }
+  template<size_t i0, size_t i1, size_t i2, size_t i3>
+  INLINE ssef shuffle(const ssef& a, const ssef& b) {
+    return _mm_shuffle_ps(a, b, _MM_SHUFFLE(i3, i2, i1, i0));
+  }
+  INLINE ssef reduce_min(const ssef& v) { ssef h = min(shuffle<1,0,3,2>(v),v); return min(shuffle<2,3,0,1>(h),h); }
+  INLINE ssef reduce_max(const ssef& v) { ssef h = max(shuffle<1,0,3,2>(v),v); return max(shuffle<2,3,0,1>(h),h); }
+  INLINE ssef reduce_add(const ssef& v) { ssef h = shuffle<1,0,3,2>(v) + v; return shuffle<2,3,0,1>(h) + h; }
+#undef operator
+} // namespace cube
+#endif
+
 namespace cube {
 namespace world {
 
@@ -386,30 +631,26 @@ static void writebmp(const int *data, int width, int height, const char *filenam
 VAR(raycast, 0, 0, 1);
 
 template <typename T> struct gridpolicy {
-  enum { updatetmin = 1 };
   static INLINE vec3f cellorg(vec3f boxorg, vec3i xyz, vec3f cellsize) {
     return boxorg+vec3f(xyz)*cellsize;
   }
 };
 template <> struct gridpolicy<lvl1grid> {
-  enum { updatetmin = 1 };
   static INLINE vec3f cellorg(vec3f boxorg, vec3i xyz, vec3f cellsize) {
     return vec3f(zero);
   }
 };
-
-INLINE isecres intersect(const brickcube &cube, const vec3f &boxorg, const ray &ray, float t) {
-  return isecres(cube.mat == FULL, t);
+INLINE isecres intersect(const brickcube &cube, const vec3f&, const ray&, float t) {
+  return isecres(cube.mat==FULL, t);
 }
-#if 1
+
 template <typename G>
 INLINE isecres intersect(const G *grid, const vec3f &boxorg, const ray &ray, float t) {
   if (grid == NULL) return isecres(false);
-  const bool update = gridpolicy<G>::updatetmin == 1;
   const vec3b signs = ray.dir > vec3f(zero);
   const vec3f cellsize = grid->subcuben();
   const vec3i step = select(signs, vec3i(one), -vec3i(one));
-  const vec3i out = select(signs, grid->global(), -vec3i(one));
+  const vec3i out = select(signs, grid->local(), -vec3i(one));
   const vec3f delta = abs(ray.rdir*cellsize);
   const vec3f entry = ray.org+t*ray.dir;
   vec3i xyz = min(vec3i((entry-boxorg)/cellsize), grid->local()-vec3i(one));
@@ -417,87 +658,39 @@ INLINE isecres intersect(const G *grid, const vec3f &boxorg, const ray &ray, flo
   const vec3f exit = floorentry + select(signs, cellsize, vec3f(zero));
   vec3f tmax = vec3f(t)+(exit-entry)*ray.rdir;
   tmax = select(ray.dir==vec3f(zero),vec3f(FLT_MAX),tmax);
+
   for (;;) {
     const vec3f cellorg = gridpolicy<G>::cellorg(boxorg, xyz, cellsize);
-    const auto isec = intersect(grid->subgrid(xyz), cellorg, ray, t);
+    const auto isec = intersect(grid->fastsubgrid(xyz), cellorg, ray, t);
     if (isec.isec) return isec;
     if (tmax.x < tmax.y) {
       if (tmax.x < tmax.z) {
         xyz.x += step.x;
         if (xyz.x == out.x) return isecres(false);
-        if (update) t = tmax.x;
+        t = tmax.x;
         tmax.x += delta.x;
       } else {
         xyz.z += step.z;
         if (xyz.z == out.z) return isecres(false);
-        if (update) t = tmax.z;
+        t = tmax.z;
         tmax.z += delta.z;
       }
     } else {
       if (tmax.y < tmax.z) {
         xyz.y += step.y;
         if (xyz.y == out.y) return isecres(false);
-        if (update) t = tmax.y;
+        t = tmax.y;
         tmax.y += delta.y;
       } else {
         xyz.z += step.z;
         if (xyz.z == out.z) return isecres(false);
-        if (update) t = tmax.z;
+        t = tmax.z;
         tmax.z += delta.z;
       }
     }
   }
   return isecres(false);
 }
-#else
-INLINE isecres intersect(const ray &ray, float t) {
-
-  const bool update = gridpolicy<G>::updatetmin == 1;
-  const vec3b signs = ray.dir > vec3f(zero);
-  const vec3i step = select(signs, vec3i(one), -vec3i(one));
-  const vec3i out = select(signs, grid->global(), -vec3i(one));
-  const vec3f delta = abs(ray.rdir);
-  const vec3f entry = ray.org+t*ray.dir;
-  vec3i xyz = vec3i(entry);
-  const vec3f floorentry = vec3f(xyz);
-  const vec3f exit = floorentry + select(signs, cellsize, vec3f(zero));
-  vec3f tmax = vec3f(t)+(exit-entry)*ray.rdir;
-  tmax = select(ray.dir==vec3f(zero),vec3f(FLT_MAX),tmax);
-  for (;;) {
-    const vec3f cellorg = gridpolicy<G>::cellorg(boxorg, xyz, cellsize);
-    const auto isec = intersect(grid->subgrid(xyz), cellorg, ray, t);
-    if (isec.isec) return isec;
-    if (tmax.x < tmax.y) {
-      if (tmax.x < tmax.z) {
-        xyz.x += step.x;
-        if (xyz.x == out.x) return isecres(false);
-        if (update) t = tmax.x;
-        tmax.x += delta.x;
-      } else {
-        xyz.z += step.z;
-        if (xyz.z == out.z) return isecres(false);
-        if (update) t = tmax.z;
-        tmax.z += delta.z;
-      }
-    } else {
-      if (tmax.y < tmax.z) {
-        xyz.y += step.y;
-        if (xyz.y == out.y) return isecres(false);
-        if (update) t = tmax.y;
-        tmax.y += delta.y;
-      } else {
-        xyz.z += step.z;
-        if (xyz.z == out.z) return isecres(false);
-        if (update) t = tmax.z;
-        tmax.z += delta.z;
-      }
-    }
-  }
-  return isecres(false);
-}
-
-
-#endif
 
 isecres castray(const ray &ray) {
   const vec3f cellsize(one), boxorg(zero);
@@ -507,7 +700,7 @@ isecres castray(const ray &ray) {
   return intersect(&root, box.pmin, ray, res.t);
 }
 
-void castray(float fovy, float aspect, float farplane) {
+void castrayprout(float fovy, float aspect, float farplane) {
   using namespace game;
   const int w = 1024, h = 768;
   int *pixels = (int*)malloc(w*h*sizeof(int));
@@ -533,7 +726,6 @@ void castray(float fovy, float aspect, float farplane) {
         pixels[offset] = d|(d<<8)|(d<<16)|(0xff<<24);
       } else
         pixels[offset] = 0;
-
     }
   }
   const int ms = SDL_GetTicks()-start;
@@ -541,7 +733,6 @@ void castray(float fovy, float aspect, float farplane) {
   writebmp(pixels, w, h, "hop.bmp");
   free(pixels);
 }
-
 } // namespace world
 } // namespace cube
 
