@@ -75,7 +75,7 @@ namespace cube {
     INLINE ssei(const ssei& other) { m128 = other.m128; }
     INLINE ssei& operator=(const ssei& other) { m128 = other.m128; return *this; }
     INLINE ssei(const __m128i a) : m128(a) {}
-    INLINE explicit ssei(const __m128 a) : m128(_mm_cvtps_epi32(a)) {}
+    INLINE explicit ssei(const __m128 a) : m128(_mm_cvttps_epi32(a)) {}
     INLINE explicit ssei(const s32* const a) : m128(_mm_loadu_si128((__m128i*)a)) {}
     INLINE ssei(const s32 a) : m128(_mm_set1_epi32(a)) {}
     INLINE ssei(const s32 a, const s32 b, const s32 c, const s32 d) : m128(_mm_set_epi32(d, c, b, a)) {}
@@ -118,6 +118,7 @@ namespace cube {
   INLINE const ssei select(const sseb& mask, const ssei& a, const ssei& b) { 
     return _mm_castps_si128(_mm_or_ps(_mm_and_ps(mask, _mm_castsi128_ps(a)), _mm_andnot_ps(mask, _mm_castsi128_ps(b)))); 
   }
+  INLINE const ssei min(ssei a, ssei b) { return select(a<b,a,b); }
   template<size_t index_0, size_t index_1, size_t index_2, size_t index_3>
   INLINE const ssei shuffle(const ssei& a) {
     return _mm_shuffle_epi32(a, _MM_SHUFFLE(index_3, index_2, index_1, index_0));
@@ -629,7 +630,7 @@ static void writebmp(const int *data, int width, int height, const char *filenam
 }
 
 VAR(raycast, 0, 0, 1);
-
+#if 1
 template <typename T> struct gridpolicy {
   static INLINE vec3f cellorg(vec3f boxorg, vec3i xyz, vec3f cellsize) {
     return boxorg+vec3f(xyz)*cellsize;
@@ -733,6 +734,171 @@ void castrayprout(float fovy, float aspect, float farplane) {
   writebmp(pixels, w, h, "hop.bmp");
   free(pixels);
 }
+#else
+template <typename T> struct gridpolicy {
+  static INLINE ssef cellorg(const ssef &boxorg, const ssei &xyz, const ssef &cellsize) {
+    return boxorg+ssef(xyz)*cellsize;
+  }
+};
+template <> struct gridpolicy<lvl1grid> {
+  static INLINE ssef cellorg(const ssef &boxorg, const ssei &xyz, const ssef &cellsize) {
+    return ssef(zero);
+  }
+};
+INLINE isecres intersect(const brickcube &cube, const ssef &boxorg, const ssef &org, const ssef &dir, const ssef &rdir, float t) {
+  return isecres(cube.mat==FULL, t);
+}
+
+template <typename G>
+INLINE isecres intersect(const G *grid, const ssef &boxorg, const ssef &org, const ssef &dir, const ssef &rdir, float t) {
+  if (grid == NULL) return isecres(false);
+  const sseb signs = dir > ssef(zero);
+  const ssef cellsz = ssef(float(G::subcubenumber));
+  const ssef rcellsz(rcp(float(G::subcubenumber)));
+  const ssei sstep = select(signs, ssei(one), ssei(-1));
+  const ssei sout = select(signs, ssei(G::l), ssei(-1));
+  const ssef sdelta = abs(rdir*cellsz);
+  const ssef entry = org+t*dir;
+  const ssef scale = (entry-boxorg)*rcellsz;
+  ssei sxyz = min(ssei(scale), ssei(-1+G::l));
+  const ssef floorentry = ssef(sxyz)*cellsz+boxorg;
+  const ssef exit = floorentry + select(signs, cellsz, ssef(zero));
+  ssef stmax = ssef(t)+(exit-entry)*rdir;
+  stmax = select(dir==ssef(zero),ssef(FLT_MAX),stmax);
+  stmax[3]=FLT_MAX;
+#if 0
+  vec3f delta(sdelta[0], sdelta[1], sdelta[2]);
+  vec3f tmax(stmax[0], stmax[1], stmax[2]);
+  vec3i xyz(sxyz[0], sxyz[1], sxyz[2]);
+  vec3i step(sstep[0], sstep[1], sstep[2]);
+  vec3i out(sout[0], sout[1], sout[2]);
+
+  for (;;) {
+    const ssef cellorg = gridpolicy<G>::cellorg(boxorg, ssei(&xyz.x), cellsz);
+    const auto isec = intersect(grid->fastsubgrid(xyz), cellorg, org, dir, rdir, t);
+    if (isec.isec) return isec;
+    if (tmax.x < tmax.y) {
+      if (tmax.x < tmax.z) {
+        xyz.x += step.x;
+        if (xyz.x == out.x) return isecres(false);
+        t = tmax.x;
+        tmax.x += delta.x;
+      } else {
+        xyz.z += step.z;
+        if (xyz.z == out.z) return isecres(false);
+        t = tmax.z;
+        tmax.z += delta.z;
+      }
+    } else {
+      if (tmax.y < tmax.z) {
+        xyz.y += step.y;
+        if (xyz.y == out.y) return isecres(false);
+        t = tmax.y;
+        tmax.y += delta.y;
+      } else {
+        xyz.z += step.z;
+        if (xyz.z == out.z) return isecres(false);
+        t = tmax.z;
+        tmax.z += delta.z;
+      }
+    }
+  }
+  return isecres(false);
+#else
+  for (;;) {
+    const ssef cellorg = gridpolicy<G>::cellorg(boxorg, sxyz, cellsz);
+    vec3i xyz(sxyz[0],sxyz[1],sxyz[2]);
+    const auto isec = intersect(grid->fastsubgrid(xyz), cellorg, org, dir, rdir, t);
+    if (isec.isec) return isec;
+    const ssef tmin = reduce_min(stmax);
+    const sseb m = tmin==stmax;
+    sxyz = select(m,sxyz+sstep,sxyz);
+    if (any(sxyz==sout)) return isecres(false);
+    t = tmin[0];
+    stmax = select(m, stmax+sdelta, stmax);
+#if 0
+    if (tmax.x < tmax.y) {
+      if (tmax.x < tmax.z) {
+        xyz.x += step.x;
+        if (xyz.x == out.x) return isecres(false);
+        t = tmax.x;
+        tmax.x += delta.x;
+      } else {
+        xyz.z += step.z;
+        if (xyz.z == out.z) return isecres(false);
+        t = tmax.z;
+        tmax.z += delta.z;
+      }
+    } else {
+      if (tmax.y < tmax.z) {
+        xyz.y += step.y;
+        if (xyz.y == out.y) return isecres(false);
+        t = tmax.y;
+        tmax.y += delta.y;
+      } else {
+        xyz.z += step.z;
+        if (xyz.z == out.z) return isecres(false);
+        t = tmax.z;
+        tmax.z += delta.z;
+      }
+    }
+#endif
+  }
+  return isecres(false);
+
+#endif
+}
+
+isecres castray(const ray &ray) {
+  const vec3f cellsize(one), boxorg(zero);
+  ALIGNED(16) const aabb box(boxorg, cellsize*vec3f(root.global()));
+  const isecres res = slab(box, ray.org, ray.rdir, ray.tfar);
+  if (!res.isec) return res;
+  const ssef org(&ray.org.x);
+  const ssef dir(&ray.dir.x);
+  const ssef rdir(&ray.rdir.x);
+  return intersect(&root, ssef(&box.pmin.x), org, dir, rdir, res.t);
+}
+
+void castrayprout(float fovy, float aspect, float farplane) {
+  using namespace game;
+  const int w = 1024, h = 768;
+  int *pixels = (int*)malloc(w*h*sizeof(int));
+  const mat3x3f r = mat3x3f::rotate(vec3f(0.f,0.f,1.f),game::player1->yaw)*
+                    mat3x3f::rotate(vec3f(0.f,1.f,0.f),game::player1->roll)*
+                    mat3x3f::rotate(vec3f(-1.f,0.f,0.f),game::player1->pitch);
+  const camera cam(game::player1->o, -r.vz, -r.vy, fovy, aspect);
+  const vec3f cellsize(one), boxorg(zero);
+  ALIGNED(16) const aabb box(boxorg, cellsize*vec3f(root.global()));
+  const int start = SDL_GetTicks();
+  for (int y = 0; y < h; ++y) {
+    for (int x = 0; x < w; ++x) {
+      const int offset = x+w*y;
+      const ray ray = cam.generate(w, h, x, y);
+      const isecres res = slab(box, ray.org, ray.rdir, ray.tfar);
+      if (!res.isec) {
+        pixels[offset] = 0;
+        continue;
+      }
+      const ssef org(&ray.org.x);
+      const ssef dir(&ray.dir.x);
+      const ssef rdir(&ray.rdir.x);
+      const ssef boxorg(&box.pmin.x);
+      const auto isec = intersect(&root, boxorg, org, dir, rdir, res.t);
+      if (isec.isec) {
+        const int d = min(int(isec.t), 255);
+        pixels[offset] = d|(d<<8)|(d<<16)|(0xff<<24);
+      } else
+        pixels[offset] = 0;
+    }
+  }
+  const int ms = SDL_GetTicks()-start;
+  printf("\n%i ms, %f ray/s\n", ms, 1000.f*(w*h)/ms);
+  writebmp(pixels, w, h, "hop.bmp");
+  free(pixels);
+}
+
+#endif
 } // namespace world
 } // namespace cube
 

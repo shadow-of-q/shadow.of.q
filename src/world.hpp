@@ -68,7 +68,8 @@ struct brick : public noncopyable {
   static_assert(powerof2policy<sz>::value,"grid dimensions must be power of 2");\
   enum {
     cubenumber=sz,
-    subcubenumber=1
+    subcubenumber=1,
+    l=sz
   };
   INLINE brick(void) {
     vbo = ibo = 0u;
@@ -111,7 +112,8 @@ struct grid : public noncopyable {
   typedef T childtype;
   enum {
     cubenumber=loc*T::cubenumber,
-    subcubenumber=T::cubenumber
+    subcubenumber=T::cubenumber,
+    l=loc
   };
   INLINE grid(void) { memset(elem, 0, sizeof(elem)); }
   static INLINE vec3i local(void) { return vec3i(loc); }
@@ -125,7 +127,10 @@ struct grid : public noncopyable {
     if (any(idx>=local())) return NULL;
     return elem[idx.x][idx.y][idx.z];
   }
-  INLINE T *fastsubgrid(vec3i idx) const { return elem[idx.x][idx.y][idx.z]; }
+  INLINE T *fastsubgrid(vec3i idx) const {
+    assert(all(idx<local()) && all(idx>=vec3i(zero)));
+    return elem[idx.x][idx.y][idx.z];
+  }
   INLINE brickcube get(vec3i v) const {
     auto idx = index(v);
     auto e = subgrid(idx);
