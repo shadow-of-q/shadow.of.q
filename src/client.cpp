@@ -161,7 +161,7 @@ void addmsg(int rel, int num, int type, ...) {
     fatal(s);
   }
   if (messages.length()==128) {
-    console::out("command flood protection (type %d)", type);
+    //console::out("command flood protection (type %d)", type);
     return;
   }
   ivector &msg = messages.add();

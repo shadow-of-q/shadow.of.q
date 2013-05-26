@@ -384,9 +384,9 @@ static void symmetry(bool isdown) {
     auto c0 = world::getcube(idx0), c1 = world::getcube(idx1);
     const auto p = c1.p;
     c1.p = c0.p;
-    c1.p[symmetryaxis] = -1 - c0.p[symmetryaxis];
     c0.p = p;
-    c0.p[symmetryaxis] = -1 - p[symmetryaxis];
+    c1.p[symmetryaxis] = -1-c1.p[symmetryaxis];
+    c0.p[symmetryaxis] = -1-c0.p[symmetryaxis];
     set(idx0, c0);
     set(idx1, c1);
   };
@@ -394,14 +394,16 @@ static void symmetry(bool isdown) {
     auto idx0 = xyz, idx1 = xyz;
     idx1[symmetryaxis] = M[symmetryaxis]-xyz[symmetryaxis]+m[symmetryaxis];
     auto c0 = world::getcube(idx0), c1 = world::getcube(idx1);
+    const auto p0 = c0.p, p1 = c1.p;
+    c0.p = p1; c1.p = p0; // do not swap positions back
     set(idx0, c1);
     set(idx1, c0);
   };
   auto end = M+vec3i(one);
   end[symmetryaxis] = (M[symmetryaxis]+m[symmetryaxis])/2+1;
   loopxyz(m,end,doswapmat(xyz));
-  ++end[(symmetryaxis+1)%3];
-  ++end[(symmetryaxis+2)%3];
+  end = M+vec3i(2);
+  end[symmetryaxis] = (M[symmetryaxis]+m[symmetryaxis]+1)/2+1;
   loopxyz(m,end,doswappos(xyz));
   symmetrydir = (symmetrydir+1)%6;
 }

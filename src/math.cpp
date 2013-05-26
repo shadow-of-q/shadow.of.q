@@ -76,6 +76,11 @@ const vec3i cubetris[12] = {
   vec3i(0,4,5), vec3i(0,5,1), vec3i(2,6,7), vec3i(2,7,3), // -y,+y triangles
   vec3i(3,7,4), vec3i(3,4,0), vec3i(1,5,6), vec3i(1,6,2)  // -z,+z triangles
 };
+const vec3i cubetrisalternate[12] = {
+  vec3i(0,1,3), vec3i(1,2,3), vec3i(4,7,5), vec3i(7,6,5), // -x,+x triangles
+  vec3i(0,4,1), vec3i(4,5,1), vec3i(2,6,3), vec3i(6,7,3), // -y,+y triangles
+  vec3i(3,7,0), vec3i(7,4,0), vec3i(1,5,2), vec3i(1,6,5)  // -z,+z triangles
+};
 const vec3i cubenorms[6] = {
   vec3i(-1,0,0), vec3i(+1,0,0),
   vec3i(0,-1,0), vec3i(0,+1,0),

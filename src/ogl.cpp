@@ -626,7 +626,23 @@ static void buildshader(shader &shader, const char *vertsrc, const char *fragsrc
 static void buildubershader(shader &shader, uint rules) {
   buildshader(shader, ubervert, uberfrag, rules);
 }
-
+#if 0
+/*--------------------------------------------------------------------------
+ - lightmapper
+ -------------------------------------------------------------------------*/
+struct lightmapper {
+  lightmapper(const world::lvl1grid &b) : b(b) {}
+  void clear(int orientation) {
+    face = orientation;
+    MEMSET(indices, 0xff);
+  }
+  INLINE u16 get(vec3i p) const { return indices[p.x][p.y][p.z]; }
+  INLINE void set(vec3i p, u16 idx) { indices[p.x][p.y][p.z] = idx; }
+  const world::lvl1grid &b;
+  u16 indices[world::lvl1][world::lvl1][world::lvl1];
+  s32 face;
+};
+#endif
 
 /*--------------------------------------------------------------------------
  - world mesh handling (very simple for now)
@@ -647,25 +663,43 @@ struct brickmeshctx {
   s32 face;
 };
 
-static const vec3f ldir = normalize(vec3f(0.5f,0.2f,0.5f));
+VAR(ldirx,-100,0,100);
+VAR(ldiry,-100,50,100);
+VAR(ldirz,-100,100,100);
 
+static vec3f ldir;
+VAR(sampling, 0,0,1);
 INLINE vec3f computecolor(vec3f pos, int face) {
-#if 0
+#if 1
   const auto n = 0.01f*vec3f(cubenorms[face]);
   const mat3x3f m(n);
   float l = 0.f;
-  loopi(2) loopj(2) {
-    const vec3f u = (i*0.5f-0.5f)*m.vx;
-    const vec3f v = (j*0.5f-0.5f)*m.vz;
+  loopi(8) loopj(8) {
+    const float rd = 0.5f*sqrt(float(i)*0.125f);
+    const float theta = 2*PI*float(j)*0.125f;
+    vec3f u,v;
+    if (sampling) {
+      u = rd*cos(theta)*m.vx;
+      v = rd*sin(theta)*m.vz;
+    } else {
+      u = (i*0.125f-0.5f)*m.vx;
+      v = (j*0.125f-0.5f)*m.vz;
+    }
+    //const vec3f u = (i*0.125f-0.5f)*m.vx;
+    //const vec3f v = (j*0.125f-0.5f)*m.vz;
     const ray r(pos+n+u+v, ldir);
     const auto res = world::castray(r);
-    l += res.isec ? 0.5f : 1.f;
+    l += (res.isec ? 0.0f : 1.f) *max(dot(ldir,normalize(n)),0.f);
   }
-  return vec3f(l) / 4.f;
+  return vec3f(l) / 64.f;
 #endif
-  return vec3f(one);
 }
 
+const vec3i cubetrisalternate[12] = {
+  vec3i(0,1,3), vec3i(1,2,3), vec3i(4,7,5), vec3i(7,6,5), // -x,+x triangles
+  vec3i(0,4,1), vec3i(4,5,1), vec3i(2,6,3), vec3i(6,7,3), // -y,+y triangles
+  vec3i(3,7,0), vec3i(7,4,0), vec3i(1,5,2), vec3i(5,6,2)  // -z,+z triangles
+};
 INLINE void buildfaces(brickmeshctx &ctx, vec3i xyz, vec3i idx) {
   const int chan = ctx.face/2; // basically: x (0), y (1) or z (2)
   if (world::getcube(xyz).mat == world::EMPTY) // nothing here
@@ -674,8 +708,13 @@ INLINE void buildfaces(brickmeshctx &ctx, vec3i xyz, vec3i idx) {
     return;
 
   // build both triangles. we reuse already output vertices
+  const vec2i diag = (chan==0?xyz.yz():(chan==1?xyz.xz():xyz.xy()));
+  const s32 alt = (diag.x&1)^(diag.y&1);
   const int idx0 = 2*ctx.face+0, idx1 = 2*ctx.face+1;
-  const vec3i tris[] = {cubetris[idx0], cubetris[idx1]};
+  const vec3i tris[] = {
+    alt ? cubetrisalternate[idx0] : cubetris[idx0],
+    alt ? cubetrisalternate[idx1] : cubetris[idx1]
+  };
   const auto tex = world::getcube(xyz).tex[ctx.face];
   loopi(2) { // build both triangles
     vec3f v[3]={zero,zero,zero}; // delay vertex creation for degenerated tris
@@ -693,7 +732,7 @@ INLINE void buildfaces(brickmeshctx &ctx, vec3i xyz, vec3i idx) {
         id = ctx.vbo.length();
         v[j] = pos.xzy();
         t[j] = tex;
-        c[j] = computecolor(pos, ctx.face);
+        c[j] = computecolor(vec3f(global), ctx.face);
         isnew[j] = true;
       } else
         v[j] = vec3f(ctx.vbo[id][0],ctx.vbo[id][1],ctx.vbo[id][2]);
@@ -703,10 +742,9 @@ INLINE void buildfaces(brickmeshctx &ctx, vec3i xyz, vec3i idx) {
         distance(v[1], v[2]) < mindist ||
         distance(v[2], v[0]) < mindist)
       continue;
-    else loopj(3) {
+    loopj(3) {
       if (isnew[j]) {
         ctx.set(locals[j], ctx.vbo.length());
-        //ctx.vbo.add(arrayf<5>(v[j],t[j]));
         ctx.vbo.add(arrayf<8>(v[j],t[j],c[j]));
       }
       ctx.ibo.add(ctx.get(locals[j]));
@@ -743,8 +781,9 @@ static void radixsortibo(brickmeshctx &ctx) {
   }
 }
 
+VAR(forcebuild, 0, 0, 1);
 static void buildgridmesh(world::lvl1grid &b, vec3i org) {
-  if (b.dirty==0) return;
+  if (b.dirty==0 && !forcebuild) return;
   b.dirty = 0;
   brickmeshctx ctx(b);
   loopi(6) {
@@ -781,7 +820,9 @@ static void buildgridmesh(world::lvl1grid &b, vec3i org) {
   b.draws.add(vec2i(n,tex));
 }
 
-void buildgrid(void) { forallbricks(buildgridmesh); }
+void buildgrid(void) {
+  ldir = normalize(vec3f(float(ldirx), float(ldiry), float(ldirz)));
+  forallbricks(buildgridmesh); forcebuild = 0;}
 COMMAND(buildgrid, ARG_NONE);
 
 static void drawgrid(void) {
@@ -795,6 +836,7 @@ static void drawgrid(void) {
   ogl::disableattribarrayv(ogl::POS1);
 #endif
   ogl::bindshader(ogl::DIFFUSETEX|ogl::COLOR_ONLY);
+  //ogl::bindshader(ogl::COLOR_ONLY);
   forallbricks([&](const lvl1grid &b, const vec3i org) {
     ogl::bindbuffer(ogl::ARRAY_BUFFER, b.vbo);
     ogl::bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, b.ibo);
@@ -1039,6 +1081,8 @@ static void dofog(bool underwater) {
   }
 }
 
+VAR(linefill,0,0,1);
+
 void drawframe(int w, int h, float curfps) {
   const float hf = world::waterlevel()-0.3f;
   const bool underwater = game::player1->o.z<hf;
@@ -1082,6 +1126,7 @@ void drawframe(int w, int h, float curfps) {
   rr::renderspheres(game::curtime());
   rr::renderents();
   enablev(GL_CULL_FACE);
+  IF_NOT_EMSCRIPTEN(OGL(PolygonMode, GL_FRONT_AND_BACK, linefill?GL_LINE:GL_FILL));
   drawgrid();
   disablev(GL_CULL_FACE);
 
