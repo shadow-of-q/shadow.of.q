@@ -178,7 +178,7 @@ void immdraw(int mode, int pos, int tex, int col, size_t n, const float *data) {
 }
 
 /*-------------------------------------------------------------------------
- - matrix handling. very inspired by opengl :-)
+ - matrix handling. _very_ inspired by opengl
  -------------------------------------------------------------------------*/
 enum {MATRIX_STACK = 4};
 static mat4x4f vp[MATRIX_MODE] = {one, one};
@@ -643,7 +643,6 @@ VAR(forcebuild, 0, 0, 1);
 static vec3f ldir;
 VAR(sampling, 0,0,1);
 static vec3f computecolor(vec3f pos, int face) {
-#if 1
   const auto n = 0.01f*vec3f(cubenorms[face]);
   const mat3x3f m(n);
   float l = 0.f;
@@ -658,14 +657,16 @@ static vec3f computecolor(vec3f pos, int face) {
       u = (i*0.125f-0.5f)*m.vx;
       v = (j*0.125f-0.5f)*m.vz;
     }
-    //const vec3f u = (i*0.125f-0.5f)*m.vx;
-    //const vec3f v = (j*0.125f-0.5f)*m.vz;
     const ray r(pos+n+u+v, ldir);
     const auto res = world::castray(r);
     l += (res.isec ? 0.0f : 1.f) *max(dot(ldir,normalize(n)),0.f);
   }
   return vec3f(l) / 64.f;
-#endif
+}
+
+INLINE bool visibleface(vec3i xyz, u32 face) {
+  return world::getcube(xyz).mat != world::EMPTY &&
+         world::getcube(xyz+cubenorms[face]).mat == world::EMPTY;
 }
 
 /*--------------------------------------------------------------------------
@@ -673,101 +674,104 @@ static vec3f computecolor(vec3f pos, int face) {
  -------------------------------------------------------------------------*/
 VAR(lmres, 2, 4, 32);
 
-static const int maxlmw = 256;
+static const int maxlmw = 1024;
 
-// static const vec2i lmindexdim(world::lvl1*world::lvl1, world::lvl1*8);
-static const vec2i lmindexdim(256);
-
-INLINE vec2i getlmuv(vec3i idx, u32 face) {
-  const int chan = face/2;
-  const vec3i lmidx = chan==0?idx.yzx():(chan==1?idx.xzy():idx);
-  return vec2i(lmidx.x+world::lvl1*lmidx.z, lmidx.y+world::lvl1*face);
-  //return vec2i(lmidx.x, lmidx.y);
-}
-
-struct surfaceparamctx {
-  INLINE surfaceparamctx(const world::lvl1grid &b) :
-    b(b), face(0), lmdim(zero), lm(NULL),
-    lmindex(lmindexdim.x*lmindexdim.y) {
-    loopv(lmindex) lmindex[i] = vec4<u8>(zero);
+// store UVs per cube and per face
+struct lightmapuv {
+  INLINE lightmapuv(void) : dim(zero) {MEMZERO(uv);}
+#if !defined(NDEBUG)
+  bool isinbound(vec3i idx, u32 corner, u32 face) const {
+    return all(idx>=vec3i(zero)) &&
+           all(idx<vec3i(world::lvl1)) &&
+           face<6 && corner<4;
   }
-  INLINE u32 getindex(vec3i idx) {
-    const vec2i uv = getlmuv(idx, face);
-    return uv.x+uv.y*lmindexdim.x;
+#endif // NDEBUG
+  INLINE void set(vec3i idx, vec2i v, u32 corner, u32 face) {
+    assert(isinbound(idx, corner, face));
+    uv[face][idx.x][idx.y][idx.z][corner] = v;
   }
-  const world::lvl1grid &b;
-  u32 face;
-  vec2<u16> lmdim;
-  u32 *lm;
-  vector<vec4<u8>> lmindex;
+  INLINE vec2i get(vec3i idx, u32 corner, u32 face) const {
+    assert(isinbound(idx, corner, face));
+    return uv[face][idx.x][idx.y][idx.z][corner];
+  }
+  vec2i uv[6][world::lvl1][world::lvl1][world::lvl1][4];
+  vec2i dim;
 };
 
-INLINE bool visibleface(vec3i xyz, u32 face) {
-  return world::getcube(xyz).mat != world::EMPTY &&
-         world::getcube(xyz+cubenorms[face]).mat == world::EMPTY;
-}
-static void buildlmindex(surfaceparamctx &ctx, vec3i xyz, vec3i idx) {
+struct surfaceparamctx {
+  INLINE surfaceparamctx(const world::lvl1grid &b, lightmapuv &lmuv) :
+    b(b), lmuv(lmuv), lm(NULL), face(0) {}
+  INLINE void set(vec3i idx, vec2i uv, u32 corner) {lmuv.set(idx, uv, corner, face);}
+  INLINE vec2i get(vec3i idx, u32 corner) const {return lmuv.get(idx, corner, face);}
+  const world::lvl1grid &b;
+  lightmapuv &lmuv;
+  u32 *lm;
+  u32 face;
+};
+
+static void buildlmuv(surfaceparamctx &ctx, vec3i xyz, vec3i idx) {
   if (!visibleface(xyz, ctx.face)) return;
-
-  idx += ctx.face%2 ? cubenorms[ctx.face] : zero;
-  const vec2i uv0 = getlmuv(idx, ctx.face);
-  //console::out("uv0 [%i %i]", uv0.x, uv0.y);
-
-  const s32 index = ctx.getindex(idx);
-  ctx.lmindex[index] = vec4<u8>(ctx.lmdim.x, ctx.lmdim.y, 0, 0);
-#if 0
-  console::out("[%i %i %i %i]",
-      ctx.lmindex[index].x,
-      ctx.lmindex[index].y,
-      ctx.lmindex[index].z,
-      ctx.lmindex[index].w);
-#endif
-  ctx.lmdim.x += lmres;
-  if (ctx.lmdim.x >= maxlmw) {
-    ctx.lmdim.x = 0;
-    ctx.lmdim.y += lmres;
+  ctx.set(idx, ctx.lmuv.dim, 0);
+  ctx.set(idx, ctx.lmuv.dim+vec2i(lmres,0), 1);
+  ctx.set(idx, ctx.lmuv.dim+vec2i(lmres), 2);
+  ctx.set(idx, ctx.lmuv.dim+vec2i(0,lmres), 3);
+  ctx.lmuv.dim.x += lmres+2;
+  if (ctx.lmuv.dim.x >= maxlmw) {
+    ctx.lmuv.dim.x = 0;
+    ctx.lmuv.dim.y += lmres+2;
   }
 }
 
 static void buildlmdata(surfaceparamctx &ctx, vec3i xyz, vec3i idx) {
   if (!visibleface(xyz, ctx.face)) return;
 
-  // try a chessboard pattern first
-  idx += ctx.face%2 ? cubenorms[ctx.face] : zero;
-  const int chan = ctx.face/2;
-  const vec2i uv = chan==0?idx.yz():(chan==1?idx.xz():idx.xy());
-#if 1
-  // update the lightmap with chessboard color
-  const auto index = ctx.getindex(idx);
-  const auto lmuv = ctx.lmindex[index];
+  const auto uv = ctx.get(idx, 0);
+  assert(all(uv!=vec2i(~0x0)) && all(uv>=vec2i(zero)) && all(uv<ctx.lmuv.dim));
 
-  assert(all(vec2i(lmuv.xy())+vec2i(lmres) <= vec2i(ctx.lmdim)));
-  u32 *l = ctx.lm + lmuv.y*ctx.lmdim.x + lmuv.x;
-  loopi(lmres) loopj(lmres) {
-    const u32 pattern = ((uv.x&1)^(uv.y&1))^((i&1)^(j&1));
-    const u32 color = pattern ? ~0x0u : 0x0u;
-    l[i*ctx.lmdim.x+j] = color;
-  }
-#endif
+  const vec4i quad = cubequads[ctx.face];
+  const vec3f org = world::getpos(xyz+cubeiverts[quad[0]]);
+  const vec3f b = world::getpos(xyz+cubeiverts[quad[3]]);
+  const vec3f c = world::getpos(xyz+cubeiverts[quad[1]]);
+  const vec3f u = b-org;
+  const vec3f v = c-org;
+  const float d = 1.f/float(lmres);
+  const float nbias = 0.01f;
+  const vec3f n = vec3f(cubenorms[ctx.face]);
+
+  // fill the quad location at "uv"
+  u32 *l = ctx.lm + uv.y*ctx.lmuv.dim.x + uv.x;
+  auto dolighting = [&](int i, int j) {
+    const vec3f p = org + float(i)*d*u + float(j)*d*v + nbias*n;
+    const ray r(p, ldir);
+    const auto res = world::castray(r);
+    const float lum = (res.isec?0.f:1.f) * max(dot(ldir,normalize(n)),0.f);
+    const u32 qlum = u32(clamp(255.f*lum, 0.f, 255.f));
+    l[i*ctx.lmuv.dim.x+j] = qlum | (qlum<<8) | (qlum<<16) | 0xff000000;
+  };
+  loopi(lmres) loopj(lmres) dolighting(i,j);
+
+  // take care of the borders for bilinear filtering
+  if (uv.y+lmres<ctx.lmuv.dim.y) loopj(lmres) dolighting(lmres,j);
+  if (uv.x+lmres<ctx.lmuv.dim.x) loopi(lmres) dolighting(i,lmres);
+  if (uv.y+lmres<ctx.lmuv.dim.y && uv.x+lmres<ctx.lmuv.dim.x)
+    dolighting(lmres,lmres);
+  if (uv.y-1>=0) loopj(lmres) dolighting(-1,j);
+  if (uv.x-1>=0) loopi(lmres) dolighting(i,-1);
+  if (uv.x-1>=0 && uv.y-1>=0) dolighting(-1,-1);
 }
 
-static void buildlightmap(world::lvl1grid &b, const vec3i &org) {
-  if (b.dirty==0 && !forcebuild) return;
-  b.dirty = 0;
-  surfaceparamctx ctx(b);
+VAR(lmfilter,0,0,1);
+
+static void buildlightmap(world::lvl1grid &b, lightmapuv &lmuv, const vec3i &org) {
+  surfaceparamctx ctx(b, lmuv);
   loopi(6) {
     ctx.face = i;
-    loopxyz(0, b.size(), buildlmindex(ctx, org+xyz, xyz));
+    loopxyz(0, b.size(), buildlmuv(ctx, org+xyz, xyz));
   }
-#if 0
-  ctx.lmdim.x = maxlmw;
-  ctx.lmdim.y += lmres;
-#else
-  assert(ctx.lmdim.y <= 256);
-  ctx.lmdim.x = 256;
-  ctx.lmdim.y = 256;
-#endif
-  const u32 lmn = ctx.lmdim.x*ctx.lmdim.y;
+  ctx.lmuv.dim.x = maxlmw;
+  ctx.lmuv.dim.y += lmres+2;
+
+  const s32 lmn = lmuv.dim.x*lmuv.dim.y;
   ctx.lm = new u32[lmn];
   memset(ctx.lm, 0, sizeof(u32)*lmn);
   loopi(lmn) ctx.lm[i] = 0;
@@ -776,37 +780,30 @@ static void buildlightmap(world::lvl1grid &b, const vec3i &org) {
     loopxyz(0, b.size(), buildlmdata(ctx, org+xyz, xyz));
   }
 
-  // build light map index texture
-  OGL(GenTextures, 1, &b.lmindex);
-  ogl::bindtexture(GL_TEXTURE_2D, 0, b.lmindex);
-  OGL(PixelStorei, GL_UNPACK_ALIGNMENT, 1);
-  OGL(TexImage2D, GL_TEXTURE_2D, 0, GL_RGBA, lmindexdim.x, lmindexdim.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, &ctx.lmindex[0]);
-  OGL(TexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-  OGL(TexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-  OGL(TexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-  OGL(TexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-
+  static int lmid = 0;
   // build light map texture
-  OGL(GenTextures, 1, &b.lm);
+  if (b.lm == 0) OGL(GenTextures, 1, &b.lm);
   ogl::bindtexture(GL_TEXTURE_2D, 0, b.lm);
   OGL(PixelStorei, GL_UNPACK_ALIGNMENT, 1);
-  OGL(TexImage2D, GL_TEXTURE_2D, 0, GL_RGBA, ctx.lmdim.x, ctx.lmdim.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, ctx.lm);
+  OGL(TexImage2D, GL_TEXTURE_2D, 0, GL_RGBA, lmuv.dim.x, lmuv.dim.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, ctx.lm);
   OGL(TexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
   OGL(TexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-  OGL(TexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  OGL(TexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, lmfilter?GL_LINEAR:GL_NEAREST);
   OGL(TexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
-  //console::out("lm %i %i", ctx.lmdim.x, ctx.lmdim.y);
-  //console::out("lmindex %i %i", lmindexdim.x, lmindexdim.y);
-  b.rlmdim = rcp(vec2f(ctx.lmdim));
+  sprintf_sd(filename)("lm%i.bmp", lmid++);
+  console::out("saving %s", filename);
+  writebmp((const int*) ctx.lm, lmuv.dim.x, lmuv.dim.y, filename);
+  b.rlmdim = rcp(vec2f(lmuv.dim));
   delete [] ctx.lm;
 }
 
 /*--------------------------------------------------------------------------
- - world mesh handling (very simple for now)
+i- world mesh handling (very simple for now)
  -------------------------------------------------------------------------*/
 struct brickmeshctx {
-  INLINE brickmeshctx(const world::lvl1grid &b) : b(b) {}
+  INLINE brickmeshctx(const world::lvl1grid &b, const lightmapuv &lmuv) :
+    b(b), lmuv(lmuv) {}
   INLINE void clear(s32 orientation) {
     face = orientation;
     MEMSET(indices, 0xff);
@@ -814,6 +811,7 @@ struct brickmeshctx {
   INLINE u16 get(vec3i p) const { return indices[p.x][p.y][p.z]; }
   INLINE void set(vec3i p, u16 idx) { indices[p.x][p.y][p.z] = idx; }
   const world::lvl1grid &b;
+  const lightmapuv &lmuv;
   vector<arrayf<10>> vbo;
   vector<u16> ibo;
   vector<u16> tex;
@@ -821,7 +819,7 @@ struct brickmeshctx {
   s32 face;
 };
 
-VAR(ldirx,-100,0,100);
+VAR(ldirx,-100,20,100);
 VAR(ldiry,-100,50,100);
 VAR(ldirz,-100,100,100);
 
@@ -832,6 +830,7 @@ static void buildfacemesh(brickmeshctx &ctx, vec3i xyz, vec3i idx) {
   const int chan = ctx.face/2; // basically: x (0), y (1) or z (2)
   const int idx0 = 2*ctx.face+0, idx1 = 2*ctx.face+1;
   const vec3i tris[] = {cubetris[idx0], cubetris[idx1]};
+  const vec3i corners[] = {vec3i(0,1,2), vec3i(0,2,3)};
   const auto tex = world::getcube(xyz).tex[ctx.face];
   loopi(2) { // build both triangles
     vec3f v[3]={zero,zero,zero}; // delay vertex creation for degenerated tris
@@ -842,23 +841,19 @@ static void buildfacemesh(brickmeshctx &ctx, vec3i xyz, vec3i idx) {
     bool isnew[3]={false,false,false};
     loopj(3) { // build each vertex
       const vec3i global = xyz+cubeiverts[tris[i][j]];
-      const vec3i local = idx+cubeiverts[tris[i][j]];
       locals[j] = idx+cubeiverts[tris[i][j]];
       u16 id = ctx.get(locals[j]);
-      if (id == 0xffff) {
+    //  if (id == 0xffff) {
         const vec3f pos = world::getpos(global);
         const vec2f tex = chan==0?pos.yz():(chan==1?pos.xz():pos.xy());
         id = ctx.vbo.length();
         v[j] = pos.xzy();
         t[j] = tex;
-        const vec2i uv1 = getlmuv(local, ctx.face);
-        //console::out("uv1 [%i %i]", uv1.x, uv1.y);
-
-        l[j] = vec2f(getlmuv(local, ctx.face)) / vec2f(lmindexdim);
-        c[j] = computecolor(vec3f(global), ctx.face);
+        l[j] = vec2f(ctx.lmuv.get(idx,corners[i][j],ctx.face))/vec2f(ctx.lmuv.dim);
+        c[j] = computecolor(vec3f(global),ctx.face);
         isnew[j] = true;
-      } else
-        v[j] = vec3f(ctx.vbo[id][0],ctx.vbo[id][1],ctx.vbo[id][2]);
+    //  } else
+    //    v[j] = vec3f(ctx.vbo[id][0],ctx.vbo[id][1],ctx.vbo[id][2]);
     }
     const float mindist = 1.f/512.f;
     if (distance(v[0], v[1]) < mindist || // degenerated triangle?
@@ -904,8 +899,8 @@ static void radixsortibo(brickmeshctx &ctx) {
   }
 }
 
-static void buildgridmesh(world::lvl1grid &b, vec3i org) {
-  brickmeshctx ctx(b);
+static void buildgridmesh(world::lvl1grid &b, const lightmapuv &lmuv, vec3i org) {
+  brickmeshctx ctx(b, lmuv);
   loopi(6) {
     ctx.clear(i);
     loopxyz(0, b.size(), buildfacemesh(ctx, org+xyz, xyz));
@@ -943,8 +938,10 @@ static void buildgridmesh(world::lvl1grid &b, vec3i org) {
 static void buildbrick(world::lvl1grid &b, vec3i org) {
   if (b.dirty==0 && !forcebuild) return;
   console::out("START");
-  buildlightmap(b, org);
-  buildgridmesh(b, org);
+  lightmapuv lmuv;
+  buildlightmap(b, lmuv, org);
+  console::out("res [%i %i]", lmuv.dim.x, lmuv.dim.y);
+  buildgridmesh(b, lmuv, org);
   console::out("END");
   b.dirty = 0;
 }
@@ -974,7 +971,6 @@ static const char gridvert[] = {
 };
 static const char gridfrag[] = {
   "uniform sampler2D u_diffuse;\n"
-  "uniform sampler2D u_lmindex;\n"
   "uniform sampler2D u_lm;\n"
   "uniform vec2 u_rlmdim;\n"
   PS_IN " vec2 fs_tex;\n"
@@ -982,19 +978,14 @@ static const char gridfrag[] = {
   PS_IN " vec2 fs_lm;\n"
   IF_NOT_EMSCRIPTEN("out vec4 rt_c;\n")
   "void main() {\n"
-  " vec4 lmindex = texture2D(u_lmindex, fs_lm);\n"
-  //IF_NOT_EMSCRIPTEN(" vec2 lmuv = 65025.0*lmindex.yw+lmindex.xz*255.0;\n")
-  //IF_NOT_EMSCRIPTEN(" vec4 lm = (lmuv*u_rlmdim).xyxy;\n")//texture(u_lm, lmuv*u_rlmdim);\n")
-  // IF_NOT_EMSCRIPTEN(" vec4 lm = texture(u_lm, lmuv*u_rlmdim);\n")
-  IF_NOT_EMSCRIPTEN(" vec4 lm = texture2D(u_lm, lmindex.xy+fract(fs_lm*256.0)/256.0);\n")
-  IF_NOT_EMSCRIPTEN(" vec4 col = lm*fs_col;\n") //texture(u_diffuse, fs_tex);\n")
-  IF_EMSCRIPTEN("  vec4 col = fs_col*texture2D(u_diffuse, fs_tex);\n")
+  "  vec4 lm = texture2D(u_lm, fs_lm);\n"
+  "  vec4 col = lm*texture2D(u_diffuse, fs_tex);\n"
   IF_NOT_EMSCRIPTEN("  rt_c = col;\n")
   IF_EMSCRIPTEN("  gl_FragColor = col;\n")
   "}\n"
 };
 static struct gridshader : shader {
-  GLuint u_lmindex, u_lm, u_rlmdim;
+  GLuint u_lm, u_rlmdim;
 } gridshader;
 
 static void drawgrid(void) {
@@ -1004,8 +995,7 @@ static void drawgrid(void) {
   forallbricks([&](const lvl1grid &b, const vec3i org) {
     bindbuffer(ogl::ARRAY_BUFFER, b.vbo);
     bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, b.ibo);
-    bindtexture(GL_TEXTURE_2D, 1, b.lmindex);
-    bindtexture(GL_TEXTURE_2D, 2, b.lm);
+    bindtexture(GL_TEXTURE_2D, 1, b.lm);
     OGL(Uniform2fv, gridshader.u_rlmdim, 1, &b.rlmdim.x);
     OGL(VertexAttribPointer, COL, 3, GL_FLOAT, 0, sizeof(float[10]), (const void*) sizeof(float[5]));
     OGL(VertexAttribPointer, TEX0, 2, GL_FLOAT, 0, sizeof(float[10]), (const void*) sizeof(float[3]));
@@ -1147,11 +1137,9 @@ void init(int w, int h) {
   linkshader(gridshader);
   setshaderuniform(gridshader);
   OGL(UseProgram, gridshader.program);
-  OGLR(gridshader.u_lmindex, GetUniformLocation, gridshader.program, "u_lmindex");
   OGLR(gridshader.u_lm, GetUniformLocation, gridshader.program, "u_lm");
   OGLR(gridshader.u_rlmdim, GetUniformLocation, gridshader.program, "u_rlmdim");
-  OGL(Uniform1i, gridshader.u_lmindex, 1);
-  OGL(Uniform1i, gridshader.u_lm, 2);
+  OGL(Uniform1i, gridshader.u_lm, 1);
   OGL(UseProgram, 0);
   imminit();
   loopi(ATTRIB_NUM) enabledattribarray[i] = 0;

@@ -177,6 +177,7 @@ char *loadfile(char *fn, int *size);
 void endianswap(void *, int, int);
 int islittleendian(void);
 void initendiancheck(void);
+void writebmp(const int *data, int w, int h, const char *name);
 
 #define PI  (3.1415927f)
 #define PI2 (2*PI)

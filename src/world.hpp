@@ -71,7 +71,7 @@ struct brick : public noncopyable {
     subcubenumber=1,
     l=sz
   };
-  INLINE brick(void) : vbo(0), ibo(0), lmindex(0), lm(0), dirty(1) {}
+  INLINE brick(void) : vbo(0), ibo(0), lm(0), dirty(1) {}
   static INLINE vec3i size(void) { return vec3i(sz); }
   static INLINE vec3i global(void) { return size(); }
   static INLINE vec3i local(void) { return size(); }
@@ -99,8 +99,7 @@ struct brick : public noncopyable {
   }
   brickcube elem[sz][sz][sz];
   u32 vbo, ibo; // ogl handles for vertex and index buffers
-  u32 lmindex; // ogl handle for the texture index to lighting data
-  u32 lm; // lighting data
+  u32 lm; // light map
   vec2f rlmdim; // rcp(lightmap_dimension)
   vector<vec2i> draws; // (elemnum, texid)
   u32 dirty; // 1 if the ogl data need to be rebuilt

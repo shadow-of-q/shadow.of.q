@@ -87,9 +87,9 @@ const vec2i cubeedges[12] = {
   vec2i(1,5),vec2i(2,6),vec2i(0,4),vec2i(3,7)
 };
 const vec4i cubequads[6] = {
-  vec4i(0,1,2,3), vec4i(4,5,6,7),
-  vec4i(0,4,5,1), vec4i(2,3,7,6),
-  vec4i(0,4,7,3), vec4i(1,5,6,2)
+  vec4i(0,1,2,3), vec4i(4,7,6,5),
+  vec4i(0,4,5,1), vec4i(2,6,7,3),
+  vec4i(3,7,4,0), vec4i(1,5,6,2)
 };
 
 camera::camera(vec3f org, vec3f up, vec3f view, float fov, float ratio) :
