@@ -10,7 +10,7 @@ void line(int x1, int y1, float z1, int x2, int y2, float z2) {
     arrayf<3>(float(x2), z2, float(y2)),
     arrayf<3>(float(x2), z2, float(y2)+0.01f)
   };
-  ogl::bindshader(ogl::COLOR_ONLY);
+  ogl::bindshader(ogl::COLOR);
   ogl::immdraw(GL_TRIANGLE_STRIP, 3, 0, 0, 4, &verts[0][0]);
   ogl::xtraverts += 4;
 }
@@ -27,7 +27,7 @@ void box(const vec3i &start, const vec3i &size, const vec3f &col) {
     v[2*i+0] = fsize*cubefverts[cubeedges[i].x]+fstart;
     v[2*i+1] = fsize*cubefverts[cubeedges[i].y]+fstart;
   }
-  ogl::bindshader(ogl::COLOR_ONLY);
+  ogl::bindshader(ogl::COLOR);
   OGL(VertexAttrib3fv, ogl::COL, &col.x);
   ogl::immdraw(GL_LINES, 3, 0, 0, ARRAY_ELEM_N(v), &v[0][0]);
 }
@@ -40,7 +40,7 @@ void dot(int x, int y, float z) {
     arrayf<3>(x+DOF, float(z), y+DOF),
     arrayf<3>(x-DOF, float(z), y+DOF)
   };
-  ogl::bindshader(ogl::COLOR_ONLY);
+  ogl::bindshader(ogl::COLOR);
   ogl::immdraw(GL_LINE_LOOP, 3, 0, 0, 4, &verts[0][0]);
   ogl::xtraverts += 4;
 }
@@ -48,9 +48,8 @@ void dot(int x, int y, float z) {
 void blendbox(int x1, int y1, int x2, int y2, bool border) {
   OGL(DepthMask, GL_FALSE);
   OGL(BlendFunc, GL_ZERO, GL_ONE_MINUS_SRC_COLOR);
-  ogl::disableattribarrayv(ogl::POS1, ogl::COL, ogl::TEX);
-  ogl::enableattribarrayv(ogl::POS0);
-  ogl::bindshader(ogl::COLOR_ONLY);
+  ogl::setattribarray()(ogl::POS0);
+  ogl::bindshader(ogl::COLOR);
   if (border)
     OGL(VertexAttrib3f, ogl::COL, .5f, .3f, .4f);
   else
@@ -108,7 +107,7 @@ void renderspheres(int time) {
   ogl::enablev(GL_BLEND);
   OGL(DepthMask, GL_FALSE);
   OGL(BlendFunc, GL_SRC_ALPHA, GL_ONE);
-  ogl::bindtexture(GL_TEXTURE_2D, 4);
+  ogl::bindgametexture(GL_TEXTURE_2D, 4);
 
   for (sphere *p, **pp = &slist; (p = *pp);) {
     const float size = p->size/p->max;
@@ -206,7 +205,7 @@ void drawicon(float tx, float ty, int x, int y) {
   const int s = 120;
   tx /= 192;
   ty /= 192;
-  ogl::bindtexture(GL_TEXTURE_2D, 5);
+  ogl::bindgametexture(GL_TEXTURE_2D, 5);
   const arrayf<4> verts[] = {
     arrayf<4>(tx,   ty,   x,   y),
     arrayf<4>(tx+o, ty,   x+s, y),
@@ -261,7 +260,7 @@ void drawhud(int w, int h, int curfps, int nquads, int curvert, bool underwater)
       OGL(VertexAttrib3f,ogl::COL,0.0f,0.9f,0.9f);
     else
       OGL(VertexAttrib3f,ogl::COL,0.9f,0.5f,0.0f);
-    ogl::bindshader(ogl::COLOR_ONLY);
+    ogl::bindshader(ogl::COLOR);
     ogl::immdraw(GL_TRIANGLE_STRIP,2,0,0,4,&verts[0][0]);
     dblend -= game::curtime()/3;
     if (dblend<0) dblend = 0;
@@ -279,7 +278,7 @@ void drawhud(int w, int h, int curfps, int nquads, int curvert, bool underwater)
   game::renderscores();
   if (!menu::render()) {
     OGL(BlendFunc, GL_SRC_ALPHA, GL_SRC_ALPHA);
-    ogl::bindtexture(GL_TEXTURE_2D, 1);
+    ogl::bindgametexture(GL_TEXTURE_2D, 1);
     OGL(VertexAttrib3f,ogl::COL,1.f,1.f,1.f);
     if (crosshairfx) {
       if (game::player1->gunwait)

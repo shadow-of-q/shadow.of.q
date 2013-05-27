@@ -236,7 +236,7 @@ static void drawselgrid(void) {
       lines.add(vec3f(end).xzy());
     }
   }
-  ogl::bindshader(ogl::COLOR_ONLY);
+  ogl::bindshader(ogl::COLOR);
   OGL(VertexAttrib3fv, ogl::COL, &red.x);
   ogl::immdraw(GL_LINES, 3, 0, 0, lines.length(), &lines[0].x);
 }
@@ -253,7 +253,7 @@ static void drawselectedcorners(void) {
     }
   };
   loopxyz(grid.start, grid.end+vec3i(one), docube(xyz));
-  ogl::bindshader(ogl::COLOR_ONLY);
+  ogl::bindshader(ogl::COLOR);
   OGL(VertexAttrib3fv, ogl::COL, &yellow.x);
   ogl::immdraw(GL_LINES, 3, 0, 0, lines.length(), &lines[0].x);
 }

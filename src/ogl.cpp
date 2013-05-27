@@ -19,26 +19,28 @@ int xtraverts = 0;
  -------------------------------------------------------------------------*/
 union {
   struct {
-    uint shader:1; // will force to reload everything
-    uint mvp:1;
-    uint fog:1;
-    uint overbright:1;
+    u32 shader:1; // will force to reload everything
+    u32 mvp:1;
+    u32 fog:1;
+    u32 overbright:1;
   } flags;
   uint any;
 } dirty;
-static uint bindedvbo[BUFFER_NUM];
-static uint bindedtexture = 0;
-static uint enabledattribarray[ATTRIB_NUM];
+static u32 bindedvbo[BUFFER_NUM];
+static u32 enabledattribarray[ATTRIB_NUM];
 static struct shader *bindedshader = NULL;
 
-void enableattribarray(uint target) {
+static const u32 TEX_NUM = 8;
+static u32 bindedtexture[TEX_NUM];
+
+void enableattribarray(u32 target) {
   if (!enabledattribarray[target]) {
     enabledattribarray[target] = 1;
     OGL(EnableVertexAttribArray, target);
   }
 }
 
-void disableattribarray(uint target) {
+void disableattribarray(u32 target) {
   if (enabledattribarray[target]) {
     enabledattribarray[target] = 0;
     OGL(DisableVertexAttribArray, target);
@@ -48,11 +50,11 @@ void disableattribarray(uint target) {
 /*--------------------------------------------------------------------------
  - immediate mode and buffer support
  -------------------------------------------------------------------------*/
-static const uint glbufferbinding[BUFFER_NUM] = {
+static const u32 glbufferbinding[BUFFER_NUM] = {
   GL_ARRAY_BUFFER,
   GL_ELEMENT_ARRAY_BUFFER
 };
-void bindbuffer(uint target, uint buffer) {
+void bindbuffer(u32 target, u32 buffer) {
   if (bindedvbo[target] != buffer) {
     OGL(BindBuffer, glbufferbinding[target], buffer);
     bindedvbo[target] = buffer;
@@ -154,20 +156,20 @@ void immdrawelements(int mode, int count, int type, const void *indices, const v
 void immdraw(int mode, int pos, int tex, int col, size_t n, const float *data) {
   const int sz = (pos+tex+col)*sizeof(float);
   if (!immvertices(n*sz, data)) return;
-  disableattribarrayv(POS1,NOR);
+  loopi(ATTRIB_NUM) disableattribarray(i);
   if (pos) {
     immattrib(ogl::POS0, pos, GL_FLOAT, (tex+col)*sizeof(float));
-    enableattribarrayv(POS0);
+    enableattribarray(POS0);
   } else
     disableattribarray(POS0);
   if (tex) {
-    immattrib(ogl::TEX, tex, GL_FLOAT, col*sizeof(float));
-    enableattribarrayv(TEX);
+    immattrib(ogl::TEX0, tex, GL_FLOAT, col*sizeof(float));
+    enableattribarray(TEX0);
   } else
-    disableattribarray(TEX);
+    disableattribarray(TEX0);
   if (col) {
     immattrib(ogl::COL, col, GL_FLOAT, 0);
-    enableattribarrayv(COL);
+    enableattribarray(COL);
   } else
     disableattribarray(COL);
   immvertexsize(sz);
@@ -250,20 +252,19 @@ static string mapname[256][MAXFRAMES];
 
 static void purgetextures(void) {loopi(256)loop(j,MAXFRAMES)mapping[i][j]=0;}
 
-#if defined(EMSCRIPTEN)
-static const uint IDNUM = 2*MAXTEX;
-static GLuint generatedids[IDNUM];
-#endif // EMSCRIPTEN
+static const u32 IDNUM = 2*MAXTEX;
+static u32 generatedids[IDNUM];
 
-void bindtexture(uint target, uint id) {
-  if (bindedtexture == id) return;
-  bindedtexture = id;
-#if defined(EMSCRIPTEN)
+static void bindtexture(u32 target, u32 texslot, u32 id) {
+  if (bindedtexture[texslot] == id) return;
+  bindedtexture[texslot] = id;
   if (id >= IDNUM) fatal("out of bound texture ID");
-  OGL(BindTexture, target, generatedids[id]);
-#else
+  OGL(ActiveTexture, GL_TEXTURE0 + texslot);
   OGL(BindTexture, target, id);
-#endif
+}
+
+void bindgametexture(u32 target, u32 id) {
+  bindtexture(GL_TEXTURE_2D, 0, generatedids[id]);
 }
 
 INLINE bool ispoweroftwo(unsigned int x) { return ((x & (x - 1)) == 0); }
@@ -279,14 +280,14 @@ bool installtex(int tnum, const char *texname, int &xs, int &ys, bool clamp) {
     console::out("texture must be 24bpp: %s (got %i bpp)", texname, s->format->BitsPerPixel);
     return false;
   }
-#else
+#endif
+
   if (tnum >= int(IDNUM)) fatal("out of bound texture ID");
   if (generatedids[tnum] == 0u)
     OGL(GenTextures, 1, generatedids + tnum);
-#endif // EMSCRIPTEN
-  bindedtexture = 0;
+  loopi(int(TEX_NUM)) bindedtexture[i] = 0;
   console::out("loading %s (%ix%i)", texname, s->w, s->h);
-  ogl::bindtexture(GL_TEXTURE_2D, tnum);
+  ogl::bindgametexture(GL_TEXTURE_2D, tnum);
   OGL(PixelStorei, GL_UNPACK_ALIGNMENT, 1);
   xs = s->w;
   ys = s->h;
@@ -477,65 +478,64 @@ static GLuint loadprogram(const char *vertstr, const char *fragstr, uint rules) 
 #endif // EMSCRIPTEN
 
 static const char ubervert[] = {
-  "uniform mat4 MVP;\n"
+  "uniform mat4 u_mvp;\n"
   "#if USE_FOG\n"
-  "  uniform vec4 zaxis;\n"
-  "  " VS_OUT " float fogz;\n"
+  "  uniform vec4 u_zaxis;\n"
+  "  " VS_OUT " float fs_fogz;\n"
   "#endif\n"
   "#if USE_KEYFRAME\n"
-  "  uniform float delta;\n"
-  "  " VS_IN " vec3 p0, p1;\n"
+  "  uniform float u_delta;\n"
+  "  " VS_IN " vec3 vs_pos0, vs_pos1;\n"
   "#else\n"
-  "  " VS_IN " vec3 p;\n"
+  "  " VS_IN " vec3 vs_pos;\n"
   "#endif\n"
-  VS_IN " vec4 incol;\n"
+  VS_IN " vec4 vs_col;\n"
   "#if USE_DIFFUSETEX\n"
-  "  " VS_OUT " vec2 texcoord;\n"
-  "  " VS_IN " vec2 t;\n"
+  "  " VS_IN " vec2 vs_tex;\n"
+  "  " VS_OUT " vec2 fs_tex;\n"
   "#endif\n"
-  VS_OUT " vec4 outcol;\n"
+  VS_OUT " vec4 fs_col;\n"
   "void main() {\n"
   "#if USE_DIFFUSETEX\n"
-  "  texcoord = t;\n"
+  "  fs_tex = vs_tex;\n"
   "#endif\n"
-  "  outcol = incol;\n"
+  "  fs_col = vs_col;\n"
   "#if USE_KEYFRAME\n"
-  "  vec3 p = mix(p0,p1,delta);\n"
+  "  vec3 vs_pos = mix(vs_pos0,vs_pos1,u_delta);\n"
   "#endif\n"
   "#if USE_FOG\n"
-  "  fogz = dot(zaxis,vec4(p,1.0));\n"
+  "  fs_fogz = dot(u_zaxis.xyz,vs_pos)+u_zaxis.w;\n"
   "#endif\n"
-  "  gl_Position = MVP * vec4(p,1.0);\n"
+  "  gl_Position = u_mvp*vec4(vs_pos,1.0);\n"
   "}\n"
 };
 static const char uberfrag[] = {
   "#if USE_DIFFUSETEX\n"
-  "  uniform sampler2D diffuse;\n"
-  "  " PS_IN " vec2 texcoord;\n"
+  "  uniform sampler2D u_diffuse;\n"
+  "  " PS_IN " vec2 fs_tex;\n"
   "#endif\n"
   "#if USE_FOG\n"
-  "  uniform vec4 fogcolor;\n"
-  "  uniform vec2 fogstartend;\n"
-  "  " PS_IN " float fogz;\n"
+  "  uniform vec4 u_fogcolor;\n"
+  "  uniform vec2 u_fogstartend;\n"
+  "  " PS_IN " float fs_fogz;\n"
   "#endif\n"
-  "uniform float overbright;\n"
-  PS_IN " vec4 outcol;\n"
-  IF_NOT_EMSCRIPTEN("out vec4 c;\n")
+  "uniform float u_overbright;\n"
+  PS_IN " vec4 fs_col;\n"
+  IF_NOT_EMSCRIPTEN("out vec4 rt_c;\n")
   "void main() {\n"
   "  vec4 col;\n"
   "#if USE_DIFFUSETEX\n"
-  IF_NOT_EMSCRIPTEN("  col = texture(diffuse, texcoord);\n")
-  IF_EMSCRIPTEN("  col = texture2D(diffuse, texcoord);\n")
-  "  col *= outcol;\n"
+  "  col = texture2D(u_diffuse, fs_tex);\n"
+  "  col *= fs_col;\n"
   "#else\n"
-  "  col = outcol;\n"
+  "  col = fs_col;\n"
   "#endif\n"
   "#if USE_FOG\n"
-  "  float factor = clamp((-fogz-fogstartend.x)*fogstartend.y,0.0,1.0)\n;"
-  "  col.xyz = mix(col.xyz,fogcolor.xyz,factor);\n"
+  "  float factor = clamp((-fs_fogz-u_fogstartend.x)*u_fogstartend.y,0.0,1.0)\n;"
+  "  col.xyz = mix(col.xyz,u_fogcolor.xyz,factor);\n"
   "#endif\n"
-  "  col.xyz *= overbright;\n"
-  IF_NOT_EMSCRIPTEN("  c = col;\n")
+  "  col.xyz *= u_overbright;\n"
+  IF_NOT_EMSCRIPTEN("  rt_c = col;\n")
   IF_EMSCRIPTEN("  gl_FragColor = col;\n")
   "}\n"
 };
@@ -543,31 +543,31 @@ static const char uberfrag[] = {
 static struct shader {
   uint rules; // fog,keyframe...?
   GLuint program; // ogl program
-  GLuint udiffuse, udelta, umvp, uoverbright; // uniforms
-  GLuint uzaxis, ufogstartend, ufogcolor; // uniforms
+  GLuint u_diffuse, u_delta, u_mvp, u_overbright; // uniforms
+  GLuint u_zaxis, u_fogstartend, u_fogcolor; // uniforms
 } shaders[shadern];
 
 static const char watervert[] = { // use DIFFUSETEX
   "#define PI 3.14159265\n"
-  "uniform mat4 MVP;\n"
-  "uniform vec2 duv, dxy;\n"
-  "uniform float hf, delta;\n"
-  VS_IN " vec2 p, t;\n"
-  VS_IN " vec4 incol;\n"
-  VS_OUT " vec2 texcoord;\n"
-  VS_OUT " vec4 outcol;\n"
-  "float dx(float x) { return x+sin(x*2.0+delta/1000.0)*0.04; }\n"
-  "float dy(float x) { return x+sin(x*2.0+delta/900.0+PI/5.0)*0.05; }\n"
+  "uniform mat4 u_mvp;\n"
+  "uniform vec2 u_duv, u_dxy;\n"
+  "uniform float u_hf, u_delta;\n"
+  VS_IN " vec2 vs_pos, vs_tex;\n"
+  VS_IN " vec4 vs_col;\n"
+  VS_OUT " vec2 fs_tex;\n"
+  VS_OUT " vec4 fs_col;\n"
+  "float dx(float x) { return x+sin(x*2.0+u_delta/1000.0)*0.04; }\n"
+  "float dy(float x) { return x+sin(x*2.0+u_delta/900.0+PI/5.0)*0.05; }\n"
   "void main() {\n"
-  "  texcoord = vec2(dx(t.x+duv.x),dy(t.y+duv.y));\n"
-  "  vec2 absp = dxy+p;\n"
-  "  vec3 pos = vec3(absp.x,hf-sin(absp.x*absp.y*0.1+delta/300.0)*0.2,absp.y);\n"
-  "  outcol = incol;\n"
-  "  gl_Position = MVP * vec4(pos,1.0);\n"
+  "  fs_tex = vec2(dx(vs_tex.x+u_duv.x),dy(vs_tex.y+u_duv.y));\n"
+  "  vec2 absp = u_dxy+vs_pos;\n"
+  "  vec3 pos = vec3(absp.x,u_hf-sin(absp.x*absp.y*0.1+u_delta/300.0)*0.2,absp.y);\n"
+  "  fs_col = vs_col;\n"
+  "  gl_Position = u_mvp * vec4(pos,1.0);\n"
   "}\n"
 };
 static struct watershader : shader {
-  GLuint uduv, udxy, uhf;
+  GLuint u_duv, u_dxy, u_hf;
 } watershader;
 
 static vec4f fogcolor;
@@ -583,93 +583,66 @@ static void bindshader(shader &shader) {
 
 void bindshader(uint flags) { bindshader(shaders[flags]); }
 
-static void buildshaderattrib(shader &shader) {
-  if (shader.rules&KEYFRAME) {
-    OGL(BindAttribLocation, shader.program, POS0, "p0");
-    OGL(BindAttribLocation, shader.program, POS1, "p1");
-  } else
-    OGL(BindAttribLocation, shader.program, POS0, "p");
-  if (shader.rules&DIFFUSETEX)
-    OGL(BindAttribLocation, shader.program, TEX, "t");
-  OGL(BindAttribLocation, shader.program, COL, "incol");
-#if !defined(EMSCRIPTEN)
-  OGL(BindFragDataLocation, shader.program, 0, "c");
-#endif // EMSCRIPTEN
+static void linkshader(shader &shader) {
   OGL(LinkProgram, shader.program);
   OGL(ValidateProgram, shader.program);
+}
+
+static void setshaderuniform(shader &shader) {
   OGL(UseProgram, shader.program);
-  OGLR(shader.uoverbright, GetUniformLocation, shader.program, "overbright");
-  OGLR(shader.umvp, GetUniformLocation, shader.program, "MVP");
+  OGLR(shader.u_overbright, GetUniformLocation, shader.program, "u_overbright");
+  OGLR(shader.u_mvp, GetUniformLocation, shader.program, "u_mvp");
   if (shader.rules&KEYFRAME)
-    OGLR(shader.udelta, GetUniformLocation, shader.program, "delta");
+    OGLR(shader.u_delta, GetUniformLocation, shader.program, "u_delta");
   else
-    shader.udelta = 0;
+    shader.u_delta = 0;
   if (shader.rules&DIFFUSETEX) {
-    OGLR(shader.udiffuse, GetUniformLocation, shader.program, "diffuse");
-    OGL(Uniform1i, shader.udiffuse, 0);
+    OGLR(shader.u_diffuse, GetUniformLocation, shader.program, "u_diffuse");
+    OGL(Uniform1i, shader.u_diffuse, 0);
   }
   if (shader.rules&FOG) {
-    OGLR(shader.uzaxis, GetUniformLocation, shader.program, "zaxis");
-    OGLR(shader.ufogcolor, GetUniformLocation, shader.program, "fogcolor");
-    OGLR(shader.ufogstartend, GetUniformLocation, shader.program, "fogstartend");
+    OGLR(shader.u_zaxis, GetUniformLocation, shader.program, "u_zaxis");
+    OGLR(shader.u_fogcolor, GetUniformLocation, shader.program, "u_fogcolor");
+    OGLR(shader.u_fogstartend, GetUniformLocation, shader.program, "fogstartend");
   }
   OGL(UseProgram, 0);
 }
 
-static void buildshader(shader &shader, const char *vertsrc, const char *fragsrc, uint rules) {
+static void compileshader(shader &shader, const char *vert, const char *frag, uint rules) {
   memset(&shader, 0, sizeof(struct shader));
-  shader.program = loadprogram(vertsrc, fragsrc, rules);
+  shader.program = loadprogram(vert, frag, rules);
   shader.rules = rules;
-  buildshaderattrib(shader);
+  if (shader.rules&KEYFRAME) {
+    OGL(BindAttribLocation, shader.program, POS0, "vs_pos0");
+    OGL(BindAttribLocation, shader.program, POS1, "vs_pos1");
+  } else
+    OGL(BindAttribLocation, shader.program, POS0, "vs_pos");
+  if (shader.rules&DIFFUSETEX)
+    OGL(BindAttribLocation, shader.program, TEX0, "vs_tex");
+  OGL(BindAttribLocation, shader.program, COL, "vs_col");
+#if !defined(EMSCRIPTEN)
+  OGL(BindFragDataLocation, shader.program, 0, "rt_col");
+#endif // EMSCRIPTEN
+}
+
+static void buildshader(shader &shader, const char *vert, const char *frag, uint rules) {
+  compileshader(shader, vert, frag, rules);
+  linkshader(shader);
+  setshaderuniform(shader);
 }
 
 static void buildubershader(shader &shader, uint rules) {
   buildshader(shader, ubervert, uberfrag, rules);
 }
-#if 0
-/*--------------------------------------------------------------------------
- - lightmapper
- -------------------------------------------------------------------------*/
-struct lightmapper {
-  lightmapper(const world::lvl1grid &b) : b(b) {}
-  void clear(int orientation) {
-    face = orientation;
-    MEMSET(indices, 0xff);
-  }
-  INLINE u16 get(vec3i p) const { return indices[p.x][p.y][p.z]; }
-  INLINE void set(vec3i p, u16 idx) { indices[p.x][p.y][p.z] = idx; }
-  const world::lvl1grid &b;
-  u16 indices[world::lvl1][world::lvl1][world::lvl1];
-  s32 face;
-};
-#endif
+
+VAR(forcebuild, 0, 0, 1);
 
 /*--------------------------------------------------------------------------
- - world mesh handling (very simple for now)
+ - over-simple sun shadow
  -------------------------------------------------------------------------*/
-struct brickmeshctx {
-  brickmeshctx(const world::lvl1grid &b) : b(b) {}
-  void clear(int orientation) {
-    face = orientation;
-    MEMSET(indices, 0xff);
-  }
-  INLINE u16 get(vec3i p) const { return indices[p.x][p.y][p.z]; }
-  INLINE void set(vec3i p, u16 idx) { indices[p.x][p.y][p.z] = idx; }
-  const world::lvl1grid &b;
-  vector<arrayf<8>> vbo;
-  vector<u16> ibo;
-  vector<u16> tex;
-  u16 indices[world::lvl1+1][world::lvl1+1][world::lvl1+1];
-  s32 face;
-};
-
-VAR(ldirx,-100,0,100);
-VAR(ldiry,-100,50,100);
-VAR(ldirz,-100,100,100);
-
 static vec3f ldir;
 VAR(sampling, 0,0,1);
-INLINE vec3f computecolor(vec3f pos, int face) {
+static vec3f computecolor(vec3f pos, int face) {
 #if 1
   const auto n = 0.01f*vec3f(cubenorms[face]);
   const mat3x3f m(n);
@@ -695,35 +668,181 @@ INLINE vec3f computecolor(vec3f pos, int face) {
 #endif
 }
 
-const vec3i cubetrisalternate[12] = {
-  vec3i(0,1,3), vec3i(1,2,3), vec3i(4,7,5), vec3i(7,6,5), // -x,+x triangles
-  vec3i(0,4,1), vec3i(4,5,1), vec3i(2,6,3), vec3i(6,7,3), // -y,+y triangles
-  vec3i(3,7,0), vec3i(7,4,0), vec3i(1,5,2), vec3i(5,6,2)  // -z,+z triangles
+/*--------------------------------------------------------------------------
+ - surface parameterization per brick
+ -------------------------------------------------------------------------*/
+VAR(lmres, 2, 4, 32);
+
+static const int maxlmw = 256;
+
+// static const vec2i lmindexdim(world::lvl1*world::lvl1, world::lvl1*8);
+static const vec2i lmindexdim(256);
+
+INLINE vec2i getlmuv(vec3i idx, u32 face) {
+  const int chan = face/2;
+  const vec3i lmidx = chan==0?idx.yzx():(chan==1?idx.xzy():idx);
+  return vec2i(lmidx.x+world::lvl1*lmidx.z, lmidx.y+world::lvl1*face);
+  //return vec2i(lmidx.x, lmidx.y);
+}
+
+struct surfaceparamctx {
+  INLINE surfaceparamctx(const world::lvl1grid &b) :
+    b(b), face(0), lmdim(zero), lm(NULL),
+    lmindex(lmindexdim.x*lmindexdim.y) {
+    loopv(lmindex) lmindex[i] = vec4<u8>(zero);
+  }
+  INLINE u32 getindex(vec3i idx) {
+    const vec2i uv = getlmuv(idx, face);
+    return uv.x+uv.y*lmindexdim.x;
+  }
+  const world::lvl1grid &b;
+  u32 face;
+  vec2<u16> lmdim;
+  u32 *lm;
+  vector<vec4<u8>> lmindex;
 };
-INLINE void buildfaces(brickmeshctx &ctx, vec3i xyz, vec3i idx) {
-  const int chan = ctx.face/2; // basically: x (0), y (1) or z (2)
-  if (world::getcube(xyz).mat == world::EMPTY) // nothing here
-    return;
-  if (world::getcube(xyz+cubenorms[ctx.face]).mat != world::EMPTY) // invisible face
-    return;
+
+INLINE bool visibleface(vec3i xyz, u32 face) {
+  return world::getcube(xyz).mat != world::EMPTY &&
+         world::getcube(xyz+cubenorms[face]).mat == world::EMPTY;
+}
+static void buildlmindex(surfaceparamctx &ctx, vec3i xyz, vec3i idx) {
+  if (!visibleface(xyz, ctx.face)) return;
+
+  idx += ctx.face%2 ? cubenorms[ctx.face] : zero;
+  const vec2i uv0 = getlmuv(idx, ctx.face);
+  //console::out("uv0 [%i %i]", uv0.x, uv0.y);
+
+  const s32 index = ctx.getindex(idx);
+  ctx.lmindex[index] = vec4<u8>(ctx.lmdim.x, ctx.lmdim.y, 0, 0);
+#if 0
+  console::out("[%i %i %i %i]",
+      ctx.lmindex[index].x,
+      ctx.lmindex[index].y,
+      ctx.lmindex[index].z,
+      ctx.lmindex[index].w);
+#endif
+  ctx.lmdim.x += lmres;
+  if (ctx.lmdim.x >= maxlmw) {
+    ctx.lmdim.x = 0;
+    ctx.lmdim.y += lmres;
+  }
+}
+
+static void buildlmdata(surfaceparamctx &ctx, vec3i xyz, vec3i idx) {
+  if (!visibleface(xyz, ctx.face)) return;
+
+  // try a chessboard pattern first
+  idx += ctx.face%2 ? cubenorms[ctx.face] : zero;
+  const int chan = ctx.face/2;
+  const vec2i uv = chan==0?idx.yz():(chan==1?idx.xz():idx.xy());
+#if 1
+  // update the lightmap with chessboard color
+  const auto index = ctx.getindex(idx);
+  const auto lmuv = ctx.lmindex[index];
+
+  assert(all(vec2i(lmuv.xy())+vec2i(lmres) <= vec2i(ctx.lmdim)));
+  u32 *l = ctx.lm + lmuv.y*ctx.lmdim.x + lmuv.x;
+  loopi(lmres) loopj(lmres) {
+    const u32 pattern = ((uv.x&1)^(uv.y&1))^((i&1)^(j&1));
+    const u32 color = pattern ? ~0x0u : 0x0u;
+    l[i*ctx.lmdim.x+j] = color;
+  }
+#endif
+}
+
+static void buildlightmap(world::lvl1grid &b, const vec3i &org) {
+  if (b.dirty==0 && !forcebuild) return;
+  b.dirty = 0;
+  surfaceparamctx ctx(b);
+  loopi(6) {
+    ctx.face = i;
+    loopxyz(0, b.size(), buildlmindex(ctx, org+xyz, xyz));
+  }
+#if 0
+  ctx.lmdim.x = maxlmw;
+  ctx.lmdim.y += lmres;
+#else
+  assert(ctx.lmdim.y <= 256);
+  ctx.lmdim.x = 256;
+  ctx.lmdim.y = 256;
+#endif
+  const u32 lmn = ctx.lmdim.x*ctx.lmdim.y;
+  ctx.lm = new u32[lmn];
+  memset(ctx.lm, 0, sizeof(u32)*lmn);
+  loopi(lmn) ctx.lm[i] = 0;
+  loopi(6) {
+    ctx.face = i;
+    loopxyz(0, b.size(), buildlmdata(ctx, org+xyz, xyz));
+  }
+
+  // build light map index texture
+  OGL(GenTextures, 1, &b.lmindex);
+  ogl::bindtexture(GL_TEXTURE_2D, 0, b.lmindex);
+  OGL(PixelStorei, GL_UNPACK_ALIGNMENT, 1);
+  OGL(TexImage2D, GL_TEXTURE_2D, 0, GL_RGBA, lmindexdim.x, lmindexdim.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, &ctx.lmindex[0]);
+  OGL(TexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  OGL(TexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  OGL(TexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  OGL(TexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+  // build light map texture
+  OGL(GenTextures, 1, &b.lm);
+  ogl::bindtexture(GL_TEXTURE_2D, 0, b.lm);
+  OGL(PixelStorei, GL_UNPACK_ALIGNMENT, 1);
+  OGL(TexImage2D, GL_TEXTURE_2D, 0, GL_RGBA, ctx.lmdim.x, ctx.lmdim.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, ctx.lm);
+  OGL(TexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  OGL(TexParameteri, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  OGL(TexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  OGL(TexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+  //console::out("lm %i %i", ctx.lmdim.x, ctx.lmdim.y);
+  //console::out("lmindex %i %i", lmindexdim.x, lmindexdim.y);
+  b.rlmdim = rcp(vec2f(ctx.lmdim));
+  delete [] ctx.lm;
+}
+
+/*--------------------------------------------------------------------------
+ - world mesh handling (very simple for now)
+ -------------------------------------------------------------------------*/
+struct brickmeshctx {
+  INLINE brickmeshctx(const world::lvl1grid &b) : b(b) {}
+  INLINE void clear(s32 orientation) {
+    face = orientation;
+    MEMSET(indices, 0xff);
+  }
+  INLINE u16 get(vec3i p) const { return indices[p.x][p.y][p.z]; }
+  INLINE void set(vec3i p, u16 idx) { indices[p.x][p.y][p.z] = idx; }
+  const world::lvl1grid &b;
+  vector<arrayf<10>> vbo;
+  vector<u16> ibo;
+  vector<u16> tex;
+  u16 indices[world::lvl1+1][world::lvl1+1][world::lvl1+1];
+  s32 face;
+};
+
+VAR(ldirx,-100,0,100);
+VAR(ldiry,-100,50,100);
+VAR(ldirz,-100,100,100);
+
+static void buildfacemesh(brickmeshctx &ctx, vec3i xyz, vec3i idx) {
+  if (!visibleface(xyz, ctx.face)) return;
 
   // build both triangles. we reuse already output vertices
-  const vec2i diag = (chan==0?xyz.yz():(chan==1?xyz.xz():xyz.xy()));
-  const s32 alt = (diag.x&1)^(diag.y&1);
+  const int chan = ctx.face/2; // basically: x (0), y (1) or z (2)
   const int idx0 = 2*ctx.face+0, idx1 = 2*ctx.face+1;
-  const vec3i tris[] = {
-    alt ? cubetrisalternate[idx0] : cubetris[idx0],
-    alt ? cubetrisalternate[idx1] : cubetris[idx1]
-  };
+  const vec3i tris[] = {cubetris[idx0], cubetris[idx1]};
   const auto tex = world::getcube(xyz).tex[ctx.face];
   loopi(2) { // build both triangles
     vec3f v[3]={zero,zero,zero}; // delay vertex creation for degenerated tris
     vec2f t[3]={zero,zero,zero}; // idem for texture coordinates
+    vec2f l[3]={zero,zero,zero}; // idem for light map coordinates
     vec3f c[3]={zero,zero,zero}; // idem for vertex colors
-    vec3i locals[3]={zero,zero,zero}; 
+    vec3i locals[3]={zero,zero,zero};
     bool isnew[3]={false,false,false};
     loopj(3) { // build each vertex
       const vec3i global = xyz+cubeiverts[tris[i][j]];
+      const vec3i local = idx+cubeiverts[tris[i][j]];
       locals[j] = idx+cubeiverts[tris[i][j]];
       u16 id = ctx.get(locals[j]);
       if (id == 0xffff) {
@@ -732,6 +851,10 @@ INLINE void buildfaces(brickmeshctx &ctx, vec3i xyz, vec3i idx) {
         id = ctx.vbo.length();
         v[j] = pos.xzy();
         t[j] = tex;
+        const vec2i uv1 = getlmuv(local, ctx.face);
+        //console::out("uv1 [%i %i]", uv1.x, uv1.y);
+
+        l[j] = vec2f(getlmuv(local, ctx.face)) / vec2f(lmindexdim);
         c[j] = computecolor(vec3f(global), ctx.face);
         isnew[j] = true;
       } else
@@ -745,7 +868,7 @@ INLINE void buildfaces(brickmeshctx &ctx, vec3i xyz, vec3i idx) {
     loopj(3) {
       if (isnew[j]) {
         ctx.set(locals[j], ctx.vbo.length());
-        ctx.vbo.add(arrayf<8>(v[j],t[j],c[j]));
+        ctx.vbo.add(arrayf<10>(v[j],t[j],c[j],l[j]));
       }
       ctx.ibo.add(ctx.get(locals[j]));
       ctx.tex.add(tex);
@@ -781,14 +904,11 @@ static void radixsortibo(brickmeshctx &ctx) {
   }
 }
 
-VAR(forcebuild, 0, 0, 1);
 static void buildgridmesh(world::lvl1grid &b, vec3i org) {
-  if (b.dirty==0 && !forcebuild) return;
-  b.dirty = 0;
   brickmeshctx ctx(b);
   loopi(6) {
     ctx.clear(i);
-    loopxyz(0, b.size(), buildfaces(ctx, org+xyz, xyz));
+    loopxyz(0, b.size(), buildfacemesh(ctx, org+xyz, xyz));
   }
   if (ctx.vbo.length() == 0 || ctx.ibo.length() == 0) {
     if (b.vbo) OGL(DeleteBuffers, 1, &b.vbo);
@@ -804,7 +924,7 @@ static void buildgridmesh(world::lvl1grid &b, vec3i org) {
   OGL(GenBuffers, 1, &b.ibo);
   ogl::bindbuffer(ogl::ARRAY_BUFFER, b.vbo);
   ogl::bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, b.ibo);
-  OGL(BufferData, GL_ARRAY_BUFFER, ctx.vbo.length()*sizeof(arrayf<8>), &ctx.vbo[0][0], GL_STATIC_DRAW);
+  OGL(BufferData, GL_ARRAY_BUFFER, ctx.vbo.length()*sizeof(arrayf<10>), &ctx.vbo[0][0], GL_STATIC_DRAW);
   OGL(BufferData, GL_ELEMENT_ARRAY_BUFFER, ctx.ibo.length()*sizeof(u16), &ctx.ibo[0], GL_STATIC_DRAW);
   bindbuffer(ogl::ARRAY_BUFFER, 0);
   bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, 0);
@@ -820,37 +940,85 @@ static void buildgridmesh(world::lvl1grid &b, vec3i org) {
   b.draws.add(vec2i(n,tex));
 }
 
-void buildgrid(void) {
+static void buildbrick(world::lvl1grid &b, vec3i org) {
+  if (b.dirty==0 && !forcebuild) return;
+  console::out("START");
+  buildlightmap(b, org);
+  buildgridmesh(b, org);
+  console::out("END");
+  b.dirty = 0;
+}
+
+static void buildgrid(void) {
   ldir = normalize(vec3f(float(ldirx), float(ldiry), float(ldirz)));
-  forallbricks(buildgridmesh); forcebuild = 0;}
+  forallbricks(buildbrick);
+  forcebuild = 0;
+}
 COMMAND(buildgrid, ARG_NONE);
+
+static const char gridvert[] = {
+  "uniform mat4 u_mvp;\n"
+  VS_IN " vec3 vs_pos;\n"
+  VS_IN " vec4 vs_col;\n"
+  VS_IN " vec2 vs_tex;\n"
+  VS_IN " vec2 vs_lm;\n"
+  VS_OUT " vec4 fs_col;\n"
+  VS_OUT " vec2 fs_tex;\n"
+  VS_OUT " vec2 fs_lm;\n"
+  "void main() {\n"
+  "  fs_tex = vs_tex;\n"
+  "  fs_col = vs_col;\n"
+  "  fs_lm = vs_lm;\n"
+  "  gl_Position = u_mvp*vec4(vs_pos,1.0);\n"
+  "}\n"
+};
+static const char gridfrag[] = {
+  "uniform sampler2D u_diffuse;\n"
+  "uniform sampler2D u_lmindex;\n"
+  "uniform sampler2D u_lm;\n"
+  "uniform vec2 u_rlmdim;\n"
+  PS_IN " vec2 fs_tex;\n"
+  PS_IN " vec4 fs_col;\n"
+  PS_IN " vec2 fs_lm;\n"
+  IF_NOT_EMSCRIPTEN("out vec4 rt_c;\n")
+  "void main() {\n"
+  " vec4 lmindex = texture2D(u_lmindex, fs_lm);\n"
+  //IF_NOT_EMSCRIPTEN(" vec2 lmuv = 65025.0*lmindex.yw+lmindex.xz*255.0;\n")
+  //IF_NOT_EMSCRIPTEN(" vec4 lm = (lmuv*u_rlmdim).xyxy;\n")//texture(u_lm, lmuv*u_rlmdim);\n")
+  // IF_NOT_EMSCRIPTEN(" vec4 lm = texture(u_lm, lmuv*u_rlmdim);\n")
+  IF_NOT_EMSCRIPTEN(" vec4 lm = texture2D(u_lm, lmindex.xy+fract(fs_lm*256.0)/256.0);\n")
+  IF_NOT_EMSCRIPTEN(" vec4 col = lm*fs_col;\n") //texture(u_diffuse, fs_tex);\n")
+  IF_EMSCRIPTEN("  vec4 col = fs_col*texture2D(u_diffuse, fs_tex);\n")
+  IF_NOT_EMSCRIPTEN("  rt_c = col;\n")
+  IF_EMSCRIPTEN("  gl_FragColor = col;\n")
+  "}\n"
+};
+static struct gridshader : shader {
+  GLuint u_lmindex, u_lm, u_rlmdim;
+} gridshader;
 
 static void drawgrid(void) {
   using namespace world;
-  ogl::bindtexture(GL_TEXTURE_2D, ogl::lookuptex(0));
-#if 0
-  ogl::enableattribarrayv(ogl::POS0, ogl::TEX);
-  ogl::disableattribarrayv(ogl::COL, ogl::POS1);
-#else
-  ogl::enableattribarrayv(ogl::POS0, ogl::TEX, ogl::COL);
-  ogl::disableattribarrayv(ogl::POS1);
-#endif
-  ogl::bindshader(ogl::DIFFUSETEX|ogl::COLOR_ONLY);
-  //ogl::bindshader(ogl::COLOR_ONLY);
+  bindshader(gridshader);
+  setattribarray()(POS0, TEX0, TEX1, COL);
   forallbricks([&](const lvl1grid &b, const vec3i org) {
-    ogl::bindbuffer(ogl::ARRAY_BUFFER, b.vbo);
-    ogl::bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, b.ibo);
-    OGL(VertexAttribPointer, ogl::COL, 3, GL_FLOAT, 0, sizeof(float[8]), (const void*) sizeof(float[5]));
-    OGL(VertexAttribPointer, ogl::TEX, 2, GL_FLOAT, 0, sizeof(float[8]), (const void*) sizeof(float[3]));
-    OGL(VertexAttribPointer, ogl::POS0, 3, GL_FLOAT, 0, sizeof(float[8]), (const void*) 0);
+    bindbuffer(ogl::ARRAY_BUFFER, b.vbo);
+    bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, b.ibo);
+    bindtexture(GL_TEXTURE_2D, 1, b.lmindex);
+    bindtexture(GL_TEXTURE_2D, 2, b.lm);
+    OGL(Uniform2fv, gridshader.u_rlmdim, 1, &b.rlmdim.x);
+    OGL(VertexAttribPointer, COL, 3, GL_FLOAT, 0, sizeof(float[10]), (const void*) sizeof(float[5]));
+    OGL(VertexAttribPointer, TEX0, 2, GL_FLOAT, 0, sizeof(float[10]), (const void*) sizeof(float[3]));
+    OGL(VertexAttribPointer, TEX1, 2, GL_FLOAT, 0, sizeof(float[10]), (const void*) sizeof(float[8]));
+    OGL(VertexAttribPointer, POS0, 3, GL_FLOAT, 0, sizeof(float[10]), (const void*) 0);
     u32 offset = 0;
     loopi(b.draws.length()) {
       const auto fake = (const void*)(uintptr_t(offset*sizeof(u16)));
       const u32 n = b.draws[i].x;
       const u32 tex = b.draws[i].y;
-      ogl::bindtexture(GL_TEXTURE_2D, ogl::lookuptex(tex));
-      ogl::drawelements(GL_TRIANGLES, n, GL_UNSIGNED_SHORT, fake);
-      ogl::xtraverts += n;
+      bindgametexture(GL_TEXTURE_2D, ogl::lookuptex(tex));
+      drawelements(GL_TRIANGLES, n, GL_UNSIGNED_SHORT, fake);
+      xtraverts += n;
       offset += n;
     }
   });
@@ -860,13 +1028,12 @@ static void drawgrid(void) {
  - render md2 model
  -------------------------------------------------------------------------*/
 void rendermd2(const float *pos0, const float *pos1, float lerp, int n) {
-  OGL(VertexAttribPointer, TEX, 2, GL_FLOAT, 0, sizeof(float[5]), pos0);
+  OGL(VertexAttribPointer, TEX0, 2, GL_FLOAT, 0, sizeof(float[5]), pos0);
   OGL(VertexAttribPointer, POS0, 3, GL_FLOAT, 0, sizeof(float[5]), pos0+2);
   OGL(VertexAttribPointer, POS1, 3, GL_FLOAT, 0, sizeof(float[5]), pos1+2);
-  enableattribarrayv(POS0, POS1, TEX);
-  disableattribarrayv(COL);
+  setattribarray()(POS0, POS1, TEX0);
   bindshader(FOG|KEYFRAME|COL|DIFFUSETEX);
-  OGL(Uniform1f, bindedshader->udelta, lerp);
+  OGL(Uniform1f, bindedshader->u_delta, lerp);
   drawarrays(GL_TRIANGLES, 0, n);
 }
 
@@ -880,18 +1047,18 @@ static void flush(void) {
   if ((bindedshader->rules & FOG) && (dirty.flags.fog || dirty.flags.mvp)) {
     const mat4x4f &mv = vp[MODELVIEW];
     const vec4f zaxis(mv.vx.z,mv.vy.z,mv.vz.z,mv.vw.z);
-    OGL(Uniform2fv, bindedshader->ufogstartend, 1, &fogstartend.x);
-    OGL(Uniform4fv, bindedshader->ufogcolor, 1, &fogcolor.x);
-    OGL(Uniform4fv, bindedshader->uzaxis, 1, &zaxis.x);
+    OGL(Uniform2fv, bindedshader->u_fogstartend, 1, &fogstartend.x);
+    OGL(Uniform4fv, bindedshader->u_fogcolor, 1, &fogcolor.x);
+    OGL(Uniform4fv, bindedshader->u_zaxis, 1, &zaxis.x);
     dirty.flags.fog = 0;
   }
   if (dirty.flags.mvp) {
     viewproj = vp[PROJECTION]*vp[MODELVIEW];
-    OGL(UniformMatrix4fv, bindedshader->umvp, 1, GL_FALSE, &viewproj.vx.x);
+    OGL(UniformMatrix4fv, bindedshader->u_mvp, 1, GL_FALSE, &viewproj.vx.x);
     dirty.flags.mvp = 0;
   }
   if (dirty.flags.overbright) {
-    OGL(Uniform1f, bindedshader->uoverbright, overbrightf);
+    OGL(Uniform1f, bindedshader->u_overbright, overbrightf);
     dirty.flags.overbright = 0;
   }
 }
@@ -950,9 +1117,10 @@ void init(int w, int h) {
 #endif
 
   OGL(Viewport, 0, 0, w, h);
+  loopi(int(ARRAY_ELEM_N(generatedids))) generatedids[i] = 0;
+  loopi(int(TEX_NUM)) bindedtexture[i] = 0;
+
 #if defined (EMSCRIPTEN)
-  for (u32 i = 0; i < sizeof(generatedids) / sizeof(generatedids[0]); ++i)
-    generatedids[i] = 0;
   OGL(ClearDepthf,1.f);
 #else
   OGL(ClearDepth,1.f);
@@ -965,11 +1133,26 @@ void init(int w, int h) {
   purgetextures();
   buildsphere(1, 12, 6);
   loopi(shadern) buildubershader(shaders[i], i); // build uber-shaders
+
+  // build water shader
   buildshader(watershader, watervert, uberfrag, DIFFUSETEX); // build water shader
-  OGLR(watershader.udelta, GetUniformLocation, watershader.program, "delta");
-  OGLR(watershader.uduv, GetUniformLocation, watershader.program, "duv");
-  OGLR(watershader.udxy, GetUniformLocation, watershader.program, "dxy");
-  OGLR(watershader.uhf, GetUniformLocation, watershader.program, "hf");
+  OGLR(watershader.u_delta, GetUniformLocation, watershader.program, "u_delta");
+  OGLR(watershader.u_duv, GetUniformLocation, watershader.program, "u_duv");
+  OGLR(watershader.u_dxy, GetUniformLocation, watershader.program, "u_dxy");
+  OGLR(watershader.u_hf, GetUniformLocation, watershader.program, "u_hf");
+
+  // build world shader
+  compileshader(gridshader, gridvert, gridfrag, DIFFUSETEX|COLOR);
+  OGL(BindAttribLocation, gridshader.program, TEX1, "vs_lm");
+  linkshader(gridshader);
+  setshaderuniform(gridshader);
+  OGL(UseProgram, gridshader.program);
+  OGLR(gridshader.u_lmindex, GetUniformLocation, gridshader.program, "u_lmindex");
+  OGLR(gridshader.u_lm, GetUniformLocation, gridshader.program, "u_lm");
+  OGLR(gridshader.u_rlmdim, GetUniformLocation, gridshader.program, "u_rlmdim");
+  OGL(Uniform1i, gridshader.u_lmindex, 1);
+  OGL(Uniform1i, gridshader.u_lm, 2);
+  OGL(UseProgram, 0);
   imminit();
   loopi(ATTRIB_NUM) enabledattribarray[i] = 0;
   loopi(BUFFER_NUM) bindedvbo[i] = 0;
@@ -984,18 +1167,14 @@ void drawsphere(void) {
 }
 
 static void setupworld(void) {
-  enableattribarrayv(POS0, COL, TEX);
-  disableattribarrayv(POS1);
+  setattribarray()(POS0, COL, TEX0);
 }
 
-static const vec3f roll(0.f,0.f,1.f);
-static const vec3f pitch(-1.f,0.f,0.f);
-static const vec3f yaw(0.f,1.f,0.f);
 static void transplayer(void) {
   identity();
-  rotate(game::player1->roll,roll);
-  rotate(game::player1->pitch,pitch);
-  rotate(game::player1->yaw,yaw);
+  rotate(game::player1->roll, zaxis);
+  rotate(-game::player1->pitch, xaxis);
+  rotate(game::player1->yaw, yaxis);
   translate(vec3f(-game::player1->o.x,
             (game::player1->state==CS_DEAD ? game::player1->eyeheight-0.2f : 0)-game::player1->o.z,
             -game::player1->o.y));
@@ -1045,13 +1224,13 @@ static void drawhudgun(float fovy, float aspect, int farplane) {
 }
 
 void draw(int mode, int pos, int tex, size_t n, const float *data) {
+  loopi(ATTRIB_NUM) disableattribarray(i);
   if (tex) {
-    enableattribarrayv(TEX);
-    OGL(VertexAttribPointer, TEX, tex, GL_FLOAT, 0, (pos+tex)*sizeof(float), data);
+    enableattribarray(TEX0);
+    OGL(VertexAttribPointer, TEX0, tex, GL_FLOAT, 0, (pos+tex)*sizeof(float), data);
   }
-  enableattribarrayv(POS0);
+  enableattribarray(POS0);
   OGL(VertexAttribPointer, POS0, pos, GL_FLOAT, 0, (pos+tex)*sizeof(float), data+tex);
-  disableattribarrayv(POS1, COL);
   ogl::drawarrays(mode, 0, n);
 }
 
@@ -1062,9 +1241,9 @@ VAR(renderwater,0,1,1);
 
 // enforce the gl states
 static void forceglstate(void) {
-  bindtexture(GL_TEXTURE_2D,0);
+  bindgametexture(GL_TEXTURE_2D,0);
   loopi(BUFFER_NUM) bindbuffer(i,0);
-  loopi(ATTRIB_NUM) disableattribarrayv(i);
+  loopi(ATTRIB_NUM) disableattribarray(i);
 }
 
 static void dofog(bool underwater) {
@@ -1108,8 +1287,8 @@ void drawframe(int w, int h, float curfps) {
   // render sky
   if (rendersky) {
     identity();
-    rotate(game::player1->pitch, pitch);
-    rotate(game::player1->yaw, yaw);
+    rotate(-game::player1->pitch, xaxis);
+    rotate(game::player1->yaw, yaxis);
     rotate(90.f, vec3f(1.f,0.f,0.f));
     OGL(VertexAttrib3f,COL,1.0f,1.0f,1.0f);
     rr::draw_envbox(14, fog*4/3);

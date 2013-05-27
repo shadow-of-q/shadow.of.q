@@ -227,7 +227,7 @@ void rendermodel(const char *mdl, int frame, int range, int tex,
   delayedload(m);
 
   int xs, ys;
-  ogl::bindtexture(GL_TEXTURE_2D, tex ? ogl::lookuptex(tex, xs, ys) : FIRSTMDL+m->mdlnum);
+  ogl::bindgametexture(GL_TEXTURE_2D, tex ? ogl::lookuptex(tex, xs, ys) : FIRSTMDL+m->mdlnum);
   vec3f light(1.0f, 1.0f, 1.0f);
   if (teammate) {
     light.x *= 0.6f;

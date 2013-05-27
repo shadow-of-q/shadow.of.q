@@ -71,10 +71,7 @@ struct brick : public noncopyable {
     subcubenumber=1,
     l=sz
   };
-  INLINE brick(void) {
-    vbo = ibo = 0u;
-    dirty = 1u;
-  }
+  INLINE brick(void) : vbo(0), ibo(0), lmindex(0), lm(0), dirty(1) {}
   static INLINE vec3i size(void) { return vec3i(sz); }
   static INLINE vec3i global(void) { return size(); }
   static INLINE vec3i local(void) { return size(); }
@@ -101,7 +98,10 @@ struct brick : public noncopyable {
     f(*this, org);
   }
   brickcube elem[sz][sz][sz];
-  u32 vbo, ibo;
+  u32 vbo, ibo; // ogl handles for vertex and index buffers
+  u32 lmindex; // ogl handle for the texture index to lighting data
+  u32 lm; // lighting data
+  vec2f rlmdim; // rcp(lightmap_dimension)
   vector<vec2i> draws; // (elemnum, texid)
   u32 dirty; // 1 if the ogl data need to be rebuilt
 };
@@ -165,7 +165,8 @@ struct grid : public noncopyable {
 #undef GRIDPOLICY
 
 // all levels of details for our world
-static const int lvl1 = 16, lvl2 = 4, lvl3 = 4;
+#define BRICKDIM 16
+static const int lvl1 = BRICKDIM, lvl2 = 4, lvl3 = 4;
 static const int lvlt1 = lvl1;
 static const vec3i brickisize(lvl1);
 

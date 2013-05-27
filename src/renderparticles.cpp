@@ -121,19 +121,18 @@ void render_particles(int time) {
   OGL(DepthMask, GL_FALSE);
   ogl::enable(GL_BLEND);
   OGL(BlendFunc, GL_SRC_ALPHA, GL_SRC_ALPHA);
-  ogl::disableattribarrayv(ogl::POS1);
-  ogl::enableattribarrayv(ogl::POS0, ogl::COL, ogl::TEX);
+  ogl::setattribarray()(ogl::POS0, ogl::COL, ogl::TEX0);
   ogl::bindbuffer(ogl::ARRAY_BUFFER, particlevbo);
   ogl::bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, particleibo);
   OGL(BufferSubData, GL_ARRAY_BUFFER, 0, numrender*sizeof(glparticle[4]), glparts);
   OGL(VertexAttribPointer, ogl::COL, 3, GL_FLOAT, 0, sizeof(arrayf<8>), (const void*)0);
-  OGL(VertexAttribPointer, ogl::TEX, 2, GL_FLOAT, 0, sizeof(arrayf<8>), (const void*)sizeof(float[3]));
+  OGL(VertexAttribPointer, ogl::TEX0, 2, GL_FLOAT, 0, sizeof(arrayf<8>), (const void*)sizeof(float[3]));
   OGL(VertexAttribPointer, ogl::POS0, 3, GL_FLOAT, 0, sizeof(arrayf<8>), (const void*)sizeof(float[5]));
   loopi(parttypen) {
     if (partbucketsize[i] == 0) continue;
     const parttype *pt = &parttypes[i];
     const int n = partbucketsize[i]*6;
-    ogl::bindtexture(GL_TEXTURE_2D, pt->tex);
+    ogl::bindgametexture(GL_TEXTURE_2D, pt->tex);
     const void *offset = (const void *) (partbucket[i] * sizeof(u16[6]));
     ogl::drawelements(GL_TRIANGLES, n, GL_UNSIGNED_SHORT, offset);
   }

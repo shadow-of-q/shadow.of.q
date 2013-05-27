@@ -67,16 +67,16 @@ namespace ogl {
 static const u32 MAXMAPTEX = 256;
 
 // vertex attributes
-enum {POS0, POS1, TEX, NOR, COL, ATTRIB_NUM};
+enum {POS0, POS1, TEX0, TEX1, TEX2, NOR, COL, ATTRIB_NUM};
 
 // quick, dirty and super simple uber-shader system
-static const uint COLOR_ONLY = 0;
-static const uint FOG = 1<<0;
-static const uint KEYFRAME = 1<<1;
-static const uint DIFFUSETEX = 1<<2;
+static const u32 COLOR = 0;
+static const u32 FOG = 1<<0;
+static const u32 KEYFRAME = 1<<1;
+static const u32 DIFFUSETEX = 1<<2;
 static const int subtypen = 3;
 static const int shadern = 1<<subtypen;
-void bindshader(uint flags);
+void bindshader(u32 flags);
 
 void init(int w, int h);
 void clean(void);
@@ -94,16 +94,34 @@ void drawsphere(void);
 
 // following functions also ensure state tracking
 enum {ARRAY_BUFFER, ELEMENT_ARRAY_BUFFER, BUFFER_NUM};
-void bindbuffer(uint target, uint buffer);
-void bindtexture(uint target, uint tex);
-void enableattribarray(uint target);
-void disableattribarray(uint target);
-MAKE_VARIADIC(enableattribarray);
-MAKE_VARIADIC(disableattribarray);
+void bindbuffer(u32 target, u32 buffer);
+void bindgametexture(u32 target, u32 tex);
+void enableattribarray(u32 target);
+void disableattribarray(u32 target);
+
+// enable /disable vertex attribs in one shot
+struct setattribarray {
+  INLINE setattribarray(void) {
+    loopi(ATTRIB_NUM) enabled[i] = false;
+  }
+  template <typename First, typename... Rest>
+  INLINE void operator() (First first, Rest... rest) {
+    enabled[first] = true;
+    operator() (rest...);
+  }
+  INLINE void operator()() {
+    loopi(ATTRIB_NUM)
+      if (enabled[i])
+        enableattribarray(i);
+      else
+        disableattribarray(i);
+  }
+  bool enabled[ATTRIB_NUM];
+};
 
 // useful to enable / disable lot of stuff in one-liners
-INLINE void enable(uint x) { OGL(Enable,x); }
-INLINE void disable(uint x) { OGL(Disable,x); }
+INLINE void enable(u32 x) { OGL(Enable,x); }
+INLINE void disable(u32 x) { OGL(Disable,x); }
 MAKE_VARIADIC(enable);
 MAKE_VARIADIC(disable);
 
