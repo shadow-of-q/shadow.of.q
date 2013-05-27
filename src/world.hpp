@@ -2,6 +2,7 @@
 #include "entities.hpp"
 #include "tools.hpp"
 #include "math.hpp"
+#include "bvh.hpp"
 
 namespace cube {
 namespace world {
@@ -114,7 +115,7 @@ struct grid : public noncopyable {
     subcubenumber=T::cubenumber,
     l=loc
   };
-  INLINE grid(void) { memset(elem, 0, sizeof(elem)); }
+  INLINE grid(void) { dirty=1; memset(elem, 0, sizeof(elem)); }
   static INLINE vec3i local(void) { return vec3i(loc); }
   static INLINE vec3i global(void) { return vec3i(glob); }
   static INLINE vec3i cuben(void) { return vec3i(cubenumber); }
@@ -142,6 +143,7 @@ struct grid : public noncopyable {
     auto &e = elem[idx.x][idx.y][idx.z];
     if (e == NULL) e = new T;
     e->set(v-idx*subcuben(), cube);
+    dirty=1;
   }
   template <typename F> INLINE void forallcubes(const F &f, vec3i org) {
     loopxyz(zero, local(), if (T *e = subgrid(xyz))
@@ -196,6 +198,10 @@ template <typename F> static void forallcubes(const F &f) { root.forallcubes(f, 
 // get and set the cube at position (x,y,z)
 brickcube getcube(const vec3i &xyz);
 void setcube(const vec3i &xyz, const brickcube &cube);
+INLINE bool visibleface(vec3i xyz, u32 face) {
+  return getcube(xyz).mat != world::EMPTY &&
+         getcube(xyz+cubenorms[face]).mat == world::EMPTY;
+}
 INLINE vec3f getpos(vec3i xyz) {return vec3f(xyz)+vec3f(world::getcube(xyz).p)/255.f;}
 // cast a ray in the world and return the intersection result
 isecres castray(const ray &ray);
@@ -223,6 +229,8 @@ int isoccluded(float vx, float vy, float cx, float cy, float csize);
 int waterlevel(void);
 // return the name of the current map
 char *maptitle(void);
+// build a bvh from the world
+bvh::intersector *buildbvh(void);
 
 } // namespace world
 } // namespace cube

@@ -1,13 +1,15 @@
 #include "cube.hpp"
+#include "bvh.hpp"
 #include <SDL/SDL.h>
 #include <SDL/SDL_image.h>
 
 namespace cube {
 
 // XXX just for now
-namespace world{
+namespace world {
 extern int raycast;
-extern void castrayprout(float fovy, float aspect, float farplane);
+extern void castray(float fovy, float aspect, float farplane);
+extern int usebvh;
 }
 namespace rr { extern int curvert; }
 namespace ogl {
@@ -664,11 +666,6 @@ static vec3f computecolor(vec3f pos, int face) {
   return vec3f(l) / 64.f;
 }
 
-INLINE bool visibleface(vec3i xyz, u32 face) {
-  return world::getcube(xyz).mat != world::EMPTY &&
-         world::getcube(xyz+cubenorms[face]).mat == world::EMPTY;
-}
-
 /*--------------------------------------------------------------------------
  - surface parameterization per brick
  -------------------------------------------------------------------------*/
@@ -710,20 +707,22 @@ struct surfaceparamctx {
 };
 
 static void buildlmuv(surfaceparamctx &ctx, vec3i xyz, vec3i idx) {
-  if (!visibleface(xyz, ctx.face)) return;
+  if (!world::visibleface(xyz, ctx.face)) return;
+  if (ctx.lmuv.dim.x+lmres+2 >= maxlmw) {
+    ctx.lmuv.dim.x = 0;
+    ctx.lmuv.dim.y += lmres+2;
+  }
   ctx.set(idx, ctx.lmuv.dim, 0);
   ctx.set(idx, ctx.lmuv.dim+vec2i(lmres,0), 1);
   ctx.set(idx, ctx.lmuv.dim+vec2i(lmres), 2);
   ctx.set(idx, ctx.lmuv.dim+vec2i(0,lmres), 3);
   ctx.lmuv.dim.x += lmres+2;
-  if (ctx.lmuv.dim.x >= maxlmw) {
-    ctx.lmuv.dim.x = 0;
-    ctx.lmuv.dim.y += lmres+2;
-  }
 }
 
+static bvh::intersector *bvhisec = NULL; // XXX naughty global
+
 static void buildlmdata(surfaceparamctx &ctx, vec3i xyz, vec3i idx) {
-  if (!visibleface(xyz, ctx.face)) return;
+  if (!world::visibleface(xyz, ctx.face)) return;
 
   const auto uv = ctx.get(idx, 0);
   assert(all(uv!=vec2i(~0x0)) && all(uv>=vec2i(zero)) && all(uv<ctx.lmuv.dim));
@@ -743,8 +742,14 @@ static void buildlmdata(surfaceparamctx &ctx, vec3i xyz, vec3i idx) {
   auto dolighting = [&](int i, int j) {
     const vec3f p = org + float(i)*d*u + float(j)*d*v + nbias*n;
     const ray r(p, ldir);
-    const auto res = world::castray(r);
-    const float lum = (res.isec?0.f:1.f) * max(dot(ldir,normalize(n)),0.f);
+    bool isec = false;
+    if (bvhisec && world::usebvh) {
+      bvh::hit hit;
+      trace(*bvhisec, r, hit);
+      isec = hit.is_hit();
+    } else
+      isec = world::castray(r).isec;
+    const float lum = (isec?0.f:1.f) * max(dot(ldir,normalize(n)),0.f);
     const u32 qlum = u32(clamp(255.f*lum, 0.f, 255.f));
     l[i*ctx.lmuv.dim.x+j] = qlum | (qlum<<8) | (qlum<<16) | 0xff000000;
   };
@@ -824,7 +829,7 @@ VAR(ldiry,-100,50,100);
 VAR(ldirz,-100,100,100);
 
 static void buildfacemesh(brickmeshctx &ctx, vec3i xyz, vec3i idx) {
-  if (!visibleface(xyz, ctx.face)) return;
+  if (!world::visibleface(xyz, ctx.face)) return;
 
   // build both triangles. we reuse already output vertices
   const int chan = ctx.face/2; // basically: x (0), y (1) or z (2)
@@ -842,11 +847,11 @@ static void buildfacemesh(brickmeshctx &ctx, vec3i xyz, vec3i idx) {
     loopj(3) { // build each vertex
       const vec3i global = xyz+cubeiverts[tris[i][j]];
       locals[j] = idx+cubeiverts[tris[i][j]];
-      u16 id = ctx.get(locals[j]);
+      // u16 id = ctx.get(locals[j]);
     //  if (id == 0xffff) {
         const vec3f pos = world::getpos(global);
         const vec2f tex = chan==0?pos.yz():(chan==1?pos.xz():pos.xy());
-        id = ctx.vbo.length();
+        // id = ctx.vbo.length();
         v[j] = pos.xzy();
         t[j] = tex;
         l[j] = vec2f(ctx.lmuv.get(idx,corners[i][j],ctx.face))/vec2f(ctx.lmuv.dim);
@@ -937,19 +942,21 @@ static void buildgridmesh(world::lvl1grid &b, const lightmapuv &lmuv, vec3i org)
 
 static void buildbrick(world::lvl1grid &b, vec3i org) {
   if (b.dirty==0 && !forcebuild) return;
-  console::out("START");
   lightmapuv lmuv;
   buildlightmap(b, lmuv, org);
-  console::out("res [%i %i]", lmuv.dim.x, lmuv.dim.y);
   buildgridmesh(b, lmuv, org);
-  console::out("END");
+  console::out("lightmap [%i %i]", lmuv.dim.x, lmuv.dim.y);
   b.dirty = 0;
 }
 
 static void buildgrid(void) {
+  if (world::root.dirty==0 && !forcebuild) return;
   ldir = normalize(vec3f(float(ldirx), float(ldiry), float(ldirz)));
   forallbricks(buildbrick);
   forcebuild = 0;
+  world::root.dirty = 0;
+  if (bvhisec) bvh::destroy(bvhisec);
+  bvhisec = world::buildbvh();
 }
 COMMAND(buildgrid, ARG_NONE);
 
@@ -1299,7 +1306,7 @@ void drawframe(int w, int h, float curfps) {
 
   drawhudgun(fovy, aspect, farplane);
   if (world::raycast) {
-    world::castrayprout(fovy, aspect, farplane);
+    world::castray(fovy, aspect, farplane);
     world::raycast = 0;
   }
 

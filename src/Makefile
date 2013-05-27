@@ -8,6 +8,7 @@ CLIENT_LIBS=-L../enet -lenet `sdl-config --libs` -lSDL_image -lSDL_mixer -lz -lG
 #CLIENT_OBJS=blob.o
 CLIENT_OBJS= \
 	game.o \
+	bvh.o \
 	client.o \
 	command.o \
 	console.o \
