@@ -769,8 +769,23 @@ struct camera {
 };
 
 struct aabb {
+  INLINE aabb(void) {}
+  INLINE aabb(float m, float M) : pmin(m), pmax(M) {}
   INLINE aabb(vec3f m, vec3f M) : pmin(m), pmax(M) {}
-  INLINE aabb(void) : pmin(FLT_MAX), pmax(-FLT_MAX) {}
+  INLINE void compose(const aabb &other) {
+    pmin = min(pmin, other.pmin);
+    pmax = max(pmax, other.pmax);
+  }
+  INLINE float halfarea(void) const {
+    const vec3f e(pmax-pmin);
+    return e.x*e.y + e.y*e.z + e.x*e.z;
+  }
+  INLINE double getarea(void) const {
+    const vec3f ext(pmax-pmin);
+    return double(ext.x)*double(ext.y) +
+           double(ext.y)*double(ext.z) +
+           double(ext.x)*double(ext.z);
+  }
   vec3f pmin, pmax;
 };
 struct isecres {

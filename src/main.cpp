@@ -46,8 +46,8 @@ void *alloc(int s) { // for some big chunks... most other allocs use the memory 
   return b;
 }
 
-int scr_w = 1920;
-int scr_h = 1080;
+int scr_w = 800;
+int scr_h = 600;
 
 void screenshot(void) {
 #if !defined(EMSCRIPTEN)
@@ -245,8 +245,5 @@ static int main(int argc, char **argv) {
 
 } // namespace cube
 
-int main(int argc, char **argv) {
-  return cube::main(argc, argv);
-}
-#if 0
-#endif
+int main(int argc, char **argv) {return cube::main(argc, argv);}
+
