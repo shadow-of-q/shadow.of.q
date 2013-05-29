@@ -22,7 +22,7 @@ static int completesize = 0, completeidx = 0;
 
 static void itoa(char *s, int i) { sprintf_s(s)("%d", i); }
 static char *exchangestr(char *o, const char *n) {
-  gp()->deallocstr(o);
+  free(o);
   return newstring(n);
 }
 
@@ -235,10 +235,10 @@ int execute(const char *pp, bool isdown) {
         // create new string here because alias could rebind itself
         char *action = newstring(id->action);
         val = execute(action, isdown);
-        gp()->deallocstr(action);
+        free(action);
         break;
     }
-    loopj(numargs) gp()->deallocstr(w[j]);
+    loopj(numargs) free(w[j]);
   }
   return val;
 }

@@ -66,15 +66,15 @@
 
 namespace cube {
 
-  typedef unsigned char uchar;
-  typedef unsigned short ushort;
-  typedef unsigned int uint;
+typedef unsigned char uchar;
+typedef unsigned short ushort;
+typedef unsigned int uint;
 
 #if defined(WIN32)
-    #undef min
-    #undef max
+  #undef min
+  #undef max
 #if defined(_MSC_VER)
-    INLINE bool finite (float x) {return _finite(x) != 0;}
+  INLINE bool finite (float x) {return _finite(x) != 0;}
 #endif
 #endif
 
@@ -92,23 +92,23 @@ namespace cube {
 
 // integer types
 #if defined(__MSVC__)
-  typedef          __int64 s64;
-  typedef unsigned __int64 u64;
-  typedef          __int32 s32;
-  typedef unsigned __int32 u32;
-  typedef          __int16 s16;
-  typedef unsigned __int16 u16;
-  typedef          __int8  s8;
-  typedef unsigned __int8  u8;
+typedef          __int64 s64;
+typedef unsigned __int64 u64;
+typedef          __int32 s32;
+typedef unsigned __int32 u32;
+typedef          __int16 s16;
+typedef unsigned __int16 u16;
+typedef          __int8  s8;
+typedef unsigned __int8  u8;
 #else
-  typedef          long long s64;
-  typedef unsigned long long u64;
-  typedef                int s32;
-  typedef unsigned       int u32;
-  typedef              short s16;
-  typedef unsigned     short u16;
-  typedef               char s8;
-  typedef unsigned      char u8;
+typedef          long long s64;
+typedef unsigned long long u64;
+typedef                int s32;
+typedef unsigned       int u32;
+typedef              short s16;
+typedef unsigned     short u16;
+typedef               char s8;
+typedef unsigned      char u8;
 #endif
 
 #ifdef WIN32
@@ -135,36 +135,36 @@ INLINE void NAME##v(First first, Rest... rest) {\
 
 // global variable setter / getter
 #define GLOBAL_VAR(NAME,VARNAME,TYPE)\
-  TYPE NAME(void) { return VARNAME; }\
-  void set##NAME(TYPE x) { VARNAME = x; }
+TYPE NAME(void) { return VARNAME; }\
+void set##NAME(TYPE x) { VARNAME = x; }
 
 #define GLOBAL_VAR_DECL(NAME,TYPE)\
-  extern TYPE NAME(void);\
-  extern void set##NAME(TYPE x);
+extern TYPE NAME(void);\
+extern void set##NAME(TYPE x);
 
-  // easy safe strings
+// easy safe strings
 #define _MAXDEFSTR 260
-  typedef char string[_MAXDEFSTR];
+typedef char string[_MAXDEFSTR];
 
-  INLINE void strn0cpy(char *d, const char *s, size_t m) { strncpy(d,s,m); d[(m)-1] = 0; }
-  INLINE void strcpy_s(char *d, const char *s) { strn0cpy(d,s,_MAXDEFSTR); }
-  INLINE void strcat_s(char *d, const char *s) { size_t n = strlen(d); strn0cpy(d+n,s,_MAXDEFSTR-n); }
-  INLINE void formatstring(char *d, const char *fmt, va_list v) {
+INLINE void strn0cpy(char *d, const char *s, size_t m) { strncpy(d,s,m); d[(m)-1] = 0; }
+INLINE void strcpy_s(char *d, const char *s) { strn0cpy(d,s,_MAXDEFSTR); }
+INLINE void strcat_s(char *d, const char *s) { size_t n = strlen(d); strn0cpy(d+n,s,_MAXDEFSTR-n); }
+INLINE void formatstring(char *d, const char *fmt, va_list v) {
+  _vsnprintf(d, _MAXDEFSTR, fmt, v);
+  d[_MAXDEFSTR-1] = 0;
+}
+
+struct sprintf_s_f {
+  char *d;
+  sprintf_s_f(char *str): d(str) {};
+  void operator()(const char* fmt, ...) {
+    va_list v;
+    va_start(v, fmt);
     _vsnprintf(d, _MAXDEFSTR, fmt, v);
+    va_end(v);
     d[_MAXDEFSTR-1] = 0;
   }
-
-  struct sprintf_s_f {
-    char *d;
-    sprintf_s_f(char *str): d(str) {};
-    void operator()(const char* fmt, ...) {
-      va_list v;
-      va_start(v, fmt);
-      _vsnprintf(d, _MAXDEFSTR, fmt, v);
-      va_end(v);
-      d[_MAXDEFSTR-1] = 0;
-    }
-  };
+};
 
 #define sprintf_s(d) sprintf_s_f((char *)d)
 #define sprintf_sd(d) string d; sprintf_s(d)
@@ -197,174 +197,134 @@ template<class T> INLINE typename remove_reference<T>::type&& move(T&& t) {
   return static_cast<typename remove_reference<T>::type&&>(t);
 }
 
-  /* memory pool that uses buckets and linear allocation for small objects
-   * VERY fast, and reasonably good memory reuse
-   */
-  struct pool {
-    enum { POOLSIZE = 4096 };   // can be absolutely anything
-    enum { PTRSIZE = sizeof(char *) };
-    enum { MAXBUCKETS = 65 };   // meaning up to size 256 on 32bit pointer systems
-    enum { MAXREUSESIZE = MAXBUCKETS*PTRSIZE-PTRSIZE };
-    INLINE size_t bucket(size_t s) { return (s+PTRSIZE-1)>>PTRBITS; };
-    enum { PTRBITS = PTRSIZE==2 ? 1 : PTRSIZE==4 ? 2 : 3 };
+template <class T> struct vector : noncopyable {
+  T *buf;
+  int alen;
+  int ulen;
 
-    char *p;
-    size_t left;
-    char *blocks;
-    void *reuse[MAXBUCKETS];
+  INLINE vector(u32 size) {
+    ulen = alen = size;
+    buf = (T*) malloc(alen*sizeof(T));
+    loopi(ulen) buf[i]=T();
+  }
+  INLINE vector(void) {
+    alen = 8;
+    buf = (T*) malloc(alen*sizeof(T));
+    ulen = 0;
+  }
+  INLINE vector(vector &&other) {
+    this->buf = other.buf;
+    this->alen = other.alen;
+    this->ulen = other.ulen;
+    this->p = other.p;
+  }
+  ~vector(void) { setsize(0); free(buf); }
 
-    pool(void);
-    ~pool(void) { dealloc_block(blocks); };
+  INLINE T &add(const T &x) {
+    if(ulen==alen) this->realloc();
+    new (&buf[ulen]) T(x);
+    return buf[ulen++];
+  }
+  INLINE T &add(void) {
+    if(ulen==alen) this->realloc();
+    new (&buf[ulen]) T;
+    return buf[ulen++];
+  }
+  INLINE T &pop(void) { return buf[--ulen]; }
+  INLINE T &last(void) { return buf[ulen-1]; }
+  INLINE bool empty(void) { return ulen==0; }
+  INLINE int length(void) const { return ulen; }
+  INLINE int size(void) const { return ulen*sizeof(T); }
+  INLINE const T &operator[](int i) const { assert(i>=0 && i<ulen); return buf[i]; }
+  INLINE T &operator[](int i) { assert(i>=0 && i<ulen); return buf[i]; }
+  INLINE T *getbuf(void) { return buf; }
+  void setsize(int i) { for(; ulen>i; ulen--) buf[ulen-1].~T(); }
+  void clear(void) { setsize(0); }
+  void sort(void *cf) {
+    qsort(buf, ulen, sizeof(T), (int (__cdecl *)(const void *,const void *))cf);
+  }
+  void realloc(void) {
+    buf = (T*) ::realloc(buf, (alen *= 2)*sizeof(T));
+  }
+  T remove(int i) {
+    T e = buf[i];
+    for(int p = i+1; p<ulen; p++) buf[p-1] = buf[p];
+    ulen--;
+    return e;
+  }
+  T &insert(int i, const T &e) {
+    add(T());
+    for(int p = ulen-1; p>i; p--) buf[p] = buf[p-1];
+    buf[i] = e;
+    return buf[i];
+  }
+};
 
-    void *alloc(size_t size);
-    void dealloc(void *p, size_t size);
-    void *realloc(void *p, size_t oldsize, size_t newsize);
+template <class T> struct hashtable {
+  struct chain { chain *next; const char *key; T data; };
+  int size;
+  int numelems;
+  chain **table;
+  chain *enumc;
 
-    char *string(const char *s, size_t l);
-    char *string(const char *s) { return string(s, strlen(s)); };
-    void deallocstr(char *s) { dealloc(s, strlen(s)+1); };
-    char *stringbuf(const char *s) { return string(s, _MAXDEFSTR-1); };
+  hashtable(void) {
+    this->size = 1<<10;
+    numelems = 0;
+    table = (chain**) malloc(size*sizeof(T));
+    for(int i = 0; i<size; i++) table[i] = NULL;
+  }
 
-    void dealloc_block(void *b);
-    void allocnext(size_t allocsize);
-  };
+  hashtable(hashtable<T> &v);
+  void operator=(hashtable<T> &v);
 
-  pool *gp();
-
-  template <class T> struct vector : noncopyable {
-    T *buf;
-    int alen;
-    int ulen;
-    pool *p;
-
-    INLINE vector(u32 size) {
-      this->p = gp();
-      ulen = alen = size;
-      buf = (T*)p->alloc(alen*sizeof(T));
-      loopi(ulen) buf[i]=T();
-    }
-    INLINE vector(void) {
-      this->p = gp();
-      alen = 8;
-      buf = (T *)p->alloc(alen*sizeof(T));
-      ulen = 0;
-    }
-    INLINE vector(vector &&other) {
-      this->buf = other.buf;
-      this->alen = other.alen;
-      this->ulen = other.ulen;
-      this->p = other.p;
-    }
-    ~vector(void) { setsize(0); p->dealloc(buf, alen*sizeof(T)); }
-
-    INLINE T &add(const T &x) {
-      if(ulen==alen) realloc();
-      new (&buf[ulen]) T(x);
-      return buf[ulen++];
-    }
-    INLINE T &add(void) {
-      if(ulen==alen) realloc();
-      new (&buf[ulen]) T;
-      return buf[ulen++];
-    }
-    INLINE T &pop(void) { return buf[--ulen]; }
-    INLINE T &last(void) { return buf[ulen-1]; }
-    INLINE bool empty(void) { return ulen==0; }
-    INLINE int length(void) const { return ulen; }
-    INLINE int size(void) const { return ulen*sizeof(T); }
-    INLINE const T &operator[](int i) const { assert(i>=0 && i<ulen); return buf[i]; }
-    INLINE T &operator[](int i) { assert(i>=0 && i<ulen); return buf[i]; }
-    INLINE T *getbuf(void) { return buf; }
-    void setsize(int i) { for(; ulen>i; ulen--) buf[ulen-1].~T(); }
-    void clear(void) { setsize(0); }
-    void sort(void *cf) {
-      qsort(buf, ulen, sizeof(T), (int (__cdecl *)(const void *,const void *))cf);
-    }
-    void realloc(void) {
-      const int olen = alen;
-      buf = (T *)p->realloc(buf, olen*sizeof(T), (alen *= 2)*sizeof(T));
-    }
-    T remove(int i) {
-      T e = buf[i];
-      for(int p = i+1; p<ulen; p++) buf[p-1] = buf[p];
-      ulen--;
-      return e;
-    }
-    T &insert(int i, const T &e) {
-      add(T());
-      for(int p = ulen-1; p>i; p--) buf[p] = buf[p-1];
-      buf[i] = e;
-      return buf[i];
-    }
-  };
-
-  template <class T> struct hashtable {
-    struct chain { chain *next; const char *key; T data; };
-    int size;
-    int numelems;
-    chain **table;
-    pool *parent;
-    chain *enumc;
-
-    hashtable(void) {
-      this->size = 1<<10;
-      this->parent = gp();
-      numelems = 0;
-      table = (chain **)parent->alloc(size*sizeof(T));
-      for(int i = 0; i<size; i++) table[i] = NULL;
-    }
-
-    hashtable(hashtable<T> &v);
-    void operator=(hashtable<T> &v);
-
-    T *access(const char *key, const T *data = NULL) {
-      unsigned int h = 5381;
-      for(int i = 0, k; (k = key[i]) != 0; i++) h = ((h<<5)+h)^k; // bernstein k=33 xor
-      h = h&(size-1); // primes not much of an advantage
-      for(chain *c = table[h]; c; c = c->next) {
-        char ch = 0;
-        for(const char *p1 = key, *p2 = c->key; (ch = *p1++)==*p2++; ) if(!ch) {
-          T *d = &c->data;
-          if(data) c->data = *data;
-          return d;
-        }
+  T *access(const char *key, const T *data = NULL) {
+    unsigned int h = 5381;
+    for(int i = 0, k; (k = key[i]) != 0; i++) h = ((h<<5)+h)^k; // bernstein k=33 xor
+    h = h&(size-1); // primes not much of an advantage
+    for(chain *c = table[h]; c; c = c->next) {
+      char ch = 0;
+      for(const char *p1 = key, *p2 = c->key; (ch = *p1++)==*p2++; ) if(!ch) {
+        T *d = &c->data;
+        if(data) c->data = *data;
+        return d;
       }
-      if(data) {
-        chain *c = (chain *)parent->alloc(sizeof(chain));
-        c->data = *data;
-        c->key = key;
-        c->next = table[h];
-        table[h] = c;
-        numelems++;
-      }
-      return NULL;
     }
-  };
+    if(data) {
+      chain *c = (chain*) malloc(sizeof(chain));
+      c->data = *data;
+      c->key = key;
+      c->next = table[h];
+      table[h] = c;
+      numelems++;
+    }
+    return NULL;
+  }
+};
 
 #define enumerate(ht,t,e,b) loopi(ht->size)\
-    for(ht->enumc = ht->table[i]; ht->enumc; ht->enumc = ht->enumc->next) {\
-      t e = &ht->enumc->data; b;\
-    }
+  for(ht->enumc = ht->table[i]; ht->enumc; ht->enumc = ht->enumc->next) {\
+    t e = &ht->enumc->data; b;\
+  }
 
-  INLINE char *newstring(const char *s)           { return gp()->string(s); }
-  INLINE char *newstring(const char *s, size_t l) { return gp()->string(s, l); }
-  INLINE char *newstringbuf(const char *s)        { return gp()->stringbuf(s); }
+char *newstring(const char *s);
+char *newstring(const char *s, size_t l);
+char *newstringbuf(const char *s);
 
 #define ARRAY_ELEM_N(X) (sizeof(X) / sizeof(X[0]))
 #define MEMSET(X,V) memset(X,V,sizeof(X));
 #define MEMZERO(X) MEMSET(X,0)
 
-  // vertex array format
-  struct vertex { float u, v, x, y, z; uchar r, g, b, a; };
-  typedef vector<char *> cvector;
-  typedef vector<int> ivector;
+// vertex array format
+struct vertex { float u, v, x, y, z; uchar r, g, b, a; };
+typedef vector<char *> cvector;
+typedef vector<int> ivector;
 
-  void fatal(const char *s, const char *o = "");
-  void *alloc(int s);
-  void keyrepeat(bool on);
+void fatal(const char *s, const char *o = "");
+void *alloc(int s);
+void keyrepeat(bool on);
 
-  static const int KB = 1024;
-  static const int MB = KB*KB;
+static const int KB = 1024;
+static const int MB = KB*KB;
 
 } // namespace cube
 

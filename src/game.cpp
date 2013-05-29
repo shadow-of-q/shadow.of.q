@@ -97,7 +97,7 @@ static void spawnstate(dynent *d) {
 }
 
 dynent *newdynent(void) {
-  dynent *d = (dynent*) gp()->alloc(sizeof(dynent));
+  dynent *d = (dynent*) malloc(sizeof(dynent));
   d->o = zero;
   d->yaw = 270;
   d->pitch = 0;
@@ -171,7 +171,7 @@ void arenarespawn(void) {
 }
 
 void zapdynent(dynent *&d) {
-  if (d) gp()->dealloc(d, sizeof(dynent));
+  if (d) free(d);
   d = NULL;
 }
 
