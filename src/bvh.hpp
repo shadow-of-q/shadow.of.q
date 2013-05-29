@@ -17,13 +17,13 @@ struct hit {
 struct triangle {
   INLINE triangle(void) {}
   INLINE triangle(vec3f a, vec3f b, vec3f c) {v[0]=a; v[1]=b; v[2]=c;}
-  INLINE aabb get_aabb() const {
+  INLINE aabb getaabb(void) const {
     return aabb(min(min(v[0],v[1]),v[2]), max(max(v[0],v[1]),v[2]));
   }
   vec3f v[3];
 };
 
-// opaque intersector routine
+// opaque intersector data structure
 struct intersector *create(const triangle *tri, int n);
 void destroy(struct intersector*);
 
