@@ -244,6 +244,7 @@ INLINE void computewaldtriangle(const triangle &t, waldtriangle &w, u32 id, u32 
 }
 
 intersector *create(const triangle *tri, int n) {
+  if (n==0) return NULL;
   compiler c;
   if (c.injection(tri, n) < 0) return NULL;
   c.compile();
@@ -268,7 +269,7 @@ INLINE void raytriangle(const waldtriangle &tri, const ray &r, hit &hit) {
   const vec2f posk(r.org[ku], r.org[kv]);
   const float t = (tri.nd-r.org[k]-dot(tri.n,posk))/(r.dir[k]+dot(tri.n,dirk));
   if (!((hit.t > t) & (t >= 0.f))) return;
-  const vec2f h = posk+ t*dirk - tri.vertk;
+  const vec2f h = posk + t*dirk - tri.vertk;
   const float beta = dot(h,tri.bn), gamma = dot(h,tri.cn);
   if ((beta < 0.f) | (gamma < 0.f) | ((beta + gamma) > 1.f)) return;
   hit.t = t;

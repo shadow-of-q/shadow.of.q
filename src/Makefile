@@ -40,7 +40,6 @@ SERVER_LIBS=-L../enet -lenet
 SERVER_OBJS= \
 	math.o \
 	network.o \
-	standalone.o \
 	serverms.o \
 	server.o \
 	tools.o
