@@ -50,6 +50,30 @@ void disableattribarray(u32 target) {
 }
 
 /*--------------------------------------------------------------------------
+ - simple resource management
+ -------------------------------------------------------------------------*/
+static s32 texturenum = 0, buffernum = 0, programnum = 0;
+
+void gentextures(s32 n, u32 *id) {
+  texturenum += n;
+  OGL(GenTextures, n, id);
+}
+void deletetextures(s32 n, u32 *id) {
+  texturenum -= n;
+  if (texturenum < 0) fatal("textures already freed");
+  OGL(DeleteTextures, n, id);
+}
+void genbuffers(s32 n, u32 *id) {
+  buffernum += n;
+  OGL(GenBuffers, n, id);
+}
+void deletebuffers(s32 n, u32 *id) {
+  buffernum -= n;
+  if (buffernum < 0) fatal("buffers already freed");
+  OGL(DeleteBuffers, n, id);
+}
+
+/*--------------------------------------------------------------------------
  - immediate mode and buffer support
  -------------------------------------------------------------------------*/
 static const u32 glbufferbinding[BUFFER_NUM] = {
@@ -71,10 +95,10 @@ static int immvertexsz = 0;
 static int immbuffersize = 16*MB;
 static int bigvbooffset=0, bigibooffset=0;
 static int drawibooffset=0, drawvbooffset=0;
-static GLuint bigvbo=0u, bigibo=0u;
+static u32 bigvbo=0u, bigibo=0u;
 
 static void initbuffer(GLuint &bo, int target, int size) {
-  if (bo == 0u) OGL(GenBuffers, 1, &bo);
+  if (bo == 0u) genbuffers(1, &bo);
   bindbuffer(target, bo);
   OGL(BufferData, glbufferbinding[target], size, NULL, GL_DYNAMIC_DRAW);
   bindbuffer(target, 0);
@@ -241,21 +265,20 @@ void popmatrix(void) {
 static const int MAXTEX = 1000;
 static const int FIRSTTEX = 1000; // opengl id = loaded id + FIRSTTEX
 static const int MAXFRAMES = 2; // increase for more complex shader defs
-static int texx[MAXTEX]; // (loaded texture) -> (name, size)
-static int texy[MAXTEX];
+static vec2i texdim[MAXTEX]; // (loaded texture) -> (name, size)
 static string texname[MAXTEX];
 static int curtex = 0;
 static int glmaxtexsize = 256;
 static int curtexnum = 0;
 
 // std 1+, sky 14+, mdls 20+
-static int mapping[256][MAXFRAMES]; // (texture, frame) -> (oglid, name)
-static string mapname[256][MAXFRAMES];
-
-static void purgetextures(void) {loopi(256)loop(j,MAXFRAMES)mapping[i][j]=0;}
+static int mapping[MAXMAPTEX][MAXFRAMES]; // (texture, frame) -> (oglid, name)
+static string mapname[MAXMAPTEX][MAXFRAMES];
 
 static const u32 IDNUM = 2*MAXTEX;
 static u32 generatedids[IDNUM];
+
+static void purgetextures(void) {loopi(MAXMAPTEX)loop(j,MAXFRAMES)mapping[i][j]=0;}
 
 static void bindtexture(u32 target, u32 texslot, u32 id) {
   if (bindedtexture[texslot] == id) return;
@@ -269,7 +292,7 @@ void bindgametexture(u32 target, u32 id) {
   bindtexture(GL_TEXTURE_2D, 0, generatedids[id]);
 }
 
-INLINE bool ispoweroftwo(unsigned int x) { return ((x & (x - 1)) == 0); }
+INLINE bool ispoweroftwo(unsigned int x) { return ((x&(x-1))==0); }
 
 bool installtex(int tnum, const char *texname, int &xs, int &ys, bool clamp) {
   SDL_Surface *s = IMG_Load(texname);
@@ -286,7 +309,7 @@ bool installtex(int tnum, const char *texname, int &xs, int &ys, bool clamp) {
 
   if (tnum >= int(IDNUM)) fatal("out of bound texture ID");
   if (generatedids[tnum] == 0u)
-    OGL(GenTextures, 1, generatedids + tnum);
+    gentextures(1, generatedids+tnum);
   loopi(int(TEX_NUM)) bindedtexture[i] = 0;
   console::out("loading %s (%ix%i)", texname, s->w, s->h);
   ogl::bindgametexture(GL_TEXTURE_2D, tnum);
@@ -323,19 +346,19 @@ int lookuptex(int tex, int &xs, int &ys) {
   int tid = mapping[tex][frame];
 
   if (tid>=FIRSTTEX) {
-    xs = texx[tid-FIRSTTEX];
-    ys = texy[tid-FIRSTTEX];
+    xs = texdim[tid-FIRSTTEX].x;
+    ys = texdim[tid-FIRSTTEX].y;
     return tid;
   }
 
   xs = ys = 16;
-  if (!tid) return 1; // crosshair :)
+  if (!tid) return TEX_CROSSHAIR;
 
   loopi(curtex) // lazily happens once per "texture" command
     if (strcmp(mapname[tex][frame], texname[i])==0) {
       mapping[tex][frame] = tid = i+FIRSTTEX;
-      xs = texx[i];
-      ys = texy[i];
+      xs = texdim[i].x;
+      ys = texdim[i].y;
       return tid;
     }
 
@@ -348,8 +371,7 @@ int lookuptex(int tex, int &xs, int &ys) {
 
   if (installtex(tnum, name, xs, ys)) {
     mapping[tex][frame] = tnum;
-    texx[curtex] = xs;
-    texy[curtex] = ys;
+    texdim[curtex] = vec2i(xs, ys);
     curtex++;
     return tnum;
   } else
@@ -370,7 +392,7 @@ static void texture(const char *aframe, const char *name) {
 COMMAND(texture, ARG_2STR);
 
 /*--------------------------------------------------------------------------
- - sphere management
+ - sphere
  -------------------------------------------------------------------------*/
 static GLuint spherevbo = 0;
 static int spherevertn = 0;
@@ -406,7 +428,7 @@ static void buildsphere(float radius, int slices, int stacks) {
   }
 
   const size_t sz = sizeof(arrayf<5>) * v.length();
-  OGL(GenBuffers, 1, &spherevbo);
+  genbuffers(1, &spherevbo);
   ogl::bindbuffer(ARRAY_BUFFER, spherevbo);
   OGL(BufferData, GL_ARRAY_BUFFER, sz, &v[0][0], GL_STATIC_DRAW);
 }
@@ -644,30 +666,6 @@ VAR(forcebuild, 0, 0, 1);
  -------------------------------------------------------------------------*/
 static vec3f ldir;
 VAR(sampling, 0,0,1);
-static vec3f computecolor(vec3f pos, int face) {
-  return vec3f(one);
-#if 0
-  const auto n = 0.01f*vec3f(cubenorms[face]);
-  const mat3x3f m(n);
-  float l = 0.f;
-  loopi(8) loopj(8) {
-    const float rd = 0.5f*sqrt(float(i)*0.125f);
-    const float theta = 2*PI*float(j)*0.125f;
-    vec3f u,v;
-    if (sampling) {
-      u = rd*cos(theta)*m.vx;
-      v = rd*sin(theta)*m.vz;
-    } else {
-      u = (i*0.125f-0.5f)*m.vx;
-      v = (j*0.125f-0.5f)*m.vz;
-    }
-    const ray r(pos+n+u+v, ldir);
-    const auto res = world::castray(r);
-    l += (res.isec ? 0.0f : 1.f) *max(dot(ldir,normalize(n)),0.f);
-  }
-  return vec3f(l) / 64.f;
-#endif
-}
 
 /*--------------------------------------------------------------------------
  - surface parameterization per brick
@@ -790,7 +788,7 @@ static void buildlightmap(world::lvl1grid &b, lightmapuv &lmuv, const vec3i &org
 
   static int lmid = 0;
   // build light map texture
-  if (b.lm == 0) OGL(GenTextures, 1, &b.lm);
+  if (b.lm == 0) gentextures(1, &b.lm);
   ogl::bindtexture(GL_TEXTURE_2D, 0, b.lm);
   OGL(PixelStorei, GL_UNPACK_ALIGNMENT, 1);
   OGL(TexImage2D, GL_TEXTURE_2D, 0, GL_RGBA, lmuv.dim.x, lmuv.dim.y, 0, GL_RGBA, GL_UNSIGNED_BYTE, ctx.lm);
@@ -807,7 +805,7 @@ static void buildlightmap(world::lvl1grid &b, lightmapuv &lmuv, const vec3i &org
 }
 
 /*--------------------------------------------------------------------------
-i- world mesh handling (very simple for now)
+ - world mesh handling (very simple for now)
  -------------------------------------------------------------------------*/
 struct brickmeshctx {
   INLINE brickmeshctx(const world::lvl1grid &b, const lightmapuv &lmuv) :
@@ -858,7 +856,7 @@ static void buildfacemesh(brickmeshctx &ctx, vec3i xyz, vec3i idx) {
         v[j] = pos.xzy();
         t[j] = tex;
         l[j] = vec2f(ctx.lmuv.get(idx,corners[i][j],ctx.face))/vec2f(ctx.lmuv.dim);
-        c[j] = computecolor(vec3f(global),ctx.face);
+        c[j] = vec3f(one);
         isnew[j] = true;
     //  } else
     //    v[j] = vec3f(ctx.vbo[id][0],ctx.vbo[id][1],ctx.vbo[id][2]);
@@ -914,17 +912,17 @@ static void buildgridmesh(world::lvl1grid &b, const lightmapuv &lmuv, vec3i org)
     loopxyz(0, b.size(), buildfacemesh(ctx, org+xyz, xyz));
   }
   if (ctx.vbo.length() == 0 || ctx.ibo.length() == 0) {
-    if (b.vbo) OGL(DeleteBuffers, 1, &b.vbo);
-    if (b.ibo) OGL(DeleteBuffers, 1, &b.ibo);
+    if (b.vbo) deletebuffers(1, &b.vbo);
+    if (b.ibo) deletebuffers(1, &b.ibo);
     b.vbo = b.ibo = 0;
     return;
   }
   if (ctx.vbo.length() > 0xffff) fatal("too many vertices in the VBO");
   radixsortibo(ctx);
-  if (b.vbo) OGL(DeleteBuffers, 1, &b.vbo);
-  if (b.ibo) OGL(DeleteBuffers, 1, &b.ibo);
-  OGL(GenBuffers, 1, &b.vbo);
-  OGL(GenBuffers, 1, &b.ibo);
+  if (b.vbo) deletebuffers(1, &b.vbo);
+  if (b.ibo) deletebuffers(1, &b.ibo);
+  genbuffers(1, &b.vbo);
+  genbuffers(1, &b.ibo);
   ogl::bindbuffer(ogl::ARRAY_BUFFER, b.vbo);
   ogl::bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, b.ibo);
   OGL(BufferData, GL_ARRAY_BUFFER, ctx.vbo.length()*sizeof(arrayf<10>), &ctx.vbo[0][0], GL_STATIC_DRAW);
@@ -946,7 +944,7 @@ static void buildgridmesh(world::lvl1grid &b, const lightmapuv &lmuv, vec3i org)
 static void buildbrick(world::lvl1grid &b, vec3i org) {
   if (b.dirty==0 && !forcebuild) return;
   lightmapuv lmuv;
-  //buildlightmap(b, lmuv, org);
+  buildlightmap(b, lmuv, org);
   buildgridmesh(b, lmuv, org);
   //console::out("lightmap [%i %i]", lmuv.dim.x, lmuv.dim.y);
   b.dirty = 0;
@@ -1162,7 +1160,12 @@ void clean(void) {
     bvh::destroy(bvhisec);
     bvhisec = NULL;
   }
-  if (spherevbo) OGL(DeleteBuffers, 1, &spherevbo);
+  loopi(IDNUM) if (generatedids[i]) deletetextures(1, &generatedids[i]);
+  if (bigvbo) deletebuffers(1, &bigvbo);
+  if (bigibo) deletebuffers(1, &bigibo);
+  if (spherevbo) deletebuffers(1, &spherevbo);
+  if (texturenum) console::out("ogl: %i unfreed textures", texturenum);
+  if (buffernum) console::out("ogl: %i unfreed buffers", buffernum);
 }
 
 void drawsphere(void) {

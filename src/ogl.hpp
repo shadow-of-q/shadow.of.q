@@ -64,10 +64,24 @@ namespace ogl {
 #endif // EMSCRIPTEN
 
 // maximum number of textures in a map
-static const u32 MAXMAPTEX = 256;
+static const s32 MAXMAPTEX = 256;
 
 // vertex attributes
 enum {POS0, POS1, TEX0, TEX1, TEX2, NOR, COL, ATTRIB_NUM};
+
+// pre-allocated texture
+enum {
+  TEX_CROSSHAIR = 1,
+  TEX_CHARACTERS,
+  TEX_MARTIN_BASE,
+  TEX_ITEM,
+  TEX_EXPLOSION,
+  TEX_MARTIN_BALL1,
+  TEX_MARTIN_SMOKE,
+  TEX_MARTIN_BALL2,
+  TEX_MARTIN_BALL3,
+  TEX_PREALLOCATED_NUM = TEX_MARTIN_BALL3
+};
 
 // quick, dirty and super simple uber-shader system
 static const u32 COLOR = 0;
@@ -77,6 +91,12 @@ static const u32 DIFFUSETEX = 1<<2;
 static const int subtypen = 3;
 static const int shadern = 1<<subtypen;
 void bindshader(u32 flags);
+
+// track allocations
+void gentextures(s32 n, u32 *id);
+void genbuffers(s32 n, u32 *id);
+void deletetextures(s32 n, u32 *id);
+void deletebuffers(s32 n, u32 *id);
 
 void init(int w, int h);
 void clean(void);

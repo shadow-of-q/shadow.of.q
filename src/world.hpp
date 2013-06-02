@@ -3,6 +3,7 @@
 #include "tools.hpp"
 #include "math.hpp"
 #include "bvh.hpp"
+#include "ogl.hpp"
 
 namespace cube {
 namespace world {
@@ -61,7 +62,7 @@ struct log2 {
   enum {value = log2<x/2>::value+1};
   static_assert(powerof2policy<x>::value,"given value must be a power of 2");
 };
-template<> struct log2<1> {enum {value= 0};};
+template<> struct log2<1> {enum {value=0};};
 
 // actually contains the data (geometries)
 template <int sz>
@@ -72,7 +73,13 @@ struct brick : public noncopyable {
     subcubenumber=1,
     l=sz
   };
-  INLINE brick(void) : vbo(0), ibo(0), lm(0), dirty(1) {}
+  brick(void) : vbo(0), ibo(0), lm(0), dirty(1) {}
+  ~brick(void) {
+    if (ibo) ogl::deletebuffers(1,&ibo);
+    if (vbo) ogl::deletebuffers(1,&vbo);
+    if (lm)  ogl::deletetextures(1,&lm);
+    lm=ibo=vbo=0;
+  }
   static INLINE vec3i size(void) { return vec3i(sz); }
   static INLINE vec3i global(void) { return size(); }
   static INLINE vec3i local(void) { return size(); }

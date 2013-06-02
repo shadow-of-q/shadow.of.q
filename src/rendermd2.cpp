@@ -49,7 +49,7 @@ struct md2 {
   md2(void) { memset(this,0,sizeof(md2)); }
 
   ~md2(void) {
-    if (vbo) OGL(DeleteBuffers, 1, &vbo);
+    if (vbo) ogl::deletebuffers(1, &vbo);
     SAFE_DELETEA(glcommands);
     SAFE_DELETEA(frames);
     SAFE_DELETEA(builtframes);
@@ -99,7 +99,7 @@ bool md2::load(char* filename) {
     framesz += 3*(n-2)*sizeof(float[channenum]);
     command += 3*n; // +1 for index, +2 for u,v
   }
-  OGL(GenBuffers, 1, &vbo);
+  ogl::genbuffers(1, &vbo);
   ogl::bindbuffer(ogl::ARRAY_BUFFER, vbo);
   OGL(BufferData, GL_ARRAY_BUFFER, numFrames*framesz, NULL, GL_STATIC_DRAW);
   ogl::bindbuffer(ogl::ARRAY_BUFFER, 0);

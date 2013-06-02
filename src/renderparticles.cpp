@@ -60,20 +60,30 @@ static void initparticles(void) {
   // indices never change we set them once here
   const u16 twotriangles[] = {0,1,2,2,3,1};
   u16 *indices = NEWAE(u16, glindexn);
-  OGL(GenBuffers, 1, &particleibo);
+  ogl::genbuffers(1, &particleibo);
   ogl::bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, particleibo);
   loopi(MAXPARTICLES) loopj(6) indices[6*i+j]=4*i+twotriangles[j];
   OGL(BufferData, GL_ELEMENT_ARRAY_BUFFER, glindexn*sizeof(u16), indices, GL_STATIC_DRAW);
   ogl::bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, 0);
 
   // vertices will be created at each drawing call
-  OGL(GenBuffers, 1, &particlevbo);
+  ogl::genbuffers(1, &particlevbo);
   ogl::bindbuffer(ogl::ARRAY_BUFFER, particlevbo);
   OGL(BufferData, GL_ARRAY_BUFFER, glvertexn*sizeof(glparticle), NULL, GL_DYNAMIC_DRAW);
   ogl::bindbuffer(ogl::ARRAY_BUFFER, 0);
   DELETEA(indices);
 }
 
+void cleanparticles(void) {
+  if (particleibo) {
+    ogl::deletebuffers(1, &particleibo);
+    particleibo = 0;
+  }
+  if (particlevbo) {
+    ogl::deletebuffers(1, &particlevbo);
+    particlevbo = 0;
+  }
+}
 void render_particles(int time) {
   if (demo::playing() && demotracking) {
     const vec3f nom(0, 0, 0);

@@ -12,25 +12,29 @@
 namespace cube {
 
 void cleanup(char *msg) { // single program exit point;
-  demo::stop();
-  client::disconnect(true);
-  cmd::writecfg();
-  game::clean();
-  rr::clean();
-  ogl::clean();
-  world::clean();
-  sound::clean();
-  server::clean();
-  console::clean();
-  menu::clean();
-  cmd::clean();
-  SDL_ShowCursor(1);
-  if (msg) {
+  static int cleaningup = false; // avoid recursion
+  if (!cleaningup) {
+    cleaningup = true;
+    demo::stop();
+    client::disconnect(true);
+    cmd::writecfg();
+    game::clean();
+    rr::clean();
+    world::clean();
+    sound::clean();
+    server::clean();
+    console::clean();
+    menu::clean();
+    cmd::clean();
+    ogl::clean();
+    SDL_ShowCursor(1);
+    if (msg) {
 #ifdef WIN32
-    MessageBox(NULL, msg, "cube fatal error", MB_OK|MB_SYSTEMMODAL);
+      MessageBox(NULL, msg, "cube fatal error", MB_OK|MB_SYSTEMMODAL);
 #else
-    printf("%s",msg);
+      printf("%s",msg);
 #endif
+    }
   }
   SDL_Quit();
   exit(1);
@@ -209,15 +213,15 @@ static int main(int argc, char **argv) {
   ogl::init(scr_w, scr_h);
 
   log("basetex");
-  if (!installbasetex(2, "data/newchars.png") ||
+  if (!installbasetex(1, "data/crosshair.png") ||
+      !installbasetex(2, "data/newchars.png") ||
       !installbasetex(3, "data/martin/base.png") ||
+      !installbasetex(5, "data/items.png") ||
+      !installbasetex(4, "data/explosion.jpg") ||
       !installbasetex(6, "data/martin/ball1.png") ||
       !installbasetex(7, "data/martin/smoke.png") ||
       !installbasetex(8, "data/martin/ball2.png") ||
-      !installbasetex(9, "data/martin/ball3.png") ||
-      !installbasetex(4, "data/explosion.jpg") ||
-      !installbasetex(5, "data/items.png") ||
-      !installbasetex(1, "data/crosshair.png"))
+      !installbasetex(9, "data/martin/ball3.png"))
     fatal("could not find core textures (hint: run cube from the parent of the bin directory)");
 
   log("sound");
