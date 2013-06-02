@@ -139,7 +139,7 @@ static string cgzname, bakname, pcfname, mcfname;
 
 struct deletegrid {
   template <typename G> void operator()(G &g, vec3i) const {
-    if (uintptr_t(&g)!=uintptr_t(&root)) delete &g;
+    if (uintptr_t(&g)!=uintptr_t(&root)) DELETE(&g);
   }
 };
 static void empty(void) {
@@ -147,6 +147,7 @@ static void empty(void) {
   MEMZERO(root.elem);
   root.dirty = 1;
 }
+void clean(void) { empty(); }
 
 void setnames(const char *name) {
   string pakname, mapname;
@@ -431,7 +432,7 @@ bvh::intersector *buildbvh(void) {
 void castray(float fovy, float aspect, float farplane) {
   using namespace game;
   const int w = 1024, h = 768;
-  int *pixels = (int*)malloc(w*h*sizeof(int));
+  int *pixels = (int*)MALLOC(w*h*sizeof(int));
   const mat3x3f r = mat3x3f::rotate(vec3f(0.f,0.f,1.f),game::player1->yaw)*
                     mat3x3f::rotate(vec3f(0.f,1.f,0.f),game::player1->roll)*
                     mat3x3f::rotate(vec3f(-1.f,0.f,0.f),game::player1->pitch);
@@ -472,7 +473,7 @@ void castray(float fovy, float aspect, float farplane) {
   const int ms = SDL_GetTicks()-start;
   console::out("\n%i ms, %f ray/s\n", ms, 1000.f*(w*h)/ms);
   writebmp(pixels, w, h, usebvh ? "bvh.bmp" : "grid.bmp");
-  free(pixels);
+  FREE(pixels);
   if (bvhisec) bvh::destroy(bvhisec);
 }
 

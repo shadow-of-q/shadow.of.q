@@ -61,6 +61,10 @@ void renderclients(void);
 void renderclient(dynent *d, bool team, const char *name, bool hellpig, float scale);
 // render the score on screen
 void renderscores(void);
+// release memory used by all entities
+void cleanentities(void);
+// releas all memory used by the game system
+void clean(void);
 
 } // namespace game
 } // namespace cube

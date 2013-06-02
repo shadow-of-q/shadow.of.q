@@ -50,9 +50,10 @@ struct md2 {
 
   ~md2(void) {
     if (vbo) OGL(DeleteBuffers, 1, &vbo);
-    if (glcommands) delete [] glcommands;
-    if (frames) delete [] frames;
-    if (builtframes) delete [] builtframes;
+    SAFE_DELETEA(glcommands);
+    SAFE_DELETEA(frames);
+    SAFE_DELETEA(builtframes);
+    FREE(loadname);
   }
 };
 
@@ -67,7 +68,7 @@ bool md2::load(char* filename) {
   endianswap(&header, sizeof(int), sizeof(md2_header)/sizeof(int));
 
   if (header.magic!= 844121161 || header.version!=8) return false;
-  frames = new char[header.frameSize*header.numFrames];
+  frames = NEWAE(char,header.frameSize*header.numFrames);
   if (frames==NULL) return false;
 
   fseek(file, header.offsetFrames, SEEK_SET);
@@ -75,7 +76,7 @@ bool md2::load(char* filename) {
   for (int i = 0; i < header.numFrames; ++i)
     endianswap(frames + i * header.frameSize, sizeof(float), 6);
 
-  glcommands = new int[header.numGlCommands];
+  glcommands = NEWAE(int,header.numGlCommands);
   if (glcommands==NULL) return false;
   fseek(file, header.offsetGlCommands, SEEK_SET);
   sz = fread(glcommands, header.numGlCommands*sizeof(int), 1, file); (void) sz;
@@ -89,8 +90,7 @@ bool md2::load(char* filename) {
 
   fclose(file);
 
-  // TODO remove that as soon as we use vbo and shaders for animation
-  builtframes = new bool[numFrames];
+  builtframes = NEWAE(bool,numFrames);
   loopj(numFrames) builtframes[j] = false;
 
   // allocate the complete vbo for all key frames
@@ -143,8 +143,7 @@ void md2::scale(int frame, float scale, int sn) {
 }
 
 void md2::render(vec3f &light, int frame, int range, const vec3f &o,
-                 float yaw, float pitch, float sc, float speed, int snap, int basetime)
-{
+                 float yaw, float pitch, float sc, float speed, int snap, int basetime) {
   ogl::bindbuffer(ogl::ARRAY_BUFFER, vbo);
   loopi(range) if (!builtframes[frame+i]) scale(frame+i, sc, snap);
 
@@ -169,11 +168,15 @@ void md2::render(vec3f &light, int frame, int range, const vec3f &o,
   ogl::popmatrix();
 }
 
-static hashtable<md2*> *mdllookup = NULL;
+static hashtable<md2*> mdllookup;
 static vector<md2*> mapmodels;
 static const int FIRSTMDL = 20;
 
-void delayedload(md2 *m) {
+void cleanmd2(void) {
+  ENUMERATE(&mdllookup, mdl, SAFE_DELETE(*mdl));
+}
+
+static void delayedload(md2 *m) {
   if (!m->loaded) {
     sprintf_sd(name1)("packages/models/%s/tris.md2", m->loadname);
     if (!m->load(path(name1))) fatal("loadmodel: ", name1);
@@ -187,29 +190,34 @@ void delayedload(md2 *m) {
 static int modelnum = 0;
 
 md2 *loadmodel(const char *name) {
-  if (!mdllookup) mdllookup = new hashtable<md2 *>;
-  md2 **mm = mdllookup->access(name);
-  if (mm) return *mm;
-  md2 *m = new md2();
+  auto mm = mdllookup.access(name);
+  if (mm && *mm) return *mm;
+  auto m = NEWE(md2);
   m->mdlnum = modelnum++;
-  game::mapmodelinfo mmi = { 2, 2, 0, 0, "" };
+  game::mapmodelinfo mmi = {2, 2, 0, 0, ""};
   m->mmi = mmi;
-  m->loadname = newstring(name);
-  mdllookup->access(m->loadname, &m);
+  m->loadname = NEWSTRING(name);
+  mdllookup.access(m->loadname, &m);
   return m;
 }
 
 void mapmodel(char *rad, char *h, char *zoff, char *snap, char *name) {
-  md2 *m = loadmodel(name);
+  auto m = loadmodel(name);
   game::mapmodelinfo mmi = { atoi(rad), atoi(h), atoi(zoff), atoi(snap), m->loadname };
   m->mmi = mmi;
   mapmodels.add(m);
 }
 
-void mapmodelreset(void) { mapmodels.setsize(0); }
+void mapmodelreset(void) { 
+  loopv(mapmodels) {
+    mdllookup.access(mapmodels[i]->loadname, NULL);
+    DELETE(mapmodels[i]);
+  }
+  mapmodels.setsize(0);
+}
 
 game::mapmodelinfo &getmminfo(int i) {
-  return i<mapmodels.length() ? mapmodels[i]->mmi : *(game::mapmodelinfo*) 0;
+  return i<mapmodels.length() ? mapmodels[i]->mmi : *(game::mapmodelinfo*) NULL;
 }
 
 COMMAND(mapmodel, ARG_5STR);
@@ -218,8 +226,7 @@ COMMAND(mapmodelreset, ARG_NONE);
 void rendermodel(const char *mdl, int frame, int range, int tex,
                  float rad, const vec3f &o,
                  float yaw, float pitch, bool teammate,
-                 float scale, float speed, int snap, int basetime)
-{
+                 float scale, float speed, int snap, int basetime) {
   md2 *m = loadmodel(mdl);
   if (world::isoccluded(game::player1->o.x, game::player1->o.y, o.x-rad, o.z-rad, rad*2))
     return;

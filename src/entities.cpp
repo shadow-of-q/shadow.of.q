@@ -7,6 +7,14 @@ vector<game::entity> ents; // all entities
 dynent *player1 = newdynent(); // our client
 dvector players; // other clients
 
+void cleanentities(void) {
+  FREE(player1);
+  loopv(players) {
+    FREE(players[i]);
+    players[i] = NULL;
+  }
+}
+
 static const char *entmdlnames[] = {
   "shells", "bullets", "rockets", "rrounds", "health", "boost",
   "g_armour", "y_armour", "quad",	"teleporter",

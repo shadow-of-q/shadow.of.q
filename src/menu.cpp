@@ -6,7 +6,7 @@ namespace menu {
 
 struct mitem { char *text; char *action; };
 struct gmenu {
-  const char *name;
+  char *name;
   vector<mitem> items;
   int mwidth;
   int menusel;
@@ -32,6 +32,15 @@ static void show(char *name) {
 }
 COMMANDN(showmenu, show, ARG_1STR);
 
+void clean(void) {
+  loopv(menus) {
+    FREE(menus[i].name);
+    loopvj(menus[i].items) {
+      FREE(menus[i].items[j].text);
+      FREE(menus[i].items[j].action);
+    }
+  }
+}
 static int compare(mitem *a, mitem *b) {
   const int x = atoi(a->text);
   const int y = atoi(b->text);
@@ -85,7 +94,7 @@ bool render(void) {
 
 void newm(const char *name) {
   gmenu &menu = menus.add();
-  menu.name = newstring(name);
+  menu.name = NEWSTRING(name);
   menu.menusel = 0;
 }
 COMMANDN(newmenu, newm, ARG_1STR);
@@ -100,8 +109,8 @@ void manual(int m, int n, char *text) {
 void item(char *text, char *action) {
   gmenu &menu = menus.last();
   mitem &mi = menu.items.add();
-  mi.text = newstring(text);
-  mi.action = action[0] ? newstring(action) : mi.text;
+  mi.text = NEWSTRING(text);
+  mi.action = action[0] ? NEWSTRING(action) : NEWSTRING(text);
 }
 COMMANDN(menuitem, item, ARG_2STR);
 

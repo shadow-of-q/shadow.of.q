@@ -3,7 +3,6 @@
 #include "math.hpp"
 
 namespace cube {
-struct block;
 namespace rr {
 
 static const int VIRTW = 2400; // screen width for text & HUD
@@ -11,10 +10,8 @@ static const int VIRTH = 1800; // screen height for text & HUD
 static const int FONTH = 64; // font height
 static const int PIXELTAB = VIRTW / 12; // tabulation size in pixels
 
-// rendercubes
-void addwaterquad(int x, int y, int size);
-int renderwater(float hf, uint udxy, uint uduv);
-int worldsize(void);
+// free up all resources needed by renderer
+void clean(void);
 
 // rendertext
 void draw_text(const char *str, int left, int top, int gl_num);
@@ -44,6 +41,7 @@ void render_particles(int time);
 // rendermd2
 void rendermodel(const char *mdl, int frame, int range, int tex, float rad, const vec3f &o, float yaw, float pitch, bool teammate, float scale, float speed, int snap = 0, int basetime = 0);
 game::mapmodelinfo &getmminfo(int i);
+void cleanmd2(void);
 
 } // namespace rr
 } // namespace cube

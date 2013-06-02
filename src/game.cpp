@@ -97,7 +97,7 @@ static void spawnstate(dynent *d) {
 }
 
 dynent *newdynent(void) {
-  dynent *d = (dynent*) malloc(sizeof(dynent));
+  dynent *d = (dynent*) MALLOC(sizeof(dynent));
   d->o = zero;
   d->yaw = 270;
   d->pitch = 0;
@@ -171,7 +171,7 @@ void arenarespawn(void) {
 }
 
 void zapdynent(dynent *&d) {
-  if (d) free(d);
+  if (d) FREE(d);
   d = NULL;
 }
 
@@ -534,6 +534,8 @@ void renderscores(void) {
     menu::manual(0, scorelines.length()+1, teamscores);
   }
 }
+
+void clean(void) { cleanentities(); }
 
 } // namespace game
 } // namespace cube

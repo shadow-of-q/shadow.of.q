@@ -59,7 +59,7 @@ static glparticle glparts[glvertexn];
 static void initparticles(void) {
   // indices never change we set them once here
   const u16 twotriangles[] = {0,1,2,2,3,1};
-  u16 *indices = new u16[glindexn];
+  u16 *indices = NEWAE(u16, glindexn);
   OGL(GenBuffers, 1, &particleibo);
   ogl::bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, particleibo);
   loopi(MAXPARTICLES) loopj(6) indices[6*i+j]=4*i+twotriangles[j];
@@ -71,6 +71,7 @@ static void initparticles(void) {
   ogl::bindbuffer(ogl::ARRAY_BUFFER, particlevbo);
   OGL(BufferData, GL_ARRAY_BUFFER, glvertexn*sizeof(glparticle), NULL, GL_DYNAMIC_DRAW);
   ogl::bindbuffer(ogl::ARRAY_BUFFER, 0);
+  DELETEA(indices);
 }
 
 void render_particles(int time) {

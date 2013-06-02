@@ -56,7 +56,7 @@ static void music(const char *name) {
 
 static int registersound(const char *name) {
   loopv(snames) if (strcmp(snames[i], name)==0) return i;
-  snames.add(newstring(name));
+  snames.add(NEWSTRING(name));
   samples.add(NULL);
   return samples.length()-1;
 }
@@ -65,6 +65,7 @@ void clean(void) {
   if (nosound) return;
   stop();
   Mix_CloseAudio();
+  loopv(snames) FREE(snames[i]);
 }
 
 static void updatechanvol(int chan, const vec3f *loc) {

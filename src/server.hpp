@@ -7,7 +7,7 @@ namespace cube {
 namespace server {
 
 void init(bool dedicated, int uprate, const char *sdesc, const char *ip, const char *master, const char *passwd, int maxcl);
-void cleanup(void);
+void clean(void);
 void localconnect(void);
 void localdisconnect(void);
 void localclienttoserver(struct _ENetPacket *);

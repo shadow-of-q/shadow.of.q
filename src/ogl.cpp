@@ -431,11 +431,11 @@ static bool checkshader(GLuint shadername) {
   OGL(GetShaderiv, shadername, GL_COMPILE_STATUS, &result);
   OGL(GetShaderiv, shadername, GL_INFO_LOG_LENGTH, &infologlength);
   if (infologlength) {
-    char *buffer = new char[infologlength + 1];
+    char *buffer = NEWAE(char, infologlength+1);
     buffer[infologlength] = 0;
     OGL(GetShaderInfoLog, shadername, infologlength, NULL, buffer);
-    printf("%s",buffer);
-    delete [] buffer;
+    console::out("%s",buffer);
+    DELETEA(buffer);
   }
   if (result == GL_FALSE) fatal("OGL: failed to compile shader");
   return result == GL_TRUE;
@@ -645,6 +645,8 @@ VAR(forcebuild, 0, 0, 1);
 static vec3f ldir;
 VAR(sampling, 0,0,1);
 static vec3f computecolor(vec3f pos, int face) {
+  return vec3f(one);
+#if 0
   const auto n = 0.01f*vec3f(cubenorms[face]);
   const mat3x3f m(n);
   float l = 0.f;
@@ -664,6 +666,7 @@ static vec3f computecolor(vec3f pos, int face) {
     l += (res.isec ? 0.0f : 1.f) *max(dot(ldir,normalize(n)),0.f);
   }
   return vec3f(l) / 64.f;
+#endif
 }
 
 /*--------------------------------------------------------------------------
@@ -777,7 +780,7 @@ static void buildlightmap(world::lvl1grid &b, lightmapuv &lmuv, const vec3i &org
   ctx.lmuv.dim.y += lmres+2;
 
   const s32 lmn = lmuv.dim.x*lmuv.dim.y;
-  ctx.lm = new u32[lmn];
+  ctx.lm = NEWAE(u32,lmn);
   memset(ctx.lm, 0, sizeof(u32)*lmn);
   loopi(lmn) ctx.lm[i] = 0;
   loopi(6) {
@@ -800,7 +803,7 @@ static void buildlightmap(world::lvl1grid &b, lightmapuv &lmuv, const vec3i &org
   console::out("saving %s", filename);
   writebmp((const int*) ctx.lm, lmuv.dim.x, lmuv.dim.y, filename);
   b.rlmdim = rcp(vec2f(lmuv.dim));
-  delete [] ctx.lm;
+  DELETEA(ctx.lm);
 }
 
 /*--------------------------------------------------------------------------
@@ -943,9 +946,9 @@ static void buildgridmesh(world::lvl1grid &b, const lightmapuv &lmuv, vec3i org)
 static void buildbrick(world::lvl1grid &b, vec3i org) {
   if (b.dirty==0 && !forcebuild) return;
   lightmapuv lmuv;
-  buildlightmap(b, lmuv, org);
+  //buildlightmap(b, lmuv, org);
   buildgridmesh(b, lmuv, org);
-  console::out("lightmap [%i %i]", lmuv.dim.x, lmuv.dim.y);
+  //console::out("lightmap [%i %i]", lmuv.dim.x, lmuv.dim.y);
   b.dirty = 0;
 }
 
@@ -997,16 +1000,17 @@ static struct gridshader : shader {
 
 static void drawgrid(void) {
   using namespace world;
-  bindshader(gridshader);
+  //bindshader(gridshader);
+  bindshader(DIFFUSETEX|COLOR);
   setattribarray()(POS0, TEX0, TEX1, COL);
   forallbricks([&](const lvl1grid &b, const vec3i org) {
     bindbuffer(ogl::ARRAY_BUFFER, b.vbo);
     bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, b.ibo);
-    bindtexture(GL_TEXTURE_2D, 1, b.lm);
-    OGL(Uniform2fv, gridshader.u_rlmdim, 1, &b.rlmdim.x);
+    //bindtexture(GL_TEXTURE_2D, 1, b.lm);
+  //  OGL(Uniform2fv, gridshader.u_rlmdim, 1, &b.rlmdim.x);
     OGL(VertexAttribPointer, COL, 3, GL_FLOAT, 0, sizeof(float[10]), (const void*) sizeof(float[5]));
     OGL(VertexAttribPointer, TEX0, 2, GL_FLOAT, 0, sizeof(float[10]), (const void*) sizeof(float[3]));
-    OGL(VertexAttribPointer, TEX1, 2, GL_FLOAT, 0, sizeof(float[10]), (const void*) sizeof(float[8]));
+    // OGL(VertexAttribPointer, TEX1, 2, GL_FLOAT, 0, sizeof(float[10]), (const void*) sizeof(float[8]));
     OGL(VertexAttribPointer, POS0, 3, GL_FLOAT, 0, sizeof(float[10]), (const void*) 0);
     u32 offset = 0;
     loopi(b.draws.length()) {
@@ -1153,7 +1157,13 @@ void init(int w, int h) {
   loopi(BUFFER_NUM) bindedvbo[i] = 0;
 }
 
-void clean(void) { OGL(DeleteBuffers, 1, &spherevbo); }
+void clean(void) {
+  if (bvhisec) {
+    bvh::destroy(bvhisec);
+    bvhisec = NULL;
+  }
+  if (spherevbo) OGL(DeleteBuffers, 1, &spherevbo);
+}
 
 void drawsphere(void) {
   ogl::bindbuffer(ARRAY_BUFFER, spherevbo);

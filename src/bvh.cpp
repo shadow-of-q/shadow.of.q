@@ -69,7 +69,7 @@ template<u32 axis> struct sorter : public std::binary_function<int,int,bool> {
 int compiler::injection(const triangle *soup, const u32 trinum) {
   std::vector<centroid> centroids;
 
-  root = (intersector::node *) new intersector::node[2*trinum+1];
+  root = NEWAE(intersector::node,2*trinum+1);
   if (root == NULL) return -1;
 
   loopi(3) ids[i].resize(trinum);
@@ -248,7 +248,7 @@ intersector *create(const triangle *tri, int n) {
   compiler c;
   if (c.injection(tri, n) < 0) return NULL;
   c.compile();
-  auto tree = new intersector;
+  auto tree = NEWE(intersector);
   tree->root = c.root;
   tree->acc.resize(n);
   loopi(n) computewaldtriangle(tri[i], tree->acc[i], i, 0);
@@ -257,8 +257,8 @@ intersector *create(const triangle *tri, int n) {
 
 void destroy(intersector *bvhtree) {
   if (bvhtree == NULL) return;
-  if (bvhtree->root != NULL) delete[] bvhtree->root;
-  delete bvhtree;
+  SAFE_DELETEA(bvhtree->root);
+  DELETE(bvhtree);
 }
 
 static const u32 waldmodulo[] = {1,2,0,1};

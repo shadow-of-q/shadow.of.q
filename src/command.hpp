@@ -41,6 +41,8 @@ void alias(const char *name, const char *action);
 char *getalias(const char *name);
 // write all commands, variables and alias to config.cfg
 void writecfg(void);
+// free all resources needed by the command system
+void clean(void);
 
 } // namespace cmd
 } // namespace cube

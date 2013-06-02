@@ -358,7 +358,7 @@ void slice(int seconds, unsigned int timeout) {
 #endif
 }
 
-void cleanup(void) { if (serverhost) enet_host_destroy(serverhost); }
+void clean(void) { if (serverhost) enet_host_destroy(serverhost); }
 
 void localdisconnect(void) {
   loopv(clients) if (clients[i].type==ST_LOCAL) clients[i].type = ST_EMPTY;
@@ -391,7 +391,7 @@ void init(bool dedicated, int uprate, const char *sdesc, const char *ip, const c
     SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);
 #endif
     printf("dedicated server started, waiting for clients...\nCtrl-C to exit\n\n");
-    atexit(cleanup);
+    atexit(clean);
     atexit(enet_deinitialize);
     for (;;) slice(/*enet_time_get_sec()*/time(NULL), 5);
   }

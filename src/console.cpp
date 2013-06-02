@@ -27,9 +27,38 @@ static void setconskip(int n) {
 }
 COMMANDN(conskip, setconskip, ARG_1INT);
 
+// keymap is defined externally in keymap.cfg
+struct keym { int code; char *name; char *action; } keyms[256];
+static int numkm = 0;
+
+static void keymap(char *code, char *key, char *action) {
+  keyms[numkm].code = atoi(code);
+  keyms[numkm].name = NEWSTRING(key);
+  keyms[numkm++].action = NEWSTRINGBUF(action);
+}
+COMMAND(keymap, ARG_3STR);
+
+static void bindkey(char *key, char *action) {
+  for (char *x = key; *x; x++) *x = toupper(*x);
+  loopi(numkm) if (strcmp(keyms[i].name, key)==0) {
+    strcpy_s(keyms[i].action, action);
+    return;
+  }
+  out("unknown key \"%s\"", key);
+}
+COMMANDN(bind, bindkey, ARG_2STR);
+
+void clean(void) {
+  loopv(conlines) FREE(conlines[i].cref);
+  loopi(numkm) {
+    FREE(keyms[i].name);
+    FREE(keyms[i].action);
+  }
+}
+
 static void line(const char *sf, bool highlight) {
   cline cl;
-  cl.cref = conlines.length()>100 ? conlines.pop().cref : newstringbuf("");
+  cl.cref = conlines.length()>100 ? conlines.pop().cref : NEWSTRINGBUF("");
   cl.outtime = game::lastmillis(); // for how long to keep line on screen
   conlines.insert(0,cl);
   if (highlight) { // show line in a different colour, for chat etc.
@@ -69,27 +98,6 @@ void render(void) {
   const int h = rr::FONTH;
   loopj(nd) rr::draw_text(refs[j], h/3, (h/4*5)*(nd-j-1)+h/3, 2);
 }
-
-// keymap is defined externally in keymap.cfg
-struct keym { int code; char *name; char *action; } keyms[256];
-static int numkm = 0;
-
-static void keymap(char *code, char *key, char *action) {
-  keyms[numkm].code = atoi(code);
-  keyms[numkm].name = newstring(key);
-  keyms[numkm++].action = newstringbuf(action);
-}
-COMMAND(keymap, ARG_3STR);
-
-static void bindkey(char *key, char *action) {
-  for (char *x = key; *x; x++) *x = toupper(*x);
-  loopi(numkm) if (strcmp(keyms[i].name, key)==0) {
-    strcpy_s(keyms[i].action, action);
-    return;
-  }
-  out("unknown key \"%s\"", key);
-}
-COMMANDN(bind, bindkey, ARG_2STR);
 
 // turns input to the command line on or off
 static void saycommand(const char *init) {
@@ -182,7 +190,7 @@ void keypress(int code, bool isdown, int cooked) {
       if (code==SDLK_RETURN) {
         if (commandbuf[0]) {
           if (vhistory.empty() || strcmp(vhistory.last(), commandbuf))
-            vhistory.add(newstring(commandbuf));  // cap this?
+            vhistory.add(NEWSTRING(commandbuf));  // cap this?
           histpos = vhistory.length();
           if (commandbuf[0]=='/')
             cmd::execute(commandbuf, true);

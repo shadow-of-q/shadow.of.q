@@ -141,7 +141,7 @@ struct grid : public noncopyable {
     auto idx = index(v);
     if (any(idx>=local())) return;
     auto &e = elem[idx.x][idx.y][idx.z];
-    if (e == NULL) e = new T;
+    if (e == NULL) e = NEWE(T);
     e->set(v-idx*subcuben(), cube);
     dirty=1;
   }
@@ -229,6 +229,8 @@ int isoccluded(float vx, float vy, float cx, float cy, float csize);
 int waterlevel(void);
 // return the name of the current map
 char *maptitle(void);
+// free the world resources
+void clean(void);
 // build a bvh from the world
 bvh::intersector *buildbvh(void);
 

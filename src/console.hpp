@@ -15,6 +15,8 @@ void out(const char *s, ...);
 char *getcurcommand(void);
 // write all the bindings in the given file
 void writebinds(FILE *f);
+// free all resources needed by the console
+void clean(void);
 
 } // namespace console
 } // namespace cube

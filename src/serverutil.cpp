@@ -12,8 +12,8 @@ namespace server {
     if (mapsize <= 0 || mapsize > 256*256) return;
     strcpy_s(copyname, mapname);
     copysize = mapsize;
-    if (copydata) free(copydata);
-    copydata = (uchar *)alloc(mapsize);
+    if (copydata) FREE(copydata);
+    copydata = (u8*)MALLOC(mapsize);
     memcpy(copydata, mapdata, mapsize);
   }
 
@@ -36,21 +36,13 @@ namespace server {
 
 #ifdef STANDALONE
 void client::localservertoclient(uchar *buf, int len) {};
-void fatal(const char *s, const char *o)
-{
-  server::cleanup();
+void fatal(const char *s, const char *o) {
+  server::clean();
   printf("servererror: %s\n", s);
   exit(1);
 }
-void *alloc(int s)
-{
-  void *b = calloc(1,s);
-  if (!b) fatal("no memory!");
-  return b;
-}
 
-int main(int argc, char* argv[])
-{
+int main(int argc, char* argv[]) {
   int uprate = 0, maxcl = 4;
   const char *sdesc = "", *ip = "", *master = NULL, *passwd = "";
 

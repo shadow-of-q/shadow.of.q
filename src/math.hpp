@@ -750,9 +750,7 @@ struct ray {
   INLINE ray(void) {}
   INLINE ray(vec3f org, vec3f dir, float near = 0.f, float far = FLT_MAX)
     : org(org), dir(dir), rdir(rcp(dir)), tnear(near), tfar(far) {}
-  ALIGNED(16) vec3f org;
-  ALIGNED(16) vec3f dir;
-  ALIGNED(16) vec3f rdir;
+  vec3f org, dir, rdir;
   float tnear, tfar;
 };
 

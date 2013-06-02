@@ -15,9 +15,15 @@ void cleanup(char *msg) { // single program exit point;
   demo::stop();
   client::disconnect(true);
   cmd::writecfg();
+  game::clean();
+  rr::clean();
   ogl::clean();
+  world::clean();
   sound::clean();
-  server::cleanup();
+  server::clean();
+  console::clean();
+  menu::clean();
+  cmd::clean();
   SDL_ShowCursor(1);
   if (msg) {
 #ifdef WIN32
@@ -38,12 +44,6 @@ void quit(void) { // normal exit
 void fatal(const char *s, const char *o) { // failure exit
   sprintf_sd(msg)("%s%s (%s)\n", s, o, SDL_GetError());
   cleanup(msg);
-}
-
-void *alloc(int s) { // for some big chunks... most other allocs use the memory pool
-  void *b = calloc(1,s);
-  if (!b) fatal("out of memory!");
-  return b;
 }
 
 int scr_w = 800;
@@ -130,6 +130,14 @@ static void main_loop(void) {
   }
 }
 
+static int installbasetex(int num, const char *name) {
+  int xs, ys;
+  char *str = path(NEWSTRING(name));
+  const int ret = ogl::installtex(num, str, xs, ys);
+  FREE(str);
+  return ret;
+}
+
 static int main(int argc, char **argv) {
   IF_EMSCRIPTEN(emscripten_hide_mouse());
   bool dedicated = false;
@@ -171,6 +179,9 @@ static int main(int argc, char **argv) {
   if (SDL_Init(SDL_INIT_TIMER|SDL_INIT_VIDEO|par)<0)
     fatal("Unable to initialize SDL");
 
+  log("memory subsystem");
+  meminit();
+
   log("net");
   if (enet_initialize()<0)
     fatal("Unable to initialise network module");
@@ -198,16 +209,15 @@ static int main(int argc, char **argv) {
   ogl::init(scr_w, scr_h);
 
   log("basetex");
-  int xs, ys;
-  if (!ogl::installtex(2, path(newstring("data/newchars.png")), xs, ys) ||
-      !ogl::installtex(3, path(newstring("data/martin/base.png")), xs, ys) ||
-      !ogl::installtex(6, path(newstring("data/martin/ball1.png")), xs, ys) ||
-      !ogl::installtex(7, path(newstring("data/martin/smoke.png")), xs, ys) ||
-      !ogl::installtex(8, path(newstring("data/martin/ball2.png")), xs, ys) ||
-      !ogl::installtex(9, path(newstring("data/martin/ball3.png")), xs, ys) ||
-      !ogl::installtex(4, path(newstring("data/explosion.jpg")), xs, ys) ||
-      !ogl::installtex(5, path(newstring("data/items.png")), xs, ys) ||
-      !ogl::installtex(1, path(newstring("data/crosshair.png")), xs, ys))
+  if (!installbasetex(2, "data/newchars.png") ||
+      !installbasetex(3, "data/martin/base.png") ||
+      !installbasetex(6, "data/martin/ball1.png") ||
+      !installbasetex(7, "data/martin/smoke.png") ||
+      !installbasetex(8, "data/martin/ball2.png") ||
+      !installbasetex(9, "data/martin/ball3.png") ||
+      !installbasetex(4, "data/explosion.jpg") ||
+      !installbasetex(5, "data/items.png") ||
+      !installbasetex(1, "data/crosshair.png"))
     fatal("could not find core textures (hint: run cube from the parent of the bin directory)");
 
   log("sound");
@@ -232,6 +242,8 @@ static int main(int argc, char **argv) {
   client::changemap("ee");
 
   log("mainloop");
+#undef log
+
 #if defined(EMSCRIPTEN)
   emscripten_set_main_loop(main_loop, 0, 1);
 #else
@@ -239,7 +251,6 @@ static int main(int argc, char **argv) {
 #endif
 
   quit();
-#undef log
   return 1;
 }
 
