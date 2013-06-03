@@ -858,7 +858,6 @@ static void buildlightmap(world::lvl1grid &b, lightmapuv &lmuv, const vec3i &org
     loopxyz(0, b.size(), buildlmdata(ctx, org+xyz, xyz));
   }
 
-  static int lmid = 0;
   // build light map texture
   if (b.lm == 0) gentextures(1, &b.lm);
   ogl::bindtexture(GL_TEXTURE_2D, 0, b.lm);
@@ -869,9 +868,10 @@ static void buildlightmap(world::lvl1grid &b, lightmapuv &lmuv, const vec3i &org
   OGL(TexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, lmfilter?GL_LINEAR:GL_NEAREST);
   OGL(TexParameteri, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
-  sprintf_sd(filename)("lm%i.bmp", lmid++);
-  console::out("saving %s", filename);
-  writebmp((const int*) ctx.lm, lmuv.dim.x, lmuv.dim.y, filename);
+// static int lmid = 0;
+//  sprintf_sd(filename)("lm%i.bmp", lmid++);
+//  console::out("saving %s", filename);
+//  writebmp((const int*) ctx.lm, lmuv.dim.x, lmuv.dim.y, filename);
   b.rlmdim = rcp(vec2f(lmuv.dim));
   DELETEA(ctx.lm);
 }
@@ -1291,7 +1291,8 @@ static void dofog(bool underwater) {
   }
 }
 
-VAR(linefill,0,0,1);
+VAR(wireframe,0,0,1);
+VAR(rendermonsters,0,1,1);
 
 void drawframe(int w, int h, float curfps) {
   const float hf = world::waterlevel()-0.3f;
@@ -1331,12 +1332,12 @@ void drawframe(int w, int h, float curfps) {
 
   ogl::xtraverts = 0;
   game::renderclients();
-  game::monsterrender();
+  if (rendermonsters) game::monsterrender();
   game::renderentities();
   rr::renderspheres(game::curtime());
   rr::renderents();
   enablev(GL_CULL_FACE);
-  IF_NOT_EMSCRIPTEN(OGL(PolygonMode, GL_FRONT_AND_BACK, linefill?GL_LINE:GL_FILL));
+  IF_NOT_EMSCRIPTEN(OGL(PolygonMode, GL_FRONT_AND_BACK, wireframe?GL_LINE:GL_FILL));
   drawgrid();
   disablev(GL_CULL_FACE);
 

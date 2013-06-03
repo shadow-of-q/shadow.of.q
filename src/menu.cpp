@@ -4,12 +4,14 @@
 namespace cube {
 namespace menu {
 
-struct mitem { char *text; char *action; };
+struct mitem {
+  char *text, *action;
+  s32 manual;
+};
 struct gmenu {
   char *name;
   vector<mitem> items;
-  int mwidth;
-  int menusel;
+  s32 menusel;
 };
 
 static vector<gmenu> menus;
@@ -35,7 +37,7 @@ COMMANDN(showmenu, show, ARG_1STR);
 void clean(void) {
   loopv(menus) {
     FREE(menus[i].name);
-    loopvj(menus[i].items) {
+    loopvj(menus[i].items) if (!menus[i].items[j].manual) {
       FREE(menus[i].items[j].text);
       FREE(menus[i].items[j].action);
     }
@@ -101,9 +103,10 @@ COMMANDN(newmenu, newm, ARG_1STR);
 
 void manual(int m, int n, char *text) {
   if (!n) menus[m].items.setsize(0);
-  mitem &mitem = menus[m].items.add();
-  mitem.text = text;
-  mitem.action = empty;
+  mitem &mi = menus[m].items.add();
+  mi.text = text;
+  mi.action = empty;
+  mi.manual = 1;
 }
 
 void item(char *text, char *action) {
@@ -111,6 +114,7 @@ void item(char *text, char *action) {
   mitem &mi = menu.items.add();
   mi.text = NEWSTRING(text);
   mi.action = action[0] ? NEWSTRING(action) : NEWSTRING(text);
+  mi.manual = 0;
 }
 COMMANDN(menuitem, item, ARG_2STR);
 

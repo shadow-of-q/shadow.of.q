@@ -56,8 +56,8 @@ static void memunlinknode(memnode *node) {
 
 static void memcheckbounds(memblock *node) {
   if (node->lbound() != 0xdeadc0de || node->rbound() != 0xdeadc0de) {
-    MEMALLOC(error, node);
-    fprintf(stderr, "memory corruption detected: %s\n", error);
+    fprintf(stderr, "memory corruption detected (alloc %i)\n", node->allocnum);
+    DEBUGBREAK;
     _exit(EXIT_FAILURE);
   }
 }
