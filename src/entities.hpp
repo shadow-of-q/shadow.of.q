@@ -74,6 +74,7 @@ struct dynent {
   vec3f attacktarget; // delayed attacks
   int anger; // how many times already hit by fellow monster
   string name, team;
+  INLINE vec3f euler(void) const { return vec3f(yaw,pitch,roll); }
 };
 
 INLINE aabb getaabb(const dynent *d) {

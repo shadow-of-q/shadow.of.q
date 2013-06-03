@@ -5,7 +5,7 @@ namespace rr {
 int curvert = 4;
 int curmaxverts = 10000;
 void clean(void) {
-  cleanmd2();
+  mapmodelreset();
   cleanparticles();
 }
 } // namespace rr

@@ -31,7 +31,7 @@ namespace physics {
 
   // get bounding volume of the given deformed cube
   INLINE aabb getaabb(vec3i xyz) {
-    aabb box;
+    aabb box(FLT_MAX,-FLT_MAX);
     loopi(8) {
       const auto v = world::getpos(xyz+cubeiverts[i]);
       box.pmin = min(v, box.pmin);

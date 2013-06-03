@@ -535,7 +535,10 @@ void renderscores(void) {
   }
 }
 
-void clean(void) { cleanentities(); }
+void clean(void) {
+  cleanentities();
+  cleanmonsters();
+}
 
 } // namespace game
 } // namespace cube

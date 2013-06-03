@@ -9,7 +9,7 @@ struct md2_header {
   int skinWidth, skinHeight;
   int frameSize;
   int numSkins, numVertices, numTexcoords;
-  int numTriangles, numGlCommands, numFrames;
+  int trianglenum, numGlCommands, numFrames;
   int offsetSkins, offsetTexcoords, offsetTriangles;
   int offsetFrames, offsetGlCommands, offsetEnd;
 };
@@ -29,7 +29,7 @@ struct md2 {
   int* glcommands;
   GLuint vbo;
   int framesz;
-  int numTriangles;
+  int trianglenum;
   int frameSize;
   int numFrames;
   int numVerts;
@@ -85,7 +85,7 @@ bool md2::load(char* filename) {
   numFrames    = header.numFrames;
   numGlCommands= header.numGlCommands;
   frameSize    = header.frameSize;
-  numTriangles = header.numTriangles;
+  trianglenum = header.trianglenum;
   numVerts     = header.numVertices;
 
   fclose(file);
@@ -168,13 +168,9 @@ void md2::render(vec3f &light, int frame, int range, const vec3f &o,
   ogl::popmatrix();
 }
 
-static hashtable<md2*> mdllookup;
+static hashtable<md2*> *mdllookup = NULL;
 static vector<md2*> mapmodels;
 static const int FIRSTMDL = 20;
-
-void cleanmd2(void) {
-  ENUMERATE(&mdllookup, mdl, SAFE_DELETE(*mdl));
-}
 
 static void delayedload(md2 *m) {
   if (!m->loaded) {
@@ -190,14 +186,15 @@ static void delayedload(md2 *m) {
 static int modelnum = 0;
 
 md2 *loadmodel(const char *name) {
-  auto mm = mdllookup.access(name);
+  if (mdllookup == NULL) mdllookup = NEWE(hashtable<md2*>);
+  auto mm = mdllookup->access(name);
   if (mm && *mm) return *mm;
   auto m = NEWE(md2);
   m->mdlnum = modelnum++;
   game::mapmodelinfo mmi = {2, 2, 0, 0, ""};
   m->mmi = mmi;
   m->loadname = NEWSTRING(name);
-  mdllookup.access(m->loadname, &m);
+  mdllookup->access(m->loadname, &m);
   return m;
 }
 
@@ -208,12 +205,11 @@ void mapmodel(char *rad, char *h, char *zoff, char *snap, char *name) {
   mapmodels.add(m);
 }
 
-void mapmodelreset(void) { 
-  loopv(mapmodels) {
-    mdllookup.access(mapmodels[i]->loadname, NULL);
-    DELETE(mapmodels[i]);
-  }
+void mapmodelreset(void) {
+  if (mdllookup) ENUMERATE(mdllookup, mdl, SAFE_DELETE(*mdl));
   mapmodels.setsize(0);
+  modelnum = 0;
+  SAFE_DELETE(mdllookup);
 }
 
 game::mapmodelinfo &getmminfo(int i) {

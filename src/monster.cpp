@@ -76,14 +76,18 @@ void spawnmonster(void) {
   basicmonster(type, rnd(360), M_SEARCH, 1000, 1);
 }
 
-// called after map start of when toggling edit mode to reset/spawn all monsters
-// to initial statexi
-void monsterclear(void) {
+void cleanmonsters(void) {
   loopv(monsters) FREE(monsters[i]);
   monsters.setsize(0);
   numkilled = 0;
   monstertotal = 0;
   spawnremain = 0;
+}
+
+// called after map start of when toggling edit mode to reset/spawn all monsters
+// to initial state
+void monsterclear(void) {
+  cleanmonsters();
   if (m_dmsp) {
     nextmonster = mtimestart = lastmillis()+10000;
     monstertotal = spawnremain = mode()<0 ? skill*10 : 0;

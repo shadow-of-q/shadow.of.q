@@ -42,7 +42,7 @@ void cleanparticles(void);
 // rendermd2
 void rendermodel(const char *mdl, int frame, int range, int tex, float rad, const vec3f &o, float yaw, float pitch, bool teammate, float scale, float speed, int snap = 0, int basetime = 0);
 game::mapmodelinfo &getmminfo(int i);
-void cleanmd2(void);
+void mapmodelreset(void);
 
 } // namespace rr
 } // namespace cube

@@ -212,8 +212,8 @@ template <typename T> INLINE void memdestroya(T *array) {
 #define NEWA(X,N,...) memconstructa<X>(N,__FILE__,__LINE__,__VA_ARGS__)
 #define DELETE(X) memdestroy(X);
 #define DELETEA(X) memdestroya(X);
-#define SAFE_DELETE(X) if (X) DELETE(X)
-#define SAFE_DELETEA(X) if (X) DELETEA(X)
+#define SAFE_DELETE(X) do { if (X) DELETE(X); X = NULL; } while (0)
+#define SAFE_DELETEA(X) do { if (X) DELETEA(X); X = NULL; } while (0)
 
 /*-------------------------------------------------------------------------
  - simple collections

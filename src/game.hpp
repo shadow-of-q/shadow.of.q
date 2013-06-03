@@ -63,6 +63,8 @@ void renderclient(dynent *d, bool team, const char *name, bool hellpig, float sc
 void renderscores(void);
 // release memory used by all entities
 void cleanentities(void);
+// release memory used by all monsters
+void cleanmonsters(void);
 // releas all memory used by the game system
 void clean(void);
 

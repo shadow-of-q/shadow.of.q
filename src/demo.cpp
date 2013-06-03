@@ -243,13 +243,13 @@ static void start(void) {
 VAR(demodelaymsec, 0, 120, 500);
 
 // spline interpolation
-static void catmulrom(const vec3f &z, const vec3f &a, const vec3f &b, const vec3f &c, float s, vec3f &dest) {
+static void catmulrom(const vec3f &z, const vec3f &a, const vec3f &b, const vec3f &c, float s, vec3f &dst) {
   const float s2 = s*s;
   const float s3 = s*s2;
   const vec3f t  = (-2.f*s3 + 3.f*s2)*b;
   const vec3f t1 = (s3-2.f*s2+s)*0.5f*(b-z);
   const vec3f t2 = (s3-s2)*0.5f*(c-a);
-  dest = (2.f*s3 - 3.f*s2 + 1.f)*a + t + t1 + t2;
+  dst = (2.f*s3 - 3.f*s2 + 1.f)*a + t + t1 + t2;
 }
 
 static void fixwrap(game::dynent *a, game::dynent *b) {
@@ -265,7 +265,7 @@ void playbackstep(void) {
       stopreset();
       return;
     }
-    uchar buf[MAXTRANS];
+    u8 buf[MAXTRANS];
     gzread(f, buf, len);
     client::localservertoclient(buf, len);  // update game state
 
@@ -326,7 +326,12 @@ void playbackstep(void) {
         const float dist = distance(z->o,c->o);
         if (dist<16.f) { // if teleport or spawn, dont't interpolate
           catmulrom(z->o, a->o, b->o, c->o, bf, game::player1->o);
-          catmulrom(*(vec3f*)&z->yaw, *(vec3f*)&a->yaw, *(vec3f*)&b->yaw, *(vec3f*)&c->yaw, bf, *(vec3f *)&game::player1->yaw);
+          // catmulrom(*(vec3f*)&z->yaw, *(vec3f*)&a->yaw, *(vec3f*)&b->yaw, *(vec3f*)&c->yaw, bf, *(vec3f *)&game::player1->yaw);
+          vec3f dstangle;
+          catmulrom(z->euler(), a->euler(), b->euler(), c->euler(), bf, dstangle);
+          game::player1->yaw = dstangle.x;
+          game::player1->pitch = dstangle.y;
+          game::player1->roll = dstangle.z;
         }
         game::fixplayer1range();
       }
@@ -336,10 +341,7 @@ void playbackstep(void) {
 }
 
 static void stopn(void) {
-  if (demoplayback)
-    stopreset();
-  else
-    stop();
+  if (demoplayback) stopreset(); else stop();
   console::out("demo stopped");
 }
 COMMANDN(stop, stopn, ARG_NONE);

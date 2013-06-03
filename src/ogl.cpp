@@ -72,6 +72,15 @@ void deletebuffers(s32 n, u32 *id) {
   if (buffernum < 0) fatal("buffers already freed");
   OGL(DeleteBuffers, n, id);
 }
+static u32 createprogram(void) {
+  programnum++;
+  return CreateProgram();
+}
+static void deleteprogram(u32 id) {
+  programnum--;
+  if (programnum < 0) fatal("program already freed");
+  OGL(DeleteProgram, id);
+}
 
 /*--------------------------------------------------------------------------
  - immediate mode and buffer support
@@ -483,7 +492,7 @@ static GLuint loadprogram(const char *vertstr, const char *fragstr, uint rules) 
                       rules&FOG,rules&KEYFRAME,rules&DIFFUSETEX);
   const GLuint vert = loadshader(GL_VERTEX_SHADER, vertstr, rulestr);
   const GLuint frag = loadshader(GL_FRAGMENT_SHADER, fragstr, rulestr);
-  OGLR(program, CreateProgram);
+  program = createprogram();
   OGL(AttachShader, program, vert);
   OGL(AttachShader, program, frag);
   OGL(DeleteShader, vert);
@@ -659,7 +668,69 @@ static void buildubershader(shader &shader, uint rules) {
   buildshader(shader, ubervert, uberfrag, rules);
 }
 
-VAR(forcebuild, 0, 0, 1);
+static const char gridvert[] = {
+  "uniform mat4 u_mvp;\n"
+  VS_IN " vec3 vs_pos;\n"
+  VS_IN " vec4 vs_col;\n"
+  VS_IN " vec2 vs_tex;\n"
+  VS_IN " vec2 vs_lm;\n"
+  VS_OUT " vec4 fs_col;\n"
+  VS_OUT " vec2 fs_tex;\n"
+  VS_OUT " vec2 fs_lm;\n"
+  "void main() {\n"
+  "  fs_tex = vs_tex;\n"
+  "  fs_col = vs_col;\n"
+  "  fs_lm = vs_lm;\n"
+  "  gl_Position = u_mvp*vec4(vs_pos,1.0);\n"
+  "}\n"
+};
+static const char gridfrag[] = {
+  "uniform sampler2D u_diffuse;\n"
+  "uniform sampler2D u_lm;\n"
+  "uniform vec2 u_rlmdim;\n"
+  PS_IN " vec2 fs_tex;\n"
+  PS_IN " vec4 fs_col;\n"
+  PS_IN " vec2 fs_lm;\n"
+  IF_NOT_EMSCRIPTEN("out vec4 rt_c;\n")
+  "void main() {\n"
+  "  vec4 lm = texture2D(u_lm, fs_lm);\n"
+  "  vec4 col = lm*texture2D(u_diffuse, fs_tex);\n"
+  IF_NOT_EMSCRIPTEN("  rt_c = col;\n")
+  IF_EMSCRIPTEN("  gl_FragColor = col;\n")
+  "}\n"
+};
+static struct gridshader : shader {
+  GLuint u_lm, u_rlmdim;
+} gridshader;
+
+static void buildshaders(void) {
+  // build uber-shaders
+  loopi(shadern) buildubershader(shaders[i], i);
+
+  // build water shader
+  buildshader(watershader, watervert, uberfrag, DIFFUSETEX); // build water shader
+  OGLR(watershader.u_delta, GetUniformLocation, watershader.program, "u_delta");
+  OGLR(watershader.u_duv, GetUniformLocation, watershader.program, "u_duv");
+  OGLR(watershader.u_dxy, GetUniformLocation, watershader.program, "u_dxy");
+  OGLR(watershader.u_hf, GetUniformLocation, watershader.program, "u_hf");
+
+  // build world shader
+  compileshader(gridshader, gridvert, gridfrag, DIFFUSETEX|COLOR);
+  OGL(BindAttribLocation, gridshader.program, TEX1, "vs_lm");
+  linkshader(gridshader);
+  setshaderuniform(gridshader);
+  OGL(UseProgram, gridshader.program);
+  OGLR(gridshader.u_lm, GetUniformLocation, gridshader.program, "u_lm");
+  OGLR(gridshader.u_rlmdim, GetUniformLocation, gridshader.program, "u_rlmdim");
+  OGL(Uniform1i, gridshader.u_lm, 1);
+  OGL(UseProgram, 0);
+}
+
+static void destroyshaders(void) {
+  loopi(shadern) deleteprogram(shaders[i].program);
+  deleteprogram(watershader.program);
+  deleteprogram(gridshader.program);
+}
 
 /*--------------------------------------------------------------------------
  - over-simple sun shadow
@@ -673,6 +744,7 @@ VAR(sampling, 0,0,1);
 VAR(lmres, 2, 4, 32);
 
 static const int maxlmw = 1024;
+VAR(forcebuild, 0, 0, 1);
 
 // store UVs per cube and per face
 struct lightmapuv {
@@ -961,41 +1033,6 @@ static void buildgrid(void) {
 }
 COMMAND(buildgrid, ARG_NONE);
 
-static const char gridvert[] = {
-  "uniform mat4 u_mvp;\n"
-  VS_IN " vec3 vs_pos;\n"
-  VS_IN " vec4 vs_col;\n"
-  VS_IN " vec2 vs_tex;\n"
-  VS_IN " vec2 vs_lm;\n"
-  VS_OUT " vec4 fs_col;\n"
-  VS_OUT " vec2 fs_tex;\n"
-  VS_OUT " vec2 fs_lm;\n"
-  "void main() {\n"
-  "  fs_tex = vs_tex;\n"
-  "  fs_col = vs_col;\n"
-  "  fs_lm = vs_lm;\n"
-  "  gl_Position = u_mvp*vec4(vs_pos,1.0);\n"
-  "}\n"
-};
-static const char gridfrag[] = {
-  "uniform sampler2D u_diffuse;\n"
-  "uniform sampler2D u_lm;\n"
-  "uniform vec2 u_rlmdim;\n"
-  PS_IN " vec2 fs_tex;\n"
-  PS_IN " vec4 fs_col;\n"
-  PS_IN " vec2 fs_lm;\n"
-  IF_NOT_EMSCRIPTEN("out vec4 rt_c;\n")
-  "void main() {\n"
-  "  vec4 lm = texture2D(u_lm, fs_lm);\n"
-  "  vec4 col = lm*texture2D(u_diffuse, fs_tex);\n"
-  IF_NOT_EMSCRIPTEN("  rt_c = col;\n")
-  IF_EMSCRIPTEN("  gl_FragColor = col;\n")
-  "}\n"
-};
-static struct gridshader : shader {
-  GLuint u_lm, u_rlmdim;
-} gridshader;
-
 static void drawgrid(void) {
   using namespace world;
   //bindshader(gridshader);
@@ -1131,25 +1168,9 @@ void init(int w, int h) {
   dirty.any = ~0x0;
   purgetextures();
   buildsphere(1, 12, 6);
-  loopi(shadern) buildubershader(shaders[i], i); // build uber-shaders
 
-  // build water shader
-  buildshader(watershader, watervert, uberfrag, DIFFUSETEX); // build water shader
-  OGLR(watershader.u_delta, GetUniformLocation, watershader.program, "u_delta");
-  OGLR(watershader.u_duv, GetUniformLocation, watershader.program, "u_duv");
-  OGLR(watershader.u_dxy, GetUniformLocation, watershader.program, "u_dxy");
-  OGLR(watershader.u_hf, GetUniformLocation, watershader.program, "u_hf");
+  buildshaders();
 
-  // build world shader
-  compileshader(gridshader, gridvert, gridfrag, DIFFUSETEX|COLOR);
-  OGL(BindAttribLocation, gridshader.program, TEX1, "vs_lm");
-  linkshader(gridshader);
-  setshaderuniform(gridshader);
-  OGL(UseProgram, gridshader.program);
-  OGLR(gridshader.u_lm, GetUniformLocation, gridshader.program, "u_lm");
-  OGLR(gridshader.u_rlmdim, GetUniformLocation, gridshader.program, "u_rlmdim");
-  OGL(Uniform1i, gridshader.u_lm, 1);
-  OGL(UseProgram, 0);
   imminit();
   loopi(ATTRIB_NUM) enabledattribarray[i] = 0;
   loopi(BUFFER_NUM) bindedvbo[i] = 0;
@@ -1160,12 +1181,14 @@ void clean(void) {
     bvh::destroy(bvhisec);
     bvhisec = NULL;
   }
-  loopi(IDNUM) if (generatedids[i]) deletetextures(1, &generatedids[i]);
+  destroyshaders();
+  loopi(int(IDNUM)) if (generatedids[i]) deletetextures(1, &generatedids[i]);
   if (bigvbo) deletebuffers(1, &bigvbo);
   if (bigibo) deletebuffers(1, &bigibo);
   if (spherevbo) deletebuffers(1, &spherevbo);
   if (texturenum) console::out("ogl: %i unfreed textures", texturenum);
   if (buffernum) console::out("ogl: %i unfreed buffers", buffernum);
+  if (programnum) console::out("ogl: %i unfreed programs", programnum);
 }
 
 void drawsphere(void) {
