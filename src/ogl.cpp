@@ -72,9 +72,11 @@ void deletebuffers(s32 n, u32 *id) {
   if (buffernum < 0) fatal("buffers already freed");
   OGL(DeleteBuffers, n, id);
 }
+
 static u32 createprogram(void) {
   programnum++;
-  return CreateProgram();
+  IF_NOT_EMSCRIPTEN(return CreateProgram());
+  IF_EMSCRIPTEN(return glCreateProgram());
 }
 static void deleteprogram(u32 id) {
   programnum--;
@@ -409,15 +411,15 @@ static int spherevertn = 0;
 static void buildsphere(float radius, int slices, int stacks) {
   vector<arrayf<5>> v;
   loopj(stacks) {
-    const float angle0 = M_PI * float(j) / float(stacks);
-    const float angle1 = M_PI * float(j+1) / float(stacks);
+    const float angle0 = float(pi) * float(j) / float(stacks);
+    const float angle1 = float(pi) * float(j+1) / float(stacks);
     const float zLow = radius * cosf(angle0);
     const float zHigh = radius * cosf(angle1);
     const float sin1 = radius * sinf(angle0);
     const float sin2 = radius * sinf(angle1);
 
     loopi(slices+1) {
-      const float angle = 2.f * M_PI * float(i) / float(slices);
+      const float angle = 2.f * float(pi) * float(i) / float(slices);
       const float sin0 = sinf(angle);
       const float cos0 = cosf(angle);
       const int start = (i==0&&j!=0)?2:1;
@@ -1035,17 +1037,17 @@ COMMAND(buildgrid, ARG_NONE);
 
 static void drawgrid(void) {
   using namespace world;
-  //bindshader(gridshader);
-  bindshader(DIFFUSETEX|COLOR);
+  bindshader(gridshader);
+  //bindshader(DIFFUSETEX|COLOR);
   setattribarray()(POS0, TEX0, TEX1, COL);
   forallbricks([&](const lvl1grid &b, const vec3i org) {
     bindbuffer(ogl::ARRAY_BUFFER, b.vbo);
     bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, b.ibo);
-    //bindtexture(GL_TEXTURE_2D, 1, b.lm);
-  //  OGL(Uniform2fv, gridshader.u_rlmdim, 1, &b.rlmdim.x);
+    bindtexture(GL_TEXTURE_2D, 1, b.lm);
+    OGL(Uniform2fv, gridshader.u_rlmdim, 1, &b.rlmdim.x);
     OGL(VertexAttribPointer, COL, 3, GL_FLOAT, 0, sizeof(float[10]), (const void*) sizeof(float[5]));
     OGL(VertexAttribPointer, TEX0, 2, GL_FLOAT, 0, sizeof(float[10]), (const void*) sizeof(float[3]));
-    // OGL(VertexAttribPointer, TEX1, 2, GL_FLOAT, 0, sizeof(float[10]), (const void*) sizeof(float[8]));
+    OGL(VertexAttribPointer, TEX1, 2, GL_FLOAT, 0, sizeof(float[10]), (const void*) sizeof(float[8]));
     OGL(VertexAttribPointer, POS0, 3, GL_FLOAT, 0, sizeof(float[10]), (const void*) 0);
     u32 offset = 0;
     loopi(b.draws.length()) {
@@ -1297,8 +1299,8 @@ VAR(rendermonsters,0,1,1);
 void drawframe(int w, int h, float curfps) {
   const float hf = world::waterlevel()-0.3f;
   const bool underwater = game::player1->o.z<hf;
-  float fovy = (float)fov*h/w;
-  float aspect = w/(float)h;
+  float fovy = float(fov)*float(h)/float(w);
+  float aspect = float(w)/float(h);
 
   buildgrid();
   forceglstate();
@@ -1306,8 +1308,8 @@ void drawframe(int w, int h, float curfps) {
   OGL(Clear, (game::player1->outsidemap ? GL_COLOR_BUFFER_BIT : 0) | GL_DEPTH_BUFFER_BIT);
 
   if (underwater) {
-    fovy += (float)sin(game::lastmillis()/1000.0)*2.0f;
-    aspect += (float)sin(game::lastmillis()/1000.0+PI)*0.1f;
+    fovy += sin(game::lastmillis()/1000.f)*2.0f;
+    aspect += sin(game::lastmillis()/1000.f+float(pi))*0.1f;
   }
   const int farplane = fog*5/2;
   matrixmode(PROJECTION);

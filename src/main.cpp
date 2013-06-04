@@ -3,9 +3,7 @@
 #include <enet/enet.h>
 #include <time.h>
 
-#if defined(EMSCRIPTEN)
-#error "check _mm_getcsr"
-#else
+#if !defined(EMSCRIPTEN)
 #include <xmmintrin.h>
 #endif // EMSCRIPTEN
 
@@ -149,8 +147,10 @@ static int main(int argc, char **argv) {
   const char *sdesc = "", *ip = "", *passwd = "";
   const char *master = NULL;
 
+#if !defined(EMSCRIPTEN)
   // flush to zero and no denormals
   _mm_setcsr(_mm_getcsr() | (1<<15) | (1<<6));
+#endif
 
   initendiancheck();
 

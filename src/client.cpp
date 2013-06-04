@@ -300,9 +300,9 @@ static void updatepos(game::dynent *d) {
   const float dy = game::player1->o.y-d->o.y;
   const float dz = game::player1->o.z-d->o.z;
   const float rz = game::player1->aboveeye+d->eyeheight;
-  const float fx = (float)fabs(dx);
-  const float fy = (float)fabs(dy);
-  const float fz = (float)fabs(dz);
+  const float fx = abs(dx);
+  const float fy = abs(dy);
+  const float fz = abs(dz);
 
   if (fx<r && fy<r && fz<rz && d->state!=CS_DEAD) {
     if (fx<fy)

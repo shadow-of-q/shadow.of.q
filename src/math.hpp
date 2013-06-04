@@ -778,12 +778,6 @@ struct aabb {
     const vec3f e(pmax-pmin);
     return e.x*e.y + e.y*e.z + e.x*e.z;
   }
-  INLINE double getarea(void) const {
-    const vec3f ext(pmax-pmin);
-    return double(ext.x)*double(ext.y) +
-           double(ext.y)*double(ext.z) +
-           double(ext.x)*double(ext.z);
-  }
   vec3f pmin, pmax;
 };
 struct isecres {

@@ -3,12 +3,6 @@
 #include <zlib.h>
 #include "bvh.hpp"
 
-#if defined(EMSCRIPTEN)
-#error "check sse"
-#else
-#include <xmmintrin.h>
-#endif // EMSCRIPTEN
-
 namespace cube {
 namespace world {
 
@@ -424,9 +418,12 @@ bvh::intersector *buildbvh(void) {
   console::out("bvh: %i generated triangles (%i ms elapsed)", bvhtris.length(), SDL_GetTicks()-start);
 
   start = SDL_GetTicks();
-  auto isec = bvh::create(&bvhtris[0], bvhtris.length());
-  console::out("bvh: data structure created (%i ms elapsed)", SDL_GetTicks()-start);
-  return isec;
+  if (bvhtris.length() > 0) {
+    auto isec = bvh::create(&bvhtris[0], bvhtris.length());
+    console::out("bvh: data structure created (%i ms elapsed)", SDL_GetTicks()-start);
+    return isec;
+  } else
+    return NULL;
 }
 
 void castray(float fovy, float aspect, float farplane) {

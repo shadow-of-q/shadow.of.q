@@ -17,7 +17,6 @@ mat3x3<T>::mat3x3(const vec3<T> &n) {
   vz = cross(vy,vx);
 }
 template mat3x3<float>::mat3x3(const vec3f &n);
-template mat3x3<double>::mat3x3(const vec3d &n);
 
 template <typename T>
 mat4x4<T> mat4x4<T>::inverse(void) const {
@@ -57,7 +56,6 @@ mat4x4<T> mat4x4<T>::inverse(void) const {
   return inv / (vx.x*inv.vx.x + vx.y*inv.vy.x + vx.z*inv.vz.x + vx.w*inv.vw.x);
 }
 template mat4x4<float> mat4x4<float>::inverse(void) const;
-template mat4x4<double> mat4x4<double>::inverse(void) const;
 
 const vec3f axis[] = {vec3f(1.f,0.f,0.f), vec3f(0.f,1.f,0.f), vec3f(0.f,0.f,1.f)};
 const vec3i iaxis[] = {vec3i(1,0,0), vec3i(0,1,0), vec3f(0,0,1)};
