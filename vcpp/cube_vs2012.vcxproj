@@ -19,6 +19,7 @@
     <ClCompile Include="..\enet\peer.c" />
     <ClCompile Include="..\enet\protocol.c" />
     <ClCompile Include="..\enet\win32.c" />
+    <ClCompile Include="..\src\bvh.cpp" />
     <ClCompile Include="..\src\client.cpp" />
     <ClCompile Include="..\src\game.cpp" />
     <ClCompile Include="..\src\command.cpp" />
@@ -27,12 +28,13 @@
     <ClCompile Include="..\src\editing.cpp" />
     <ClCompile Include="..\src\entities.cpp" />
     <ClCompile Include="..\src\main.cpp" />
+    <ClCompile Include="..\src\math.cpp" />
     <ClCompile Include="..\src\menu.cpp" />
     <ClCompile Include="..\src\monster.cpp" />
     <ClCompile Include="..\src\network.cpp" />
     <ClCompile Include="..\src\ogl.cpp" />
     <ClCompile Include="..\src\physics.cpp" />
-    <ClCompile Include="..\src\rendercubes.cpp" />
+    <ClCompile Include="..\src\renderer.cpp" />
     <ClCompile Include="..\src\renderextras.cpp" />
     <ClCompile Include="..\src\rendermd2.cpp" />
     <ClCompile Include="..\src\renderparticles.cpp" />
@@ -47,14 +49,15 @@
     <ClCompile Include="..\src\world.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\bvh.hpp" />
     <ClInclude Include="..\src\client.hpp" />
-    <ClInclude Include="..\src\game.hpp" />
     <ClInclude Include="..\src\command.hpp" />
     <ClInclude Include="..\src\console.hpp" />
     <ClInclude Include="..\src\cube.h" />
     <ClInclude Include="..\src\demo.hpp" />
     <ClInclude Include="..\src\editing.hpp" />
     <ClInclude Include="..\src\entities.hpp" />
+    <ClInclude Include="..\src\game.hpp" />
     <ClInclude Include="..\src\math.hpp" />
     <ClInclude Include="..\src\menu.hpp" />
     <ClInclude Include="..\src\monster.hpp" />

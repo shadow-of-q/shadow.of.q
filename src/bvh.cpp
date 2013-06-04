@@ -230,7 +230,7 @@ INLINE void computewaldtriangle(const triangle &t, waldtriangle &w, u32 id, u32 
   const vec3f &A(t.v[0]), &B(t.v[1]), &C(t.v[2]);
   const vec3f b(C-A), c(B-A), N(cross(b,c));
   u32 k = 0;
-  for (u32 i=1; i<3; ++i) k = fabsf(N[i]) > fabsf(N[k]) ? i : k;
+  for (u32 i=1; i<3; ++i) k = abs(N[i]) > abs(N[k]) ? i : k;
   const u32 u = (k+1)%3, v = (k+2)%3;
   const float denom = (b[u]*c[v] - b[v]*c[u]), krec = N[k];
   w.n = vec2f(N[u]/krec, N[v]/krec);

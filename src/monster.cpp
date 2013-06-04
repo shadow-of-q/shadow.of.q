@@ -170,7 +170,7 @@ void monsteraction(dynent *m) {
       vec3f target;
       if (edit::mode() || !enemylos(m, target)) return; // skip running physics
       normalise(m, enemyyaw);
-      float angle = (float)fabs(enemyyaw-m->yaw);
+      const auto angle = abs(enemyyaw-m->yaw);
       if (disttoenemy<8                // the better the angle to the player
        ||(disttoenemy<16 && angle<135) // the further the monster can
        ||(disttoenemy<32 && angle<90)  // see/hear
