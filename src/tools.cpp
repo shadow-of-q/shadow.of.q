@@ -3,7 +3,6 @@
 #include <SDL/SDL_mutex.h>
 #endif // defined(MEMORY_DEBUGGER)
 #include <cstdlib>
-#include <unistd.h>
 
 namespace cube {
 

@@ -113,12 +113,14 @@ COMMAND(mapmsg, ARG_1STR);
 
 static void paste(void) {
 #ifdef WIN32
+#if 0
   if (!IsClipboardFormatAvailable(CF_TEXT)) return;
   if (!OpenClipboard(NULL)) return;
   char *cb = (char *)GlobalLock(GetClipboardData(CF_TEXT));
   strcat_s(commandbuf, cb);
   GlobalUnlock(cb);
   CloseClipboard();
+#endif
 #elif !defined(EMSCRIPTEN)
   SDL_SysWMinfo wminfo;
   SDL_VERSION(&wminfo.version);

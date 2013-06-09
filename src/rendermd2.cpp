@@ -115,11 +115,11 @@ void md2::scale(int frame, float scale, int sn) {
   const md2_frame *cf = (md2_frame *) ((char*)frames+frameSize*frame);
   const float sc = 16.0f/scale;
 
-  vector<arrayf<channenum>> tris;
+  vector<array<float,channenum>> tris;
   for (int *command = glcommands, i=0; (*command)!=0; ++i) {
     const int moden = *command++;
     const int n = abs(moden);
-    vector<arrayf<channenum>> trisv;
+    vector<array<float,channenum>> trisv;
     loopi(n) {
       const float s = *((const float*)command++);
       const float t = *((const float*)command++);
@@ -128,7 +128,7 @@ void md2::scale(int frame, float scale, int sn) {
       const vec3f v(+(snap(sn, cv[0]*cf->scale[0])+cf->translate[0])/sc,
                   -(snap(sn, cv[1]*cf->scale[1])+cf->translate[1])/sc,
                   +(snap(sn, cv[2]*cf->scale[2])+cf->translate[2])/sc);
-      trisv.add(arrayf<channenum>(s,t,v.x,v.z,v.y));
+      trisv.add(array<float,channenum>(s,t,v.x,v.z,v.y));
     }
     loopi(n-2) { // just stolen from sauer. TODO use an index buffer
       if (moden <= 0) { // fan

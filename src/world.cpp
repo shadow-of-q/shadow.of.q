@@ -133,7 +133,10 @@ static string cgzname, bakname, pcfname, mcfname;
 
 struct deletegrid {
   template <typename G> void operator()(G &g, vec3i) const {
-    if (uintptr_t(&g)!=uintptr_t(&root)) DELETE(&g);
+    if (uintptr_t(&g)!=uintptr_t(&root)) {
+      auto ptr= &g;
+	  SAFE_DELETE(ptr);
+	}
   }
 };
 static void empty(void) {

@@ -258,7 +258,7 @@ intersector *create(const triangle *tri, int n) {
 void destroy(intersector *bvhtree) {
   if (bvhtree == NULL) return;
   SAFE_DELETEA(bvhtree->root);
-  DELETE(bvhtree);
+  SAFE_DELETE(bvhtree);
 }
 
 static const u32 waldmodulo[] = {1,2,0,1};

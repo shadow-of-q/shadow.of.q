@@ -21,8 +21,9 @@ namespace physics {
       if (e.type != game::MAPMODEL) continue;
       const game::mapmodelinfo &mmi = rr::getmminfo(e.attr2);
       if (!&mmi || !mmi.h) continue;
-      const auto emin = vec3f(e.x,e.y,e.z)-vec3f(mmi.rad,mmi.rad,0.f);
-      const auto emax = vec3f(e.x,e.y,e.z)+vec3f(mmi.rad,mmi.rad,mmi.h);
+	  const auto rad = float(mmi.rad), h = float(mmi.h);
+	  const auto emin = vec3f(float(e.x),float(e.y),float(e.z))-vec3f(rad,rad,0.f);
+      const auto emax = vec3f(float(e.x),float(e.y),float(e.z))+vec3f(rad,rad,h);
       const aabb eaabb(emin,emax);
       if (intersect(box, eaabb)) return false;
     }
@@ -159,7 +160,7 @@ namespace physics {
       float dropf = ((gravity-1.f)+pl->timeinair/15.0f); // incorrect, but works fine
       if (water) { // float slowly down in water
         dropf = 5.f;
-        pl->timeinair = 0.f;
+        pl->timeinair = 0;
       }
       const float drop = dropf*curtime/gravity/100/moveres; // at high fps, gravity kicks in too fast
 

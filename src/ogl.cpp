@@ -409,7 +409,8 @@ static GLuint spherevbo = 0;
 static int spherevertn = 0;
 
 static void buildsphere(float radius, int slices, int stacks) {
-  vector<arrayf<5>> v;
+  typedef array<float,5> arrayf5; 
+  vector<arrayf5> v;
   loopj(stacks) {
     const float angle0 = float(pi) * float(j) / float(stacks);
     const float angle1 = float(pi) * float(j+1) / float(stacks);
@@ -427,18 +428,18 @@ static void buildsphere(float radius, int slices, int stacks) {
       loopk(start) { // stick the strips together
         const float s = 1.f-float(i)/slices, t = 1.f-float(j)/stacks;
         const float x = sin1*sin0, y = sin1*cos0, z = zLow;
-        v.add(arrayf<5>(s, t, x, y, z));
+        v.add(arrayf5(s, t, x, y, z));
       }
       loopk(end) { // idem
         const float s = 1.f-float(i)/slices, t = 1.f-float(j+1)/stacks;
         const float x = sin2*sin0, y = sin2*cos0, z = zHigh;
-        v.add(arrayf<5>(s, t, x, y, z));
+        v.add(arrayf5(s, t, x, y, z));
       }
       spherevertn += start+end;
     }
   }
 
-  const size_t sz = sizeof(arrayf<5>) * v.length();
+  const size_t sz = sizeof(arrayf5) * v.length();
   genbuffers(1, &spherevbo);
   ogl::bindbuffer(ARRAY_BUFFER, spherevbo);
   OGL(BufferData, GL_ARRAY_BUFFER, sz, &v[0][0], GL_STATIC_DRAW);
@@ -468,7 +469,7 @@ static bool checkshader(GLuint shadername) {
     buffer[infologlength] = 0;
     OGL(GetShaderInfoLog, shadername, infologlength, NULL, buffer);
     console::out("%s",buffer);
-    DELETEA(buffer);
+    SAFE_DELETEA(buffer);
   }
   if (result == GL_FALSE) fatal("OGL: failed to compile shader");
   return result == GL_TRUE;
@@ -875,7 +876,7 @@ static void buildlightmap(world::lvl1grid &b, lightmapuv &lmuv, const vec3i &org
 //  console::out("saving %s", filename);
 //  writebmp((const int*) ctx.lm, lmuv.dim.x, lmuv.dim.y, filename);
   b.rlmdim = rcp(vec2f(lmuv.dim));
-  DELETEA(ctx.lm);
+  SAFE_DELETEA(ctx.lm);
 }
 
 /*--------------------------------------------------------------------------
@@ -892,7 +893,7 @@ struct brickmeshctx {
   INLINE void set(vec3i p, u16 idx) { indices[p.x][p.y][p.z] = idx; }
   const world::lvl1grid &b;
   const lightmapuv &lmuv;
-  vector<arrayf<10>> vbo;
+  vector<array<float,10>> vbo;
   vector<u16> ibo;
   vector<u16> tex;
   u16 indices[world::lvl1+1][world::lvl1+1][world::lvl1+1];
@@ -943,7 +944,7 @@ static void buildfacemesh(brickmeshctx &ctx, vec3i xyz, vec3i idx) {
     loopj(3) {
       if (isnew[j]) {
         ctx.set(locals[j], ctx.vbo.length());
-        ctx.vbo.add(arrayf<10>(v[j],t[j],c[j],l[j]));
+        ctx.vbo.add(array<float,10>(v[j],t[j],c[j],l[j]));
       }
       ctx.ibo.add(ctx.get(locals[j]));
       ctx.tex.add(tex);
@@ -999,7 +1000,7 @@ static void buildgridmesh(world::lvl1grid &b, const lightmapuv &lmuv, vec3i org)
   genbuffers(1, &b.ibo);
   ogl::bindbuffer(ogl::ARRAY_BUFFER, b.vbo);
   ogl::bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, b.ibo);
-  OGL(BufferData, GL_ARRAY_BUFFER, ctx.vbo.length()*sizeof(arrayf<10>), &ctx.vbo[0][0], GL_STATIC_DRAW);
+  OGL(BufferData, GL_ARRAY_BUFFER, ctx.vbo.length()*sizeof(float[10]), &ctx.vbo[0][0], GL_STATIC_DRAW);
   OGL(BufferData, GL_ELEMENT_ARRAY_BUFFER, ctx.ibo.length()*sizeof(u16), &ctx.ibo[0], GL_STATIC_DRAW);
   bindbuffer(ogl::ARRAY_BUFFER, 0);
   bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, 0);
@@ -1238,7 +1239,7 @@ static void drawhudgun(float fovy, float aspect, int farplane) {
   enablev(GL_CULL_FACE);
   matrixmode(PROJECTION);
   identity();
-  perspective(fovy, aspect, 0.3f, farplane);
+  perspective(fovy, aspect, 0.3f, float(farplane));
   matrixmode(MODELVIEW);
 
   const int rtime = game::reloadtime(game::player1->gunselect);
@@ -1251,7 +1252,7 @@ static void drawhudgun(float fovy, float aspect, int farplane) {
 
   matrixmode(PROJECTION);
   identity();
-  perspective(fovy, aspect, 0.15f, farplane);
+  perspective(fovy, aspect, 0.15f, float(farplane));
   matrixmode(MODELVIEW);
   disablev(GL_CULL_FACE);
 }
@@ -1314,7 +1315,7 @@ void drawframe(int w, int h, float curfps) {
   const int farplane = fog*5/2;
   matrixmode(PROJECTION);
   identity();
-  perspective(fovy, aspect, 0.15f, farplane);
+  perspective(fovy, aspect, 0.15f, float(farplane));
   matrixmode(MODELVIEW);
   transplayer();
 
@@ -1345,7 +1346,7 @@ void drawframe(int w, int h, float curfps) {
 
   drawhudgun(fovy, aspect, farplane);
   if (world::raycast) {
-    world::castray(fovy, aspect, farplane);
+    world::castray(fovy, aspect, float(farplane));
     world::raycast = 0;
   }
 

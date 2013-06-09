@@ -196,7 +196,7 @@ GRID(lvl2grid,3)
 extern lvl3grid root;
 static const int size=lvlt3;
 static const vec3i isize(size);
-static const vec3f fsize(size);
+static const vec3f fsize(float(size));
 
 template <typename F> static void forallgrids(const F &f) { root.forallgrids(f, zero); }
 template <typename F> static void forallbricks(const F &f) { root.forallbricks(f, zero); }

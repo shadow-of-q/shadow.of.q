@@ -701,10 +701,11 @@ typedef vec4<bool> vec4b;
 typedef vec4<int> vec4i;
 typedef vec4<float> vec4f;
 typedef vec4<double> vec4d;
+#if 0
 template <int n> using arrayd = array<double,n>;
 template <int n> using arrayf = array<float,n>;
 template <int n> using arrayi = array<int,n>;
-
+#endif
 #undef TINLINE
 #undef UINLINE
 #undef op

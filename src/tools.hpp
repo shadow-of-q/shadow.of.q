@@ -16,6 +16,7 @@
 #define ALIGNED(...)    __declspec(align(__VA_ARGS__))
 //#define __FUNCTION__  __FUNCTION__
 #define DEBUGBREAK    __debugbreak()
+#define alloca _alloca
 #else
 #undef NOINLINE
 #undef INLINE
@@ -54,7 +55,12 @@
 #else
 #include <new.h>
 #endif
-
+#if defined(_MSC_VER)
+#include <malloc.h>
+#if defined(DELETE)
+#undef DELETE
+#endif
+#endif
 namespace cube {
 
 /*-------------------------------------------------------------------------
@@ -210,10 +216,8 @@ template <typename T> INLINE void memdestroya(T *array) {
 #define NEWAE(X,N) memconstructa<X>(N,__FILE__,__LINE__)
 #define NEW(X,...) memconstruct<X>(__FILE__,__LINE__,__VA_ARGS__)
 #define NEWA(X,N,...) memconstructa<X>(N,__FILE__,__LINE__,__VA_ARGS__)
-#define DELETE(X) memdestroy(X);
-#define DELETEA(X) memdestroya(X);
-#define SAFE_DELETE(X) do { if (X) DELETE(X); X = NULL; } while (0)
-#define SAFE_DELETEA(X) do { if (X) DELETEA(X); X = NULL; } while (0)
+#define SAFE_DELETE(X) do { if (X) memdestroy(X); X = NULL; } while (0)
+#define SAFE_DELETEA(X) do { if (X) memdestroya(X); X = NULL; } while (0)
 
 /*-------------------------------------------------------------------------
  - simple collections

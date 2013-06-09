@@ -125,6 +125,7 @@ void draw_textf(const char *fstr, int left, int top, int gl_num, ...) {
 }
 
 void draw_text(const char *str, int left, int top, int gl_num) {
+  typedef array<float,4> arrayf4;
   OGL(BlendFunc, GL_ONE, GL_ONE);
   ogl::bindgametexture(GL_TEXTURE_2D, gl_num);
   OGL(VertexAttrib3f,ogl::COL,1.f,1.f,1.f);
@@ -132,11 +133,11 @@ void draw_text(const char *str, int left, int top, int gl_num) {
   // use a triangle mesh to display the text
   const size_t len = strlen(str);
   indextype *indices = (indextype*) alloca(6*len*sizeof(int));
-  arrayf<4> *verts = (arrayf<4>*) alloca(4*len*sizeof(arrayf<4>));
+  array<float,4> *verts = (array<float,4>*) alloca(4*len*sizeof(array<float,4>));
 
   // traverse the string and build the mesh
   int index = 0, vert = 0, x = left, y = top;
-  for (int i = 0; str[i] != 0; ++i) {
+  for (int i = 0; str[i] !=	 0; ++i) {
     int c = str[i];
     if (c=='\t') { x = (x-left+PIXELTAB)/PIXELTAB*PIXELTAB+left; continue; }; 
     if (c=='\f') { OGL(VertexAttrib3f,ogl::COL,0.25f,1.f,0.5f); continue; };
@@ -152,10 +153,10 @@ void draw_text(const char *str, int left, int top, int gl_num) {
     const int in_height = char_coords[c][3] - char_coords[c][1];
 
     loopj(6) indices[index+j] = vert+twotriangles[j];
-    verts[vert+0] = arrayf<4>(in_left, in_top,   float(x),         float(y));
-    verts[vert+1] = arrayf<4>(in_right,in_top,   float(x+in_width),float(y));
-    verts[vert+2] = arrayf<4>(in_right,in_bottom,float(x+in_width),float(y+in_height));
-    verts[vert+3] = arrayf<4>(in_left, in_bottom,float(x),         float(y+in_height));
+    verts[vert+0] = arrayf4(in_left, in_top,   float(x),         float(y));
+    verts[vert+1] = arrayf4(in_right,in_top,   float(x+in_width),float(y));
+    verts[vert+2] = arrayf4(in_right,in_bottom,float(x+in_width),float(y+in_height));
+    verts[vert+3] = arrayf4(in_left, in_bottom,float(x),         float(y+in_height));
 
     ogl::xtraverts += 4;
     x += in_width + 1;
@@ -177,11 +178,12 @@ static void drawenvboxface(float s0, float t0, int x0, int y0, int z0,
                            float s2, float t2, int x2, int y2, int z2,
                            float s3, float t3, int x3, int y3, int z3,
                            int texture) {
-  arrayf<5> verts[4];
-  verts[0] = arrayf<5>(s3, t3, float(x3), float(y3), float(z3));
-  verts[1] = arrayf<5>(s2, t2, float(x2), float(y2), float(z2));
-  verts[2] = arrayf<5>(s1, t1, float(x1), float(y1), float(z1));
-  verts[3] = arrayf<5>(s0, t0, float(x0), float(y0), float(z0));
+  const array<float,5> verts[] = {
+    array<float,5>(s3, t3, float(x3), float(y3), float(z3)),
+    array<float,5>(s2, t2, float(x2), float(y2), float(z2)),
+    array<float,5>(s1, t1, float(x1), float(y1), float(z1)),
+    array<float,5>(s0, t0, float(x0), float(y0), float(z0))
+  };
 
   ogl::bindgametexture(GL_TEXTURE_2D, texture);
   ogl::immvertexsize(sizeof(float[5]));

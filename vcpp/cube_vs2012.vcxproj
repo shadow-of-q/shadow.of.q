@@ -69,7 +69,7 @@
     <ClInclude Include="..\src\server.hpp" />
     <ClInclude Include="..\src\serverbrowser.hpp" />
     <ClInclude Include="..\src\sound.hpp" />
-    <ClInclude Include="..\src\tools.h" />
+    <ClInclude Include="..\src\tools.hpp" />
     <ClInclude Include="..\src\weapon.hpp" />
     <ClInclude Include="..\src\world.hpp" />
   </ItemGroup>
@@ -90,7 +90,7 @@
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v110</PlatformToolset>
+    <PlatformToolset>v120_CTP_Nov2012</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -155,7 +155,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>../lib</AdditionalLibraryDirectories>
-      <AdditionalDependencies>odbc32.lib;odbccp32.lib;zlib.lib;opengl32.lib;msvcrt.lib;SDLmain.lib;SDL.lib;SDL_image.lib;ws2_32.lib;winmm.lib;SDL_mixer.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>odbc32.lib;odbccp32.lib;zdll.lib;opengl32.lib;msvcrt.lib;SDLmain.lib;SDL.lib;SDL_image.lib;ws2_32.lib;winmm.lib;SDL_mixer.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
