@@ -135,7 +135,7 @@ struct grid : public noncopyable {
     return elem[idx.x][idx.y][idx.z];
   }
   INLINE T *fastsubgrid(vec3i idx) const {
-    assert(all(idx<local()) && all(idx>=vec3i(zero)));
+    ASSERT(all(idx<local()) && all(idx>=vec3i(zero)));
     return elem[idx.x][idx.y][idx.z];
   }
   INLINE brickcube get(vec3i v) const {

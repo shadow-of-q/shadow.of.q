@@ -191,7 +191,7 @@ void process(ENetPacket * packet, int sender) { // sender may be -1
         return;
       }
       int size = msgsizelookup(type);
-      assert(size!=-1);
+      ASSERT(size!=-1);
       loopi(size-2) getint(p);
     }
     break;

@@ -57,10 +57,10 @@
 #endif
 #if defined(_MSC_VER)
 #include <malloc.h>
-#if defined(DELETE)
-#undef DELETE
 #endif
-#endif
+
+#define ASSERT assert
+
 namespace cube {
 
 /*-------------------------------------------------------------------------
@@ -303,8 +303,8 @@ template <class T> struct vector : noncopyable {
   INLINE bool empty(void) { return ulen==0; }
   INLINE int length(void) const { return ulen; }
   INLINE int size(void) const { return ulen*sizeof(T); }
-  INLINE const T &operator[](int i) const { assert(i>=0 && i<ulen); return buf[i]; }
-  INLINE T &operator[](int i) { assert(i>=0 && i<ulen); return buf[i]; }
+  INLINE const T &operator[](int i) const { ASSERT(i>=0 && i<ulen); return buf[i]; }
+  INLINE T &operator[](int i) { ASSERT(i>=0 && i<ulen); return buf[i]; }
   INLINE T *getbuf(void) { return buf; }
   void setsize(int i) { for(; ulen>i; ulen--) buf[ulen-1].~T(); }
   void clear(void) { setsize(0); }

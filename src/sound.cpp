@@ -91,7 +91,7 @@ static void updatechanvol(int chan, const vec3f *loc) {
 }
 
 static void newsoundloc(int chan, const vec3f *loc) {
-  assert(chan>=0 && chan<MAXCHAN);
+  ASSERT(chan>=0 && chan<MAXCHAN);
   soundlocs[chan].loc = *loc;
   soundlocs[chan].inuse = true;
 }

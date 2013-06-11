@@ -1,6 +1,5 @@
 #pragma once
 #include "tools.hpp"
-#include <cassert>
 #include <cmath>
 #include <cfloat>
 
@@ -624,8 +623,8 @@ template <typename U, int n> struct array {
   INLINE void assign(vec3<U> u, int &i) {v[i++]=u.x; v[i++]=u.y; v[i++]=u.z;}
   INLINE void assign(vec4<U> u, int &i) {v[i++]=u.x; v[i++]=u.y; v[i++]=u.z; v[i++]=u.w;}
   INLINE void set(int i) {}
-  U &operator[] (int i) {assert(i>=0 && i<n); return v[i];}
-  const U &operator[] (int i) const {assert(i>=0 && i<n); return v[i];}
+  U &operator[] (int i) {ASSERT(i>=0 && i<n); return v[i];}
+  const U &operator[] (int i) const {ASSERT(i>=0 && i<n); return v[i];}
   U v[n];
 };
 template <typename U, int n>

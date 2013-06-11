@@ -4,6 +4,10 @@
 #endif // defined(MEMORY_DEBUGGER)
 #include <cstdlib>
 
+#if !defined(_MSC_VER)
+#include "unistd.h"
+#endif
+
 namespace cube {
 
 #if defined(MEMORY_DEBUGGER)
@@ -181,7 +185,7 @@ void endianswap(void *memory, int stride, int length) {
 void writebmp(const int *data, int w, int h, const char *filename) {
   int x, y;
   FILE *fp = fopen(filename, "wb");
-  assert(fp);
+  ASSERT(fp);
   struct bmphdr {
     int filesize;
     short as0, as1;
@@ -201,7 +205,7 @@ void writebmp(const int *data, int w, int h, const char *filename) {
 
   const char magic[2] = { 'B', 'M' };
   char *raw = (char *) MALLOC(w*h*sizeof(int));
-  assert(raw);
+  ASSERT(raw);
   char *p = raw;
 
   for (y = 0; y < h; y++) {
@@ -218,7 +222,7 @@ void writebmp(const int *data, int w, int h, const char *filename) {
   }
   int sizeraw = p - raw;
   int scanline = (w * 3 + 3) & ~3;
-  assert(sizeraw == scanline * h);
+  ASSERT(sizeraw == scanline * h);
 
   struct bmphdr hdr;
   hdr.filesize = scanline * h + sizeof(hdr) + 2;

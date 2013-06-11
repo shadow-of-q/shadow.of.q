@@ -259,11 +259,11 @@ void scale(const vec3f &s) {
   vp[vpmode] = scale(vp[vpmode],s);
 }
 void pushmatrix(void) {
-  assert(vpdepth+1<MATRIX_STACK);
+  ASSERT(vpdepth+1<MATRIX_STACK);
   vpstack[vpdepth++][vpmode] = vp[vpmode];
 }
 void popmatrix(void) {
-  assert(vpdepth>0);
+  ASSERT(vpdepth>0);
   dirty.flags.mvp=1;
   vp[vpmode] = vpstack[--vpdepth][vpmode];
 }
@@ -760,11 +760,11 @@ struct lightmapuv {
   }
 #endif // NDEBUG
   INLINE void set(vec3i idx, vec2i v, u32 corner, u32 face) {
-    assert(isinbound(idx, corner, face));
+    ASSERT(isinbound(idx, corner, face));
     uv[face][idx.x][idx.y][idx.z][corner] = v;
   }
   INLINE vec2i get(vec3i idx, u32 corner, u32 face) const {
-    assert(isinbound(idx, corner, face));
+    ASSERT(isinbound(idx, corner, face));
     return uv[face][idx.x][idx.y][idx.z][corner];
   }
   vec2i uv[6][world::lvl1][world::lvl1][world::lvl1][4];
@@ -801,7 +801,7 @@ static void buildlmdata(surfaceparamctx &ctx, vec3i xyz, vec3i idx) {
   if (!world::visibleface(xyz, ctx.face)) return;
 
   const auto uv = ctx.get(idx, 0);
-  assert(all(uv!=vec2i(~0x0)) && all(uv>=vec2i(zero)) && all(uv<ctx.lmuv.dim));
+  ASSERT(all(uv!=vec2i(~0x0)) && all(uv>=vec2i(zero)) && all(uv<ctx.lmuv.dim));
 
   const vec4i quad = cubequads[ctx.face];
   const vec3f org = world::getpos(xyz+cubeiverts[quad[0]]);

@@ -144,7 +144,7 @@ void loadgamerest(void) {
   int nplayers = gzgeti();
   loopi(nplayers) if (!gzget()) {
     game::dynent *d = game::getclient(i);
-    assert(d);
+    ASSERT(d);
     gzread(f, d, sizeof(game::dynent));
   }
 
@@ -235,7 +235,7 @@ static void start(void) {
   starttime = game::lastmillis();
   console::out("now playing demo");
   game::dynent *d = game::getclient(democlientnum);
-  assert(d);
+  ASSERT(d);
   *d = *game::player1;
   readdemotime();
 }
@@ -270,7 +270,7 @@ void playbackstep(void) {
     client::localservertoclient(buf, len);  // update game state
 
     game::dynent *target = game::players[democlientnum];
-    assert(target);
+    ASSERT(target);
 
     int extras;
     if ((extras = gzget())) { // read additional client side state not present in normal network stream

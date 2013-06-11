@@ -48,7 +48,7 @@ VARF(throttle_decel, 0, 2, 32, throttle());
 
 static void throttle(void) {
   if (!clienthost || connecting) return;
-  assert(ENET_PEER_PACKET_THROTTLE_SCALE==32);
+  ASSERT(ENET_PEER_PACKET_THROTTLE_SCALE==32);
   enet_peer_throttle_configure(clienthost->peers,
                                throttle_interval*1000,
                                throttle_accel, throttle_decel);
