@@ -214,7 +214,7 @@ void checkquad(int time) {
   }
 }
 
-void putitems(uchar *&p) { // puts items in network stream and also spawns them locally
+void putitems(u8 *&p) { // puts items in network stream and also spawns them locally
   loopv(ents)
     if ((ents[i].type>=I_SHELLS && ents[i].type<=I_QUAD) ||
         ents[i].type==CARROT) {
@@ -224,7 +224,7 @@ void putitems(uchar *&p) { // puts items in network stream and also spawns them 
 }
 
 void resetspawns(void) { loopv(ents) ents[i].spawned = false; };
-void setspawn(uint i, bool on) { if (i<(uint)ents.length()) ents[i].spawned = on; };
+void setspawn(u32 i, bool on) { if (i<(u32)ents.length()) ents[i].spawned = on; };
 
 } // namespace game
 } // namespace cube

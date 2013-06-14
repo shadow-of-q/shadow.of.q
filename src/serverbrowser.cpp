@@ -149,8 +149,8 @@ COMMAND(addserver, ARG_1STR);
 
 static void pingservers(void) {
   ENetBuffer buf;
-  uchar ping[MAXTRANS];
-  uchar *p;
+  u8 ping[MAXTRANS];
+  u8 *p;
   loopv(servers) {
     ServerInfo &si = servers[i];
     if (si.address.host == ENET_HOST_ANY) continue;
@@ -183,7 +183,7 @@ static void checkpings(void) {
   enet_uint32 events = ENET_SOCKET_WAIT_RECEIVE;
   ENetBuffer buf;
   ENetAddress addr;
-  uchar ping[MAXTRANS], *p;
+  u8 ping[MAXTRANS], *p;
   char text[MAXTRANS];
   buf.data = ping;
   buf.dataLength = sizeof(ping);
@@ -252,8 +252,8 @@ COMMAND(servermenu, ARG_NONE);
 
 static void updatefrommaster(void) {
   const int MAXUPD = 32000;
-  uchar buf[MAXUPD];
-  uchar *reply = server::retrieveservers(buf, MAXUPD);
+  u8 buf[MAXUPD];
+  u8 *reply = server::retrieveservers(buf, MAXUPD);
   if (!*reply ||
       strstr((char *)reply, "<html>") ||
       strstr((char *)reply, "<HTML>"))

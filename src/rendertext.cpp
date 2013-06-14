@@ -100,8 +100,8 @@ static const short char_coords[96][4] = {
   {310,448,363,512}   //~
 };
 
-IF_EMSCRIPTEN(typedef ushort indextype);
-IF_NOT_EMSCRIPTEN(typedef uint indextype);
+IF_EMSCRIPTEN(typedef u16 indextype);
+IF_NOT_EMSCRIPTEN(typedef u32 indextype);
 static const indextype twotriangles[] = {0,1,2,0,2,3};
 
 int text_width(const char *str) {

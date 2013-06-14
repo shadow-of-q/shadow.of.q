@@ -6,9 +6,9 @@ namespace server {
 
   static string copyname;
   static int copysize;
-  static uchar *copydata = NULL;
+  static u8 *copydata = NULL;
 
-  void sendmaps(int n, string mapname, int mapsize, uchar *mapdata) {
+  void sendmaps(int n, string mapname, int mapsize, u8 *mapdata) {
     if (mapsize <= 0 || mapsize > 256*256) return;
     strcpy_s(copyname, mapname);
     copysize = mapsize;
@@ -20,14 +20,14 @@ namespace server {
   ENetPacket *recvmap(int n) {
     if (!copydata) return NULL;
     ENetPacket *packet = enet_packet_create(NULL, MAXTRANS + copysize, ENET_PACKET_FLAG_RELIABLE);
-    uchar *start = packet->data;
-    uchar *p = start+2;
+    u8 *start = packet->data;
+    u8 *p = start+2;
     putint(p, SV_RECVMAP);
     sendstring(copyname, p);
     putint(p, copysize);
     memcpy(p, copydata, copysize);
     p += copysize;
-    *(ushort *)start = ENET_HOST_TO_NET_16(p-start);
+    *(u16 *)start = ENET_HOST_TO_NET_16(p-start);
     enet_packet_resize(packet, p-start);
     return packet;
   }
@@ -35,7 +35,7 @@ namespace server {
 } // namespace server
 
 #ifdef STANDALONE
-void client::localservertoclient(uchar *buf, int len) {};
+void client::localservertoclient(u8 *buf, int len) {};
 void fatal(const char *s, const char *o) {
   server::clean();
   printf("servererror: %s\n", s);

@@ -210,8 +210,8 @@ void c2sinfo(const game::dynent *d) {
   // do not update faster than 25fps
   if (game::lastmillis()-lastupdate<40) return;
   ENetPacket *packet = enet_packet_create (NULL, MAXTRANS, 0);
-  uchar *start = packet->data;
-  uchar *p = start+2;
+  u8 *start = packet->data;
+  u8 *p = start+2;
   bool serveriteminitdone = false;
   if (toservermap[0]) { // suggest server to change map
     // do this exclusively as map change may invalidate rest of update
@@ -278,7 +278,7 @@ void c2sinfo(const game::dynent *d) {
     }
   }
 
-  *(ushort *)start = ENET_HOST_TO_NET_16(p-start);
+  *(u16 *)start = ENET_HOST_TO_NET_16(p-start);
   enet_packet_resize(packet, p-start);
   demo::incomingdata(start, p-start, true);
   if (clienthost) {
@@ -323,13 +323,13 @@ static void changemapserv(const char *name, int mode) {
   world::load(name);
 }
 
-void localservertoclient(uchar *buf, int len) {
-  if (ENET_NET_TO_HOST_16(*(ushort *)buf) != len)
+void localservertoclient(u8 *buf, int len) {
+  if (ENET_NET_TO_HOST_16(*(u16 *)buf) != len)
     neterr("packet length");
   demo::incomingdata(buf, len);
 
-  uchar *end = buf+len;
-  uchar *p = buf+2;
+  u8 *end = buf+len;
+  u8 *p = buf+2;
   char text[MAXTRANS];
   int cn = -1, type;
   game::dynent *d = NULL;
@@ -485,9 +485,9 @@ void localservertoclient(uchar *buf, int len) {
       getint(p);
     break;
     case SV_ITEMSPAWN: {
-      uint i = getint(p);
+      u32 i = getint(p);
       game::setspawn(i, true);
-      if (i>=uint(game::ents.length()))
+      if (i>=u32(game::ents.length()))
         break;
       const auto &e = game::ents[i];
       const vec3f v(float(e.x),float(e.y),float(e.z));
@@ -522,8 +522,8 @@ void localservertoclient(uchar *buf, int len) {
     break;
     // Coop edit of ent
     case SV_EDITENT: {
-      uint i = getint(p);
-      while (uint(game::ents.length()) <= i)
+      u32 i = getint(p);
+      while (u32(game::ents.length()) <= i)
         game::ents.add().type = game::NOTUSED;
       game::ents[i].type = getint(p);
       game::ents[i].x = getint(p);

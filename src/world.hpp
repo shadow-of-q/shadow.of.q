@@ -227,8 +227,8 @@ game::entity *newentity(int x, int y, int z, char *what, int v1, int v2, int v3,
 void save(const char *fname);
 // load the world from .cgz file
 void load(const char *mname);
-void writemap(const char *mname, int msize, uchar *mdata);
-uchar *readmap(const char *mname, int *msize);
+void writemap(const char *mname, int msize, u8 *mdata);
+u8 *readmap(const char *mname, int *msize);
 // test occlusion for a cube (v = viewer, c = cube to test)
 int isoccluded(float vx, float vy, float cx, float cy, float csize);
 // return the water level for the loaded map

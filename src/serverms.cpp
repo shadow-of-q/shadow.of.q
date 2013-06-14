@@ -41,17 +41,17 @@ void httpgetrecieve(ENetBuffer &buf) {
   }
 }
 
-uchar *stripheader(uchar *b) {
+u8 *stripheader(u8 *b) {
   char *s = strstr((char *)b, "\n\r\n");
   if (!s) s = strstr((char *)b, "\n\n");
-  return s ? (uchar *)s : b;
+  return s ? (u8 *)s : b;
 }
 
 static ENetAddress masterserver = { ENET_HOST_ANY, 80 };
 static int updmaster = 0;
 static string masterbase;
 static string masterpath;
-static uchar masterrep[MAXTRANS];
+static u8 masterrep[MAXTRANS];
 static ENetBuffer masterb;
 
 void updatemasterserver(int seconds) {
@@ -72,7 +72,7 @@ void checkmasterreply(void) {
     printf("masterserver reply: %s\n", stripheader(masterrep));
 }
 
-uchar *retrieveservers(uchar *buf, int buflen) {
+u8 *retrieveservers(u8 *buf, int buflen) {
   sprintf_sd(path)("%sretrieve.do?item=list", masterpath);
   httpgetsend(masterserver, masterbase, path, "cubeserver", "Cube Server"); ENetBuffer eb;
   buf[0] = 0;
@@ -92,7 +92,7 @@ void serverms(int mode, int numplayers, int minremain, char *smapname, int secon
   // reply all server info requests
   ENetBuffer buf;
   ENetAddress addr;
-  uchar pong[MAXTRANS], *p;
+  u8 pong[MAXTRANS], *p;
   int len;
   enet_uint32 events = ENET_SOCKET_WAIT_RECEIVE;
   buf.data = pong;

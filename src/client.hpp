@@ -6,7 +6,7 @@ namespace cube {
 namespace client {
 
 // process any updates from the server
-void localservertoclient(uchar *buf, int len);
+void localservertoclient(u8 *buf, int len);
 // connect to the given server
 void connect(const char *servername);
 // disconned from the current server

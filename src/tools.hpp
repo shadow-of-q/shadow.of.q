@@ -66,10 +66,6 @@ namespace cube {
 /*-------------------------------------------------------------------------
  - Standard types
  -------------------------------------------------------------------------*/
-typedef unsigned char uchar;
-typedef unsigned short ushort;
-typedef unsigned int uint;
-
 #if defined(__MSVC__)
 typedef          __int64 s64;
 typedef unsigned __int64 u64;

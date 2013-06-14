@@ -14,7 +14,7 @@ struct md2_header {
   int offsetFrames, offsetGlCommands, offsetEnd;
 };
 
-struct md2_vertex { uchar vertex[3], lightNormalIndex; };
+struct md2_vertex { u8 vertex[3], lightNormalIndex; };
 
 struct md2_frame {
   float scale[3];
@@ -27,7 +27,7 @@ struct md2 {
   enum {channenum = 5}; // s,t,x,y,z
   int numGlCommands;
   int* glcommands;
-  GLuint vbo;
+  u32 vbo;
   int framesz;
   int trianglenum;
   int frameSize;
@@ -124,7 +124,7 @@ void md2::scale(int frame, float scale, int sn) {
       const float s = *((const float*)command++);
       const float t = *((const float*)command++);
       const int vn = *command++;
-      const uchar *cv = (uchar *)&cf->vertices[vn].vertex;
+      const u8 *cv = (u8 *)&cf->vertices[vn].vertex;
       const vec3f v(+(snap(sn, cv[0]*cf->scale[0])+cf->translate[0])/sc,
                   -(snap(sn, cv[1]*cf->scale[1])+cf->translate[1])/sc,
                   +(snap(sn, cv[2]*cf->scale[2])+cf->translate[2])/sc);

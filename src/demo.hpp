@@ -7,7 +7,7 @@ namespace cube {
 namespace demo {
 
 void loadgamerest(void);
-void incomingdata(uchar *buf, int len, bool extras = false);
+void incomingdata(u8 *buf, int len, bool extras = false);
 void playbackstep(void);
 void stop(void);
 void stopifrecording(void);

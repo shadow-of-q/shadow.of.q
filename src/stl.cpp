@@ -44,8 +44,8 @@ char *loadfile(char *fn, int *size) {
 void endianswap(void *memory, int stride, int length) {
   if (*((char *)&stride)) return;
   loop(w, length) loop(i, stride/2) {
-    uchar *p = (uchar *)memory+w*stride;
-    uchar t = p[i];
+    u8 *p = (u8 *)memory+w*stride;
+    u8 t = p[i];
     p[i] = p[stride-i-1];
     p[stride-i-1] = t;
   }

@@ -19,12 +19,12 @@ int findentity(int type, int index) {
 // map file format header
 static struct header {
   char head[4]; // "CUBE"
-  int version; // any >8bit quantity is a little indian
+  int version; // any >8bit quantity is a little endian
   int headersize; // sizeof(header)
   int sfactor; // in bits
   int numents;
   char maptitle[128];
-  uchar texlists[3][256];
+  u8 texlists[3][256];
   int waterlevel;
   int reserved[15];
 } hdr;
@@ -94,7 +94,7 @@ static int findtype(const char *what) {
 entity *newentity(int x, int y, int z, char *what, int v1, int v2, int v3, int v4) {
   const int type = findtype(what);
   persistent_entity e = {short(x), short(y), short(z), short(v1),
-    uchar(type), uchar(v2), uchar(v3), uchar(v4)};
+    u8(type), u8(v2), u8(v3), u8(v4)};
   switch (type) {
     case LIGHT:
       if (v1>32) v1 = 32;
@@ -106,7 +106,7 @@ entity *newentity(int x, int y, int z, char *what, int v1, int v2, int v3, int v
       e.attr3 = e.attr2;
     case MONSTER:
     case TELEDEST:
-      e.attr2 = (uchar)e.attr1;
+      e.attr2 = (u8)e.attr1;
     case PLAYERSTART:
       e.attr1 = (int)player1->yaw;
     break;

@@ -178,7 +178,7 @@ COMMAND(record, ARG_1STR);
 void damage(int damage, vec3f &o) { ddamage = damage; dorig = o; }
 void blend(int damage) { bdamage = damage; }
 
-void incomingdata(uchar *buf, int len, bool extras) {
+void incomingdata(u8 *buf, int len, bool extras) {
   if (!demorecording) return;
   gzputi(game::lastmillis()-starttime);
   gzputi(len);

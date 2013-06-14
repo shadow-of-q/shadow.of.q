@@ -90,13 +90,13 @@ extern dvector players; // all the other clients (in multiplayer)
 extern vector<entity> ents; // map entities
 
 const char *entnames(int which);
-void putitems(uchar *&p);
+void putitems(u8 *&p);
 void checkquad(int time);
 void checkitems(void);
 void realpickup(int n, dynent *d);
 void renderentities(void);
 void resetspawns(void);
-void setspawn(uint i, bool on);
+void setspawn(u32 i, bool on);
 void teleport(int n, dynent *d);
 void baseammo(int gun);
 

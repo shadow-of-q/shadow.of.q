@@ -64,11 +64,11 @@ void send(int n, ENetPacket *packet) {
 
 void send2(bool rel, int cn, int a, int b) {
   ENetPacket *packet = enet_packet_create(NULL, 32, rel ? ENET_PACKET_FLAG_RELIABLE : 0);
-  uchar *start = packet->data;
-  uchar *p = start+2;
+  u8 *start = packet->data;
+  u8 *p = start+2;
   putint(p, a);
   putint(p, b);
-  *(ushort *)start = ENET_HOST_TO_NET_16(p-start);
+  *(u16 *)start = ENET_HOST_TO_NET_16(p-start);
   enet_packet_resize(packet, p-start);
   if (cn<0) process(packet, -1);
   else send(cn, packet);
@@ -77,11 +77,11 @@ void send2(bool rel, int cn, int a, int b) {
 
 void sendservmsg(const char *msg) {
   ENetPacket *packet = enet_packet_create(NULL, _MAXDEFSTR+10, ENET_PACKET_FLAG_RELIABLE);
-  uchar *start = packet->data;
-  uchar *p = start+2;
+  u8 *start = packet->data;
+  u8 *p = start+2;
   putint(p, SV_SERVMSG);
   sendstring(msg, p);
-  *(ushort *)start = ENET_HOST_TO_NET_16(p-start);
+  *(u16 *)start = ENET_HOST_TO_NET_16(p-start);
   enet_packet_resize(packet, p-start);
   multicast(packet, -1);
   if (packet->referenceCount==0) enet_packet_destroy(packet);
@@ -97,8 +97,8 @@ void disconnect_client(int n, const char *reason) {
 void resetitems() { sents.setsize(0); notgotitems = true; };
 
 // server side item pickup, acknowledge first client that gets it
-void pickup(uint i, int sec, int sender) {
-  if (i>=(uint)sents.length()) return;
+void pickup(u32 i, int sec, int sender) {
+  if (i>=(u32)sents.length()) return;
   if (sents[i].spawned) {
     sents[i].spawned = false;
     sents[i].spawnsecs = sec;
@@ -130,14 +130,14 @@ bool vote(char *map, int reqmode, int sender) {
 // client only could be extended to move more gameplay to server (at expense of
 // lag)
 void process(ENetPacket * packet, int sender) { // sender may be -1
-  const ushort len = *(ushort*) packet->data;
+  const u16 len = *(u16*) packet->data;
   if (ENET_NET_TO_HOST_16(len)!=packet->dataLength) {
     disconnect_client(sender, "packet length");
     return;
   }
 
-  uchar *end = packet->data+packet->dataLength;
-  uchar *p = packet->data+2;
+  u8 *end = packet->data+packet->dataLength;
+  u8 *p = packet->data+2;
   char text[MAXTRANS];
   int cn = -1, type;
 
@@ -220,8 +220,8 @@ void process(ENetPacket * packet, int sender) { // sender may be -1
 
 void send_welcome(int n) {
   ENetPacket * packet = enet_packet_create (NULL, MAXTRANS, ENET_PACKET_FLAG_RELIABLE);
-  uchar *start = packet->data;
-  uchar *p = start+2;
+  u8 *start = packet->data;
+  u8 *p = start+2;
   putint(p, SV_INITS2C);
   putint(p, n);
   putint(p, PROTOCOL_VERSION);
@@ -236,7 +236,7 @@ void send_welcome(int n) {
     loopv(sents) if (sents[i].spawned) putint(p, i);
     putint(p, -1);
   }
-  *(ushort *)start = ENET_HOST_TO_NET_16(p-start);
+  *(u16 *)start = ENET_HOST_TO_NET_16(p-start);
   enet_packet_resize(packet, p-start);
   send(n, packet);
 }

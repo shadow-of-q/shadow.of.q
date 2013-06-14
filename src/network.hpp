@@ -27,11 +27,11 @@ enum {
 };
 
 char msgsizelookup(int msg);
-void putint(uchar *&p, int n);
-int getint(uchar *&p);
-void sendstring(const char *t, uchar *&p);
+void putint(u8 *&p, int n);
+int getint(u8 *&p);
+void sendstring(const char *t, u8 *&p);
 
-template <typename T> INLINE T getvec(uchar *&p) {
+template <typename T> INLINE T getvec(u8 *&p) {
   T v;
   loopi(T::channeln) v[i] = (typename T::scalar)(getint(p));
   return v;

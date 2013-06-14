@@ -14,10 +14,10 @@ void localclienttoserver(struct _ENetPacket *);
 void slice(int seconds, unsigned int timeout);
 void startintermission(void);
 void restoreserverstate(vector<game::entity> &ents);
-uchar *retrieveservers(uchar *buf, int buflen);
+u8 *retrieveservers(u8 *buf, int buflen);
 void serverms(int mode, int numplayers, int minremain, char *smapname, int seconds, bool isfull);
 void servermsinit(const char *master, const char *sdesc, bool listen);
-void sendmaps(int n, string mapname, int mapsize, uchar *mapdata);
+void sendmaps(int n, string mapname, int mapsize, u8 *mapdata);
 ENetPacket *recvmap(int n);
 
 } // namespace server

@@ -52,7 +52,7 @@ static const struct parttype {vec3f rgb; int gr, tex; float sz;} parttypes[] = {
 static const int parttypen = ARRAY_ELEM_N(parttypes);
 
 typedef array<float,8> glparticle; // TODO use a more compressed format than that
-static GLuint particleibo = 0u, particlevbo = 0u;
+static u32 particleibo = 0u, particlevbo = 0u;
 static const int glindexn = 6*MAXPARTICLES, glvertexn = 4*MAXPARTICLES;
 //static glparticle glparts[glvertexn];
 static glparticle *glparts = NULL;
@@ -97,7 +97,7 @@ void render_particles(int time) {
   if (particleibo == 0u) initparticles();
 
   // bucket sort the particles
-  uint partbucket[parttypen], partbucketsize[parttypen];
+  u32 partbucket[parttypen], partbucketsize[parttypen];
   loopi(parttypen) partbucketsize[i] = 0;
   for (particle *p, **pp = &parlist; (p = *pp);) {
     pp = &p->next;
@@ -109,7 +109,7 @@ void render_particles(int time) {
   // copy the particles to the vertex buffer
   int numrender = 0;
   for (particle *p, **pp = &parlist; (p = *pp);) {
-    const uint index = 4*partbucket[p->type]++;
+    const u32 index = 4*partbucket[p->type]++;
     const parttype *pt = &parttypes[p->type];
     const float sz = pt->sz*particlesize/100.0f;
     const vec3f poxzy = p->o.xzy();

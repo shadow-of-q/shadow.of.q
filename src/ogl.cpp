@@ -26,7 +26,7 @@ union {
     u32 fog:1;
     u32 overbright:1;
   } flags;
-  uint any;
+  u32 any;
 } dirty;
 static u32 bindedvbo[BUFFER_NUM];
 static u32 enabledattribarray[ATTRIB_NUM];
@@ -108,7 +108,7 @@ static int bigvbooffset=0, bigibooffset=0;
 static int drawibooffset=0, drawvbooffset=0;
 static u32 bigvbo=0u, bigibo=0u;
 
-static void initbuffer(GLuint &bo, int target, int size) {
+static void initbuffer(u32 &bo, int target, int size) {
   if (bo == 0u) genbuffers(1, &bo);
   bindbuffer(target, bo);
   OGL(BufferData, glbufferbinding[target], size, NULL, GL_DYNAMIC_DRAW);
@@ -142,7 +142,7 @@ static bool immsetdata(int target, int sz, const void *data) {
     console::out("too many immediate items to render");
     return false;
   }
-  GLuint &bo = target==ARRAY_BUFFER ? bigvbo : bigibo;
+  u32 &bo = target==ARRAY_BUFFER ? bigvbo : bigibo;
   int &offset = target==ARRAY_BUFFER ? bigvbooffset : bigibooffset;
   int &drawoffset = target==ARRAY_BUFFER ? drawvbooffset : drawibooffset;
   if (offset+sz > immbuffersize) {
@@ -405,7 +405,7 @@ COMMAND(texture, ARG_2STR);
 /*--------------------------------------------------------------------------
  - sphere
  -------------------------------------------------------------------------*/
-static GLuint spherevbo = 0;
+static u32 spherevbo = 0;
 static int spherevertn = 0;
 
 static void buildsphere(float radius, int slices, int stacks) {
@@ -457,7 +457,7 @@ static void overbright(float amount) {
 /*--------------------------------------------------------------------------
  - quick and dirty shader management
  -------------------------------------------------------------------------*/
-static bool checkshader(GLuint shadername) {
+static bool checkshader(u32 shadername) {
   GLint result = GL_FALSE;
   int infologlength;
 
@@ -475,8 +475,8 @@ static bool checkshader(GLuint shadername) {
   return result == GL_TRUE;
 }
 
-static GLuint loadshader(GLenum type, const char *source, const char *rulestr) {
-  GLuint name;
+static u32 loadshader(GLenum type, const char *source, const char *rulestr) {
+  u32 name;
   OGLR(name, CreateShader, type);
   const char *sources[] = {rulestr, source};
   OGL(ShaderSource, name, 2, sources, NULL);
@@ -485,16 +485,16 @@ static GLuint loadshader(GLenum type, const char *source, const char *rulestr) {
   return name;
 }
 
-static GLuint loadprogram(const char *vertstr, const char *fragstr, uint rules) {
-  GLuint program = 0;
+static u32 loadprogram(const char *vertstr, const char *fragstr, u32 rules) {
+  u32 program = 0;
   sprintf_sd(rulestr)(IF_NOT_EMSCRIPTEN("#version 130\n")
                       IF_EMSCRIPTEN("precision highp float;\n")
                       "#define USE_FOG %i\n"
                       "#define USE_KEYFRAME %i\n"
                       "#define USE_DIFFUSETEX %i\n",
                       rules&FOG,rules&KEYFRAME,rules&DIFFUSETEX);
-  const GLuint vert = loadshader(GL_VERTEX_SHADER, vertstr, rulestr);
-  const GLuint frag = loadshader(GL_FRAGMENT_SHADER, fragstr, rulestr);
+  const u32 vert = loadshader(GL_VERTEX_SHADER, vertstr, rulestr);
+  const u32 frag = loadshader(GL_FRAGMENT_SHADER, fragstr, rulestr);
   program = createprogram();
   OGL(AttachShader, program, vert);
   OGL(AttachShader, program, frag);
@@ -577,10 +577,10 @@ static const char uberfrag[] = {
 };
 
 static struct shader {
-  uint rules; // fog,keyframe...?
-  GLuint program; // ogl program
-  GLuint u_diffuse, u_delta, u_mvp, u_overbright; // uniforms
-  GLuint u_zaxis, u_fogstartend, u_fogcolor; // uniforms
+  u32 rules; // fog,keyframe...?
+  u32 program; // ogl program
+  u32 u_diffuse, u_delta, u_mvp, u_overbright; // uniforms
+  u32 u_zaxis, u_fogstartend, u_fogcolor; // uniforms
 } shaders[shadern];
 
 static const char watervert[] = { // use DIFFUSETEX
@@ -603,7 +603,7 @@ static const char watervert[] = { // use DIFFUSETEX
   "}\n"
 };
 static struct watershader : shader {
-  GLuint u_duv, u_dxy, u_hf;
+  u32 u_duv, u_dxy, u_hf;
 } watershader;
 
 static vec4f fogcolor;
@@ -617,7 +617,7 @@ static void bindshader(shader &shader) {
   }
 }
 
-void bindshader(uint flags) { bindshader(shaders[flags]); }
+void bindshader(u32 flags) { bindshader(shaders[flags]); }
 
 static void linkshader(shader &shader) {
   OGL(LinkProgram, shader.program);
@@ -644,7 +644,7 @@ static void setshaderuniform(shader &shader) {
   OGL(UseProgram, 0);
 }
 
-static void compileshader(shader &shader, const char *vert, const char *frag, uint rules) {
+static void compileshader(shader &shader, const char *vert, const char *frag, u32 rules) {
   memset(&shader, 0, sizeof(struct shader));
   shader.program = loadprogram(vert, frag, rules);
   shader.rules = rules;
@@ -661,13 +661,13 @@ static void compileshader(shader &shader, const char *vert, const char *frag, ui
 #endif // EMSCRIPTEN
 }
 
-static void buildshader(shader &shader, const char *vert, const char *frag, uint rules) {
+static void buildshader(shader &shader, const char *vert, const char *frag, u32 rules) {
   compileshader(shader, vert, frag, rules);
   linkshader(shader);
   setshaderuniform(shader);
 }
 
-static void buildubershader(shader &shader, uint rules) {
+static void buildubershader(shader &shader, u32 rules) {
   buildshader(shader, ubervert, uberfrag, rules);
 }
 
@@ -703,7 +703,7 @@ static const char gridfrag[] = {
   "}\n"
 };
 static struct gridshader : shader {
-  GLuint u_lm, u_rlmdim;
+  u32 u_lm, u_rlmdim;
 } gridshader;
 
 static void buildshaders(void) {

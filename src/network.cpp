@@ -23,13 +23,13 @@ namespace cube {
     return -1;
   }
 
-  void putint(uchar *&p, int n) {
+  void putint(u8 *&p, int n) {
     if (n<128 && n>-127) { *p++ = n; }
     else if (n<0x8000 && n>=-0x8000) { *p++ = 0x80; *p++ = n; *p++ = n>>8;  }
     else { *p++ = 0x81; *p++ = n; *p++ = n>>8; *p++ = n>>16; *p++ = n>>24; };
   }
 
-  int getint(uchar *&p) {
+  int getint(u8 *&p) {
     int c = *((char *)p);
     p++;
     if (c==-128) { int n = *p++; n |= *((char *)p)<<8; p++; return n;}
@@ -37,7 +37,7 @@ namespace cube {
     else return c;
   }
 
-  void sendstring(const char *t, uchar *&p) {
+  void sendstring(const char *t, u8 *&p) {
     while (*t) putint(p, *t++);
     putint(p, 0);
   }
