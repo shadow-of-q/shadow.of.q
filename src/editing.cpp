@@ -179,7 +179,7 @@ static vector<clone> copies;
 
 static void copy(void) {
   EDITSEL
-  copies.clear();
+  copies.setsize(0);
   const vec3i m = min(cubestart, cubeend);
   const vec3i M = max(cubestart, cubeend);
   loopxyz(m,M+vec3i(two),copies.add(clone(world::getcube(xyz),xyz-m,0,any(xyz>M))));

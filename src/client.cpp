@@ -161,7 +161,7 @@ void addmsg(int rel, int num, int type, ...) {
     fatal(s);
   }
   if (messages.length()==128) {
-    //console::out("command flood protection (type %d)", type);
+    console::out("command flood protection (type %d)", type);
     return;
   }
   ivector &msg = messages.add();
@@ -270,7 +270,7 @@ void c2sinfo(const game::dynent *d) {
       if (msg[1]) packet->flags = ENET_PACKET_FLAG_RELIABLE;
       loopi(msg[0]) putint(p, msg[i+2]);
     }
-    messages.setsize(0);
+    messages.shrink(0);
     if (game::lastmillis()-lastping>250) {
       putint(p, SV_PING);
       putint(p, game::lastmillis());

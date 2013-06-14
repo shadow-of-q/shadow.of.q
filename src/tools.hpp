@@ -15,7 +15,7 @@
 #define THREAD          __declspec(thread)
 #define ALIGNED(...)    __declspec(align(__VA_ARGS__))
 //#define __FUNCTION__  __FUNCTION__
-#define DEBUGBREAK    __debugbreak()
+#define DEBUGBREAK      __debugbreak()
 #define alloca _alloca
 #else
 #undef NOINLINE
@@ -151,14 +151,6 @@ extern void set##NAME(TYPE x);
 #define MEMSET(X,V) memset(X,V,sizeof(X));
 #define MEMZERO(X) MEMSET(X,0)
 
-// easy safe strings
-char *path(char *s);
-char *loadfile(char *fn, int *size);
-void endianswap(void *, int, int);
-int islittleendian(void);
-void initendiancheck(void);
-void writebmp(const int *data, int w, int h, const char *name);
-
 #define PI  (3.1415927f)
 #define PI2 (2*PI)
 
@@ -218,173 +210,6 @@ template <typename T> INLINE void memdestroya(T *array) {
 #define NEWA(X,N,...) memconstructa<X>(N,__FILE__,__LINE__,__VA_ARGS__)
 #define SAFE_DELETE(X) do { if (X) memdestroy(X); X = NULL; } while (0)
 #define SAFE_DELETEA(X) do { if (X) memdestroya(X); X = NULL; } while (0)
-
-/*-------------------------------------------------------------------------
- - simple collections
- -------------------------------------------------------------------------*/
-
-// easy safe strings
-#define _MAXDEFSTR 260
-typedef char string[_MAXDEFSTR];
-
-INLINE void strn0cpy(char *d, const char *s, size_t m) { strncpy(d,s,m); d[(m)-1] = 0; }
-INLINE void strcpy_s(char *d, const char *s) { strn0cpy(d,s,_MAXDEFSTR); }
-INLINE void strcat_s(char *d, const char *s) { size_t n = strlen(d); strn0cpy(d+n,s,_MAXDEFSTR-n); }
-INLINE void formatstring(char *d, const char *fmt, va_list v) {
-  _vsnprintf(d, _MAXDEFSTR, fmt, v);
-  d[_MAXDEFSTR-1] = 0;
-}
-
-struct sprintf_s_f {
-  char *d;
-  sprintf_s_f(char *str): d(str) {};
-  void operator()(const char* fmt, ...) {
-    va_list v;
-    va_start(v, fmt);
-    _vsnprintf(d, _MAXDEFSTR, fmt, v);
-    va_end(v);
-    d[_MAXDEFSTR-1] = 0;
-  }
-};
-
-#define sprintf_s(d) sprintf_s_f((char *)d)
-#define sprintf_sd(d) string d; sprintf_s(d)
-#define sprintf_sdlv(d,last,fmt) string d; { va_list ap; va_start(ap, last); formatstring(d, fmt, ap); va_end(ap); }
-#define sprintf_sdv(d,fmt) sprintf_sdlv(d,fmt,fmt)
-#define ATOI(s) strtol(s, NULL, 0) // supports hexadecimal numbers
-
-char *newstring(const char *s, const char *filename, int linenum);
-char *newstring(const char *s, size_t sz, const char *filename, int linenum);
-char *newstringbuf(const char *s, const char *filename, int linenum);
-
-#define NEWSTRING(...) newstring(__VA_ARGS__, __FILE__, __LINE__)
-#define NEWSTRINGBUF(S) newstringbuf(S, __FILE__, __LINE__)
-
-// growable vector
-template <class T> struct vector : noncopyable {
-  T *buf;
-  int alen;
-  int ulen;
-
-  INLINE vector(u32 size) {
-    ulen = alen = size;
-    buf = (T*) MALLOC(alen*sizeof(T));
-    loopi(ulen) buf[i]=T();
-  }
-  INLINE vector(void) {
-    alen = 8;
-    buf = (T*) MALLOC(alen*sizeof(T));
-    ulen = 0;
-  }
-  INLINE vector(vector &&other) {
-    this->buf = other.buf;
-    this->alen = other.alen;
-    this->ulen = other.ulen;
-    this->p = other.p;
-  }
-  ~vector(void) {
-    setsize(0);
-    FREE(buf);
-    buf = NULL;
-    ulen = alen = 0;
-  }
-  INLINE T &add(const T &x) {
-    if(ulen==alen) this->realloc();
-    new (&buf[ulen]) T(x);
-    return buf[ulen++];
-  }
-  INLINE T &add(void) {
-    if(ulen==alen) this->realloc();
-    new (&buf[ulen]) T;
-    return buf[ulen++];
-  }
-  INLINE T &pop(void) { return buf[--ulen]; }
-  INLINE T &last(void) { return buf[ulen-1]; }
-  INLINE bool empty(void) { return ulen==0; }
-  INLINE int length(void) const { return ulen; }
-  INLINE int size(void) const { return ulen*sizeof(T); }
-  INLINE const T &operator[](int i) const { ASSERT(i>=0 && i<ulen); return buf[i]; }
-  INLINE T &operator[](int i) { ASSERT(i>=0 && i<ulen); return buf[i]; }
-  INLINE T *getbuf(void) { return buf; }
-  void setsize(int i) { for(; ulen>i; ulen--) buf[ulen-1].~T(); }
-  void clear(void) { setsize(0); }
-  void sort(void *cf) {
-    qsort(buf, ulen, sizeof(T), (int (__cdecl *)(const void *,const void *))cf);
-  }
-  void realloc(void) {
-    buf = (T*) REALLOC(buf, (alen *= 2)*sizeof(T));
-  }
-  T remove(int i) {
-    T e = buf[i];
-    for(int p = i+1; p<ulen; p++) buf[p-1] = buf[p];
-    ulen--;
-    return e;
-  }
-  T &insert(int i, const T &e) {
-    add(T());
-    for(int p = ulen-1; p>i; p--) buf[p] = buf[p-1];
-    buf[i] = e;
-    return buf[i];
-  }
-};
-
-#define ENUMERATE(HT,E,B) loopi((HT)->size)\
-  for((HT)->enumc = (HT)->table[i]; (HT)->enumc; (HT)->enumc = (HT)->enumc->next) {\
-    auto E = &(HT)->enumc->data; B;\
-  }
-
-// hash map
-template <class T> struct hashtable {
-  struct chain { chain *next; const char *key; T data; };
-  int size;
-  int numelems;
-  chain **table;
-  chain *enumc;
-
-  hashtable(void) : size(1<<10), numelems(0) {
-    table = (chain**) MALLOC(size*sizeof(chain*));
-    loopi(size) table[i] = NULL;
-  }
-  ~hashtable(void) {
-    ENUMERATE(this,e,e->~T());
-    loopi(size)
-      if (table[i]) for (auto c = table[i], next = (chain*) NULL; c; c = next) {
-        next = c->next;
-        FREE(c);
-      }
-    FREE(table);
-  }
-  hashtable(hashtable<T> &v);
-  void operator=(hashtable<T> &v);
-
-  T *access(const char *key, const T *data = NULL) {
-    unsigned int h = 5381;
-    for(int i = 0, k; (k = key[i]) != 0; i++) h = ((h<<5)+h)^k; // bernstein k=33 xor
-    h = h&(size-1); // primes not much of an advantage
-    for(chain *c = table[h]; c; c = c->next) {
-      char ch = 0;
-      for(const char *p1 = key, *p2 = c->key; (ch = *p1++)==*p2++; ) if(!ch) {
-        T *d = &c->data;
-        if(data) c->data = *data;
-        return d;
-      }
-    }
-    if(data) {
-      chain *c = (chain*) MALLOC(sizeof(chain));
-      c->data = *data;
-      c->key = key;
-      c->next = table[h];
-      table[h] = c;
-      numelems++;
-    }
-    return NULL;
-  }
-};
-
-// vertex array format
-struct vertex { float u, v, x, y, z; uchar r, g, b, a; };
-typedef vector<char *> cvector;
-typedef vector<int> ivector;
 
 void fatal(const char *s, const char *o = "");
 void keyrepeat(bool on);

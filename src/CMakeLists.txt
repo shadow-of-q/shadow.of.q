@@ -26,10 +26,10 @@ set (CLIENT_SRC
   serverms.cpp
   serverutil.cpp
   sound.cpp
+  stl.cpp
   tools.cpp
   weapon.cpp
   world.cpp)
-#add_library (hop SHARED ${CLIENT_SRC})
 
 add_executable (cube_client ${CLIENT_SRC})
 target_link_libraries (cube_client
@@ -45,6 +45,7 @@ set (SERVER_SRC
   server.cpp
   serverms.cpp
   standalone.cpp
+  stl.cpp
   tools.cpp)
 add_executable (cube_server ${SERVER_SRC})
 target_link_libraries (cube_server enet ${SDL_LIBRARY})

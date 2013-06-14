@@ -44,6 +44,7 @@
     <ClCompile Include="..\src\serverms.cpp" />
     <ClCompile Include="..\src\serverutil.cpp" />
     <ClCompile Include="..\src\sound.cpp" />
+    <ClCompile Include="..\src\stl.cpp" />
     <ClCompile Include="..\src\tools.cpp" />
     <ClCompile Include="..\src\weapon.cpp" />
     <ClCompile Include="..\src\world.cpp" />
@@ -69,6 +70,7 @@
     <ClInclude Include="..\src\server.hpp" />
     <ClInclude Include="..\src\serverbrowser.hpp" />
     <ClInclude Include="..\src\sound.hpp" />
+    <ClInclude Include="..\src\stl.hpp" />
     <ClInclude Include="..\src\tools.hpp" />
     <ClInclude Include="..\src\weapon.hpp" />
     <ClInclude Include="..\src\world.hpp" />

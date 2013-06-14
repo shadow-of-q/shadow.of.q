@@ -209,16 +209,15 @@ static void checkpings(void) {
   }
 }
 
-static int sicompare(const ServerInfo *a, const ServerInfo *b) {
-  return a->ping>b->ping ? 1 :
-    (a->ping<b->ping ? -1 : strcmp(a->name, b->name));
+INLINE int sicompare(const ServerInfo &a, const ServerInfo &b) {
+  return a.ping>b.ping ? 1 : (a.ping<b.ping ? -1 : strcmp(a.name, b.name));
 }
 
 void refreshservers(void) {
   checkresolver();
   checkpings();
   if (game::lastmillis() - lastinfo >= 5000) pingservers();
-  servers.sort((void *)sicompare);
+  servers.sort(sicompare);
   int maxmenu = 16;
   loopv(servers) {
     ServerInfo &si = servers[i];

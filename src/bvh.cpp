@@ -1,13 +1,11 @@
 #include <memory>
 #include <cstring>
-#include <functional>
-#include <algorithm>
 #include <cfloat>
 #include <cmath>
-#include <vector>
 #include "tools.hpp"
-#include "math.hpp"
+#include "stl.hpp"
 #include "bvh.hpp"
+#include "math.hpp"
 
 namespace cube {
 namespace bvh {
@@ -30,7 +28,7 @@ struct intersector {
     INLINE u32 getoffset(void) const { return offsetflag; }
   };
   node *root;
-  std::vector<waldtriangle> acc;
+  vector<waldtriangle> acc;
 };
 
 struct centroid : public vec3f {
@@ -46,11 +44,11 @@ struct compiler {
   compiler(void) : currid(0) {}
   int injection(const triangle *soup, u32 trinum);
   int compile(void);
-  std::vector<int> pos;
-  std::vector<u32> ids[3];
-  std::vector<u32> tmpids;
-  std::vector<aabb> boxes;
-  std::vector<aabb> rlboxes;
+  vector<int> pos;
+  vector<u32> ids[3];
+  vector<u32> tmpids;
+  vector<aabb> boxes;
+  vector<aabb> rlboxes;
   waldtriangle *acc;
   intersector::node *root;
   int n;
@@ -59,25 +57,25 @@ struct compiler {
 };
 
 template<u32 axis> struct sorter : public std::binary_function<int,int,bool> {
-  const std::vector<centroid> &centroids;
-  sorter(const std::vector<centroid> &c) : centroids(c) {}
+  const vector<centroid> &centroids;
+  sorter(const vector<centroid> &c) : centroids(c) {}
   INLINE int operator() (const u32 a, const u32 b) const  {
     return centroids[a][axis] < centroids[b][axis];
   }
 };
 
 int compiler::injection(const triangle *soup, const u32 trinum) {
-  std::vector<centroid> centroids;
+  vector<centroid> centroids;
 
   root = NEWAE(intersector::node,2*trinum+1);
   if (root == NULL) return -1;
 
-  loopi(3) ids[i].resize(trinum);
-  pos.resize(trinum);
-  tmpids.resize(trinum);
-  centroids.resize(trinum);
-  boxes.resize(trinum);
-  rlboxes.resize(trinum);
+  loopi(3) ids[i].pad(trinum);
+  pos.pad(trinum);
+  tmpids.pad(trinum);
+  centroids.pad(trinum);
+  boxes.pad(trinum);
+  rlboxes.pad(trinum);
   n = trinum;
 
   scenebox = aabb(FLT_MAX, -FLT_MAX);
@@ -88,9 +86,12 @@ int compiler::injection(const triangle *soup, const u32 trinum) {
   }
 
   loopi(3) loopj(n) ids[i][j] = j;
+  ids[0].sort(sorter<0>(centroids), 0, trinum);
+#if 0
   std::sort(ids[0].begin(), ids[0].end(), sorter<0>(centroids));
   std::sort(ids[1].begin(), ids[1].end(), sorter<1>(centroids));
   std::sort(ids[2].begin(), ids[2].end(), sorter<2>(centroids));
+#endif
 
   return n;
 }
@@ -250,7 +251,7 @@ intersector *create(const triangle *tri, int n) {
   c.compile();
   auto tree = NEWE(intersector);
   tree->root = c.root;
-  tree->acc.resize(n);
+  tree->acc.pad(n);
   loopi(n) computewaldtriangle(tri[i], tree->acc[i], i, 0);
   return tree;
 }
