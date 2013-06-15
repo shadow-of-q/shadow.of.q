@@ -13,7 +13,6 @@ namespace cube {
 namespace bvh {
 
 // build options
-VAR(minprimitivenum, 1, 1, 16);
 VAR(maxprimitivenum, 1, 8, 16);
 VAR(sahintersectioncost, 1, 8, 16);
 VAR(sahtraversalcost, 1, 1, 16);
@@ -36,26 +35,37 @@ struct intersector {
       u32 primid;
       u32 axis;
     };
-    static const u32 FLAG = 0x80000000;
+    static const u32 LEAFFLAG = 0x80000000;
+    static const u32 FULLFLAG = 0x40000000;
+    static const u32 FLAG = LEAFFLAG|FULLFLAG;
     INLINE u32 getoffset(void) const { return offsetflag & ~FLAG; }
     INLINE u32 getprimnum(void) const { return primnum & ~FLAG; }
     INLINE u32 getprimid(void) const { return primid; }
     INLINE u32 getaxis(void) const { return axis; }
-    INLINE u32 isleaf(void) const { return offsetflag & FLAG; }
+    INLINE u32 isleaf(void) const { return offsetflag & LEAFFLAG; }
+    INLINE u32 isfull(void) const { return offsetflag & FULLFLAG; }
     INLINE void setoffset(u32 offset) { offsetflag = (offsetflag&FLAG)|offset; }
     INLINE void setprimnum(u32 n) { primnum = (primnum&FLAG)|n; }
     INLINE void setprimid(u32 id) { primid = id; }
     INLINE void setaxis(u32 d) { axis = d; }
-    INLINE void setasleaf(void) { offsetflag |= FLAG; }
-    INLINE void setasnonleaf(void) { offsetflag &= ~FLAG; }
+    INLINE void setasleaf(void) { offsetflag |= LEAFFLAG; }
+    INLINE void setasnonleaf(void) { offsetflag &= ~LEAFFLAG; }
+    INLINE void setasfull(void) { offsetflag |= FULLFLAG; }
+    INLINE void setasnonfull(void) { offsetflag &= ~FULLFLAG; }
   };
   node *root;
   vector<waldtriangle> acc;
 };
 
-struct centroid : public vec3f {
-  INLINE centroid(const triangle &t) : vec3f(t.v[0]+t.v[1]+t.v[2]) {}
+struct centroid {
   INLINE centroid(void) {}
+  INLINE centroid(const hybrid &h) {
+    if (h.type == hybrid::TRI)
+      v = 1.f/3.f*(h.v[0]+h.v[1]+h.v[2]);
+    else
+      v = (h.v[0]+h.v[1])/2.f;
+  }
+  vec3f v;
 };
 
 enum {OTHERAXISNUM = 2};
@@ -64,14 +74,15 @@ enum {ONLEFT, ONRIGHT};
 // n log(n) compiler with bounding box sweeping and SAH heuristics
 struct compiler {
   compiler(void) : n(0), accnum(0), currid(0), leafnum(0), nodenum(0) {}
-  void injection(const triangle *soup, u32 primnum);
+  void injection(const hybrid *soup, u32 primnum);
   void compile(void);
+  vector<u8> isbox;
   vector<s32> pos;
   vector<u32> ids[3];
   vector<u32> tmpids;
   vector<aabb> boxes;
   vector<aabb> rlboxes;
-  const triangle *tris;
+  const hybrid *prims;
   vector<waldtriangle> acc;
   intersector::node *root;
   s32 n, accnum;
@@ -84,11 +95,11 @@ template<u32 axis> struct sorter {
   const vector<centroid> &centroids;
   sorter(const vector<centroid> &c) : centroids(c) {}
   INLINE int operator() (const u32 a, const u32 b) const  {
-    return centroids[a][axis] < centroids[b][axis];
+    return centroids[a].v[axis] < centroids[b].v[axis];
   }
 };
 
-void compiler::injection(const triangle *soup, const u32 primnum) {
+void compiler::injection(const hybrid *soup, const u32 primnum) {
   vector<centroid> centroids;
 
   root = NEWAE(intersector::node,2*primnum+1);
@@ -99,20 +110,22 @@ void compiler::injection(const triangle *soup, const u32 primnum) {
   centroids.pad(primnum);
   boxes.pad(primnum);
   rlboxes.pad(primnum);
+  isbox.pad(primnum);
   n = primnum;
 
   scenebox = aabb(FLT_MAX, -FLT_MAX);
-  loopj(n) {
-    centroids[j] = centroid(soup[j]);
-    boxes[j] = soup[j].getaabb();
-    scenebox.compose(boxes[j]);
+  loopi(n) {
+    isbox[i] = soup[i].type == hybrid::AABB;
+    centroids[i] = centroid(soup[i]);
+    boxes[i] = soup[i].getaabb();
+    scenebox.compose(boxes[i]);
   }
 
   loopi(3) loopj(n) ids[i][j] = j;
   ids[0].sort(sorter<0>(centroids), 0, primnum);
   ids[1].sort(sorter<1>(centroids), 0, primnum);
   ids[2].sort(sorter<2>(centroids), 0, primnum);
-  tris = soup;
+  prims = soup;
   acc.pad(primnum);
 }
 
@@ -144,11 +157,14 @@ template <u32 axis> INLINE partition sweep(compiler &c, int first, int last) {
   aabb box(FLT_MAX, -FLT_MAX);
   s32 primnum = (last-first)+1, n = 1;
   part.cost = FLT_MAX;
+  bool anybox = false;
   for (s32 j = first; j < last; ++j) {
-    box.compose(c.boxes[c.ids[axis][j]]);
-    const auto larea = box.halfarea(), rarea = c.rlboxes[c.ids[axis][j+1]].halfarea();
+    const u32 left = c.ids[axis][j], right = c.ids[axis][j+1];
+    box.compose(c.boxes[left]);
+    const auto larea = box.halfarea(), rarea = c.rlboxes[right].halfarea();
     const auto cost = larea*n + rarea*(primnum-n);
     n++;
+    if (c.isbox[left]) anybox = true;
     if (cost > part.cost) continue;
     part.cost = cost;
     part.last[ONLEFT] = j;
@@ -157,8 +173,13 @@ template <u32 axis> INLINE partition sweep(compiler &c, int first, int last) {
     part.boxes[ONRIGHT] = c.rlboxes[c.ids[axis][j + 1]];
   }
 
+  // if there is a box, we do not try to make a leaf from this node since we
+  // want to have one box per leaf only
+  const u32 id = c.ids[axis][last];
+  if (anybox || c.isbox[id]) return part;
+
   // get the real cost (with takes into account traversal and intersection)
-  box.compose(c.boxes[c.ids[axis][last]]);
+  box.compose(c.boxes[id]);
   const auto harea = box.halfarea();
   part.cost *= sahintersectioncost;
   part.cost += sahtraversalcost * harea;
@@ -186,7 +207,7 @@ struct segment {
   aabb box;
 };
 
-INLINE void maketriangle(const triangle &t, waldtriangle &w, u32 id, u32 matid) {
+INLINE void maketriangle(const hybrid &t, waldtriangle &w, u32 id, u32 matid) {
   const vec3f &A(t.v[0]), &B(t.v[1]), &C(t.v[2]);
   const vec3f b(C-A), c(B-A), N(cross(b,c));
   u32 k = 0;
@@ -215,11 +236,18 @@ INLINE void makeleaf(compiler &c, const segment &data) {
   const u32 n = data.last - data.first + 1;
   c.root[data.id].box = data.box;
   c.root[data.id].setasleaf();
-  c.root[data.id].setprimnum(n);
-  c.root[data.id].setprimid(c.accnum);
-  for (int j = data.first; j <= data.last; ++j) {
-    const u32 id = c.ids[0][j];
-    maketriangle(c.tris[id], c.acc[c.accnum++], id, 0);
+  if (n == 1 && c.prims[c.ids[0][data.first]].type == hybrid::AABB) {
+    c.root[data.id].setasfull();
+    c.root[data.id].setprimnum(0);
+  } else {
+    c.root[data.id].setasnonfull();
+    c.root[data.id].setprimnum(n);
+    c.root[data.id].setprimid(c.accnum);
+    for (int j = data.first; j <= data.last; ++j) {
+      const u32 id = c.ids[0][j];
+      ASSERT(c.prims[id].type == hybrid::TRI);
+      maketriangle(c.prims[id], c.acc[c.accnum++], id, 0);
+    }
   }
   c.leafnum++;
   c.nodenum++;
@@ -244,7 +272,7 @@ void compiler::compile(void) {
     for (;;) {
 
       // we are done and we make a leaf
-      if (node.last-node.first+1 <= minprimitivenum) {
+      if (node.last-node.first == 0) {
         makeleaf(*this, node);
         break;
       }
@@ -301,11 +329,11 @@ void compiler::compile(void) {
   growboxes(*this);
 }
 
-intersector *create(const triangle *tri, int n) {
+intersector *create(const hybrid *prims, int n) {
   if (n==0) return NULL;
   compiler c;
   auto tree = NEWE(intersector);
-  c.injection(tri, n);
+  c.injection(prims, n);
   c.compile();
   tree->acc.move(c.acc);
   tree->root = c.root;
@@ -355,11 +383,18 @@ void closest(const intersector &bvhtree, const ray &r, hit &hit) {
 
   while (stacksz) {
     const intersector::node *node = stack[--stacksz];
-    while (slab(node->box, r.org, r.rdir, hit.t).isec) {
+    for (;;) {
+      auto res = slab(node->box, r.org, r.rdir, hit.t);
+      if (!res.isec) break;
       if (node->isleaf()) {
-        const s32 n = node->getprimnum();
-        const s32 id = node->getprimid();
-        loopi(n) raytriangle<false>(bvhtree.acc[id+i], r, &hit);
+        if (node->isfull()) {
+          hit.t = res.t;
+          hit.id = 0;
+        } else {
+          const s32 n = node->getprimnum();
+          const s32 id = node->getprimid();
+          loopi(n) raytriangle<false>(bvhtree.acc[id+i], r, &hit);
+        }
         break;
       } else {
         const s32 second = signs[node->getaxis()];
@@ -379,8 +414,11 @@ bool occluded(const intersector &bvhtree, const ray &r) {
 
   while (stacksz) {
     const intersector::node *node = stack[--stacksz];
-    while (slab(node->box, r.org, r.rdir, r.tfar).isec) {
+    for (;;) {
+      auto res = slab(node->box, r.org, r.rdir, r.tfar);
+      if (!res.isec) break;
       if (node->isleaf()) {
+        if (node->isfull()) return true;
         const s32 n = node->getprimnum();
         const s32 id = node->getprimid();
         loopi(n) if (raytriangle<true>(bvhtree.acc[id+i], r)) return true;

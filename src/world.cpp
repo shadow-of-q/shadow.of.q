@@ -400,29 +400,55 @@ bvh::intersector *buildbvh(void) {
 
   // prepare all triangles
   auto start = SDL_GetTicks();
-  vector<bvh::triangle> bvhtris;
+  vector<bvh::hybrid> bvhprims;
+  u32 boxnum = 0, trinum = 0;
   const auto addcube = [&] (const brickcube &c, vec3i xyz) {
     if (c.mat == EMPTY) return;
+
+    // figure out if the cube is visible and which faces are visible
+    bool visible[6], anyvisible = false;
     loopk(6) {
-      if (!visibleface(xyz, k)) continue;
+      visible[k] = getcube(xyz+cubenorms[k]).mat == world::EMPTY;
+      if (visible[k]) anyvisible = true;
+    }
+    if (!anyvisible) return;
+
+    // figure out if the cube is unchanged (i.e. not deformed)
+    vec3f vertices[8];
+    bool anydeformed = false;
+    loopk(8) {
+      const auto &c = world::getcube(xyz+cubeiverts[k]);
+      vertices[k] = vec3f(c.p)/255.f;
+      if (any(c.p != vec3<s8>(zero)))
+        anydeformed = true;
+    }
+
+    // we have a deformed cube. we must output the individual faces
+    if (anydeformed) loopk(6) {
+      if (!visible[k]) continue;
       const int idx0 = 2*k+0, idx1 = 2*k+1;
       const vec3i tris[] = {cubetris[idx0], cubetris[idx1]};
       loopi(2) {
         vec3f v[3];
         loopj(3) {
           const auto global = xyz+cubeiverts[tris[i][j]];
-          v[j] = world::getpos(global);
+          v[j] = vec3f(global)+vertices[tris[i][j]];
         }
-        bvhtris.add(bvh::triangle(v[0],v[1],v[2]));
+        trinum++;
+        bvhprims.add(bvh::hybrid(v[0],v[1],v[2]));
       }
+    } else {
+      boxnum++;
+      bvhprims.add(bvh::hybrid(aabb(vec3f(xyz), vec3f(xyz)+vec3f(one))));
     }
   };
   forallcubes(addcube);
-  console::out("bvh: %i generated triangles (%i ms elapsed)", bvhtris.length(), SDL_GetTicks()-start);
+  console::out("bvh: %i generated primitives with %i boxes and %i triangles (%i ms elapsed)",
+    bvhprims.length(), boxnum, trinum, SDL_GetTicks()-start);
 
   start = SDL_GetTicks();
-  if (bvhtris.length() > 0) {
-    auto isec = bvh::create(&bvhtris[0], bvhtris.length());
+  if (bvhprims.length() > 0) {
+    auto isec = bvh::create(&bvhprims[0], bvhprims.length());
     console::out("bvh: data structure created (%i ms elapsed)", SDL_GetTicks()-start);
     return isec;
   } else
