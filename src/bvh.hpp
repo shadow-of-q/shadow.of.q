@@ -27,8 +27,9 @@ struct triangle {
 struct intersector *create(const triangle *tri, int n);
 void destroy(struct intersector*);
 
-// ray tracing routine inside the intersector
-void trace(const struct intersector&, const ray&, hit&);
+// ray tracing routines (visiblity and shadow rays)
+void closest(const struct intersector&, const ray&, hit&);
+bool occluded(const struct intersector&, const ray&);
 
 } // namespace bvh
 } // namespace cube

@@ -820,9 +820,7 @@ static void buildlmdata(surfaceparamctx &ctx, vec3i xyz, vec3i idx) {
     const ray r(p, ldir);
     bool isec = false;
     if (bvhisec && world::usebvh) {
-      bvh::hit hit;
-      trace(*bvhisec, r, hit);
-      isec = hit.is_hit();
+      isec = occluded(*bvhisec, r);
     } else
       isec = world::castray(r).isec;
     const float lum = (isec?0.f:1.f) * max(dot(ldir,normalize(n)),0.f);

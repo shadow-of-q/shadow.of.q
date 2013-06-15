@@ -449,7 +449,7 @@ void castray(float fovy, float aspect, float farplane) {
       const ray ray = cam.generate(w, h, x, y);
       if (bvhisec) {
         bvh::hit hit;
-        trace(*bvhisec, ray, hit);
+        closest(*bvhisec, ray, hit);
         if (hit.is_hit()) {
           const int d = min(int(hit.t), 255);
           pixels[offset] = d|(d<<8)|(d<<16)|(0xff<<24);
