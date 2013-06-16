@@ -400,7 +400,7 @@ bvh::intersector *buildbvh(void) {
 
   // prepare all triangles
   auto start = SDL_GetTicks();
-  vector<bvh::hybrid> bvhprims;
+  vector<bvh::primitive> bvhprims;
   u32 boxnum = 0, trinum = 0;
   const auto addcube = [&] (const brickcube &c, vec3i xyz) {
     if (c.mat == EMPTY) return;
@@ -435,11 +435,11 @@ bvh::intersector *buildbvh(void) {
           v[j] = vec3f(global)+vertices[tris[i][j]];
         }
         trinum++;
-        bvhprims.add(bvh::hybrid(v[0],v[1],v[2]));
+        bvhprims.add(bvh::primitive(v[0],v[1],v[2]));
       }
     } else {
       boxnum++;
-      bvhprims.add(bvh::hybrid(aabb(vec3f(xyz), vec3f(xyz)+vec3f(one))));
+      bvhprims.add(bvh::primitive(aabb(vec3f(xyz), vec3f(xyz)+vec3f(one))));
     }
   };
   forallcubes(addcube);

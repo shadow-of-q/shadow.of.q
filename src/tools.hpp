@@ -86,6 +86,11 @@ typedef               char s8;
 typedef unsigned      char u8;
 #endif
 
+template <u32 sz> struct ptrtype {};
+template <> struct ptrtype<4> { typedef u32 value; };
+template <> struct ptrtype<8> { typedef u64 value; };
+typedef typename ptrtype<sizeof(void*)>::value uintptr;
+
 /*-------------------------------------------------------------------------
  - Various useful macros, helper classes or functions
  -------------------------------------------------------------------------*/
