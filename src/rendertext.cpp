@@ -100,8 +100,7 @@ static const short char_coords[96][4] = {
   {310,448,363,512}   //~
 };
 
-IF_EMSCRIPTEN(typedef u16 indextype);
-IF_NOT_EMSCRIPTEN(typedef u32 indextype);
+typedef u16 indextype;
 static const indextype twotriangles[] = {0,1,2,0,2,3};
 
 int text_width(const char *str) {
@@ -169,8 +168,7 @@ void draw_text(const char *str, int left, int top, int gl_num) {
   ogl::immattrib(ogl::POS0, 2, GL_FLOAT, sizeof(float[2]));
   ogl::immattrib(ogl::TEX0, 2, GL_FLOAT, 0);
   ogl::bindshader(ogl::DIFFUSETEX);
-  IF_NOT_EMSCRIPTEN(ogl::immdrawelements(GL_TRIANGLES, index, GL_UNSIGNED_INT, indices, &verts[0][0]));
-  IF_EMSCRIPTEN(ogl::immdrawelements(GL_TRIANGLES, index, GL_UNSIGNED_SHORT, indices, &verts[0][0]));
+  ogl::immdrawelements(GL_TRIANGLES, index, GL_UNSIGNED_SHORT, indices, &verts[0][0]);
 }
 
 static void drawenvboxface(float s0, float t0, int x0, int y0, int z0,
@@ -189,8 +187,7 @@ static void drawenvboxface(float s0, float t0, int x0, int y0, int z0,
   ogl::immvertexsize(sizeof(float[5]));
   ogl::immattrib(ogl::POS0, 3, GL_FLOAT, sizeof(float[2]));
   ogl::immattrib(ogl::TEX0, 2, GL_FLOAT, 0);
-  IF_NOT_EMSCRIPTEN(ogl::immdrawelements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, twotriangles, &verts[0][0]));
-  IF_EMSCRIPTEN(ogl::immdrawelements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, twotriangles, &verts[0][0]));
+  ogl::immdrawelements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, twotriangles, &verts[0][0]);
   ogl::xtraverts += 4;
 }
 

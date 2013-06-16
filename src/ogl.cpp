@@ -75,8 +75,11 @@ void deletebuffers(s32 n, u32 *id) {
 
 static u32 createprogram(void) {
   programnum++;
-  IF_NOT_EMSCRIPTEN(return CreateProgram());
-  IF_EMSCRIPTEN(return glCreateProgram());
+#if defined(__WEBGL__)
+  return glCreateProgram();
+#else
+  return CreateProgram();
+#endif // __WEBGL__
 }
 static void deleteprogram(u32 id) {
   programnum--;
@@ -311,12 +314,12 @@ bool installtex(int tnum, const char *texname, int &xs, int &ys, bool clamp) {
     console::out("couldn't load texture %s", texname);
     return false;
   }
-#if !defined(EMSCRIPTEN)
+#if !defined(__WEBGL__)
   else if (s->format->BitsPerPixel!=24) {
     console::out("texture must be 24bpp: %s (got %i bpp)", texname, s->format->BitsPerPixel);
     return false;
   }
-#endif
+#endif // __WEBGL__
 
   if (tnum >= int(IDNUM)) fatal("out of bound texture ID");
   if (generatedids[tnum] == 0u)
@@ -485,10 +488,23 @@ static u32 loadshader(GLenum type, const char *source, const char *rulestr) {
   return name;
 }
 
+#if !defined(__WEBGL__)
+#define OGL_PROGRAM_HEADER\
+  "#version 130\n"\
+  "#define VS_IN in\n"\
+  "#define VS_OUT out\n"\
+  "#define PS_IN in\n"
+#else
+#define OGL_PROGRAM_HEADER\
+  "precision highp float;\n"\
+  "#define VS_IN attribute\n"\
+  "#define VS_OUT varying\n"\
+  "#define PS_IN varying\n"
+#endif
+
 static u32 loadprogram(const char *vertstr, const char *fragstr, u32 rules) {
   u32 program = 0;
-  sprintf_sd(rulestr)(IF_NOT_EMSCRIPTEN("#version 130\n")
-                      IF_EMSCRIPTEN("precision highp float;\n")
+  sprintf_sd(rulestr)(OGL_PROGRAM_HEADER
                       "#define USE_FOG %i\n"
                       "#define USE_KEYFRAME %i\n"
                       "#define USE_DIFFUSETEX %i\n",
@@ -502,35 +518,26 @@ static u32 loadprogram(const char *vertstr, const char *fragstr, u32 rules) {
   OGL(DeleteShader, frag);
   return program;
 }
-
-#if defined(EMSCRIPTEN)
-#define VS_IN "attribute"
-#define VS_OUT "varying"
-#define PS_IN "varying"
-#else
-#define VS_IN "in"
-#define VS_OUT "out"
-#define PS_IN "in"
-#endif // EMSCRIPTEN
+#undef OGL_PROGRAM_HEADER
 
 static const char ubervert[] = {
   "uniform mat4 u_mvp;\n"
   "#if USE_FOG\n"
   "  uniform vec4 u_zaxis;\n"
-  "  " VS_OUT " float fs_fogz;\n"
+  "  VS_OUT float fs_fogz;\n"
   "#endif\n"
   "#if USE_KEYFRAME\n"
   "  uniform float u_delta;\n"
-  "  " VS_IN " vec3 vs_pos0, vs_pos1;\n"
+  "  VS_IN vec3 vs_pos0, vs_pos1;\n"
   "#else\n"
-  "  " VS_IN " vec3 vs_pos;\n"
+  "  VS_IN vec3 vs_pos;\n"
   "#endif\n"
-  VS_IN " vec4 vs_col;\n"
+  "VS_IN vec4 vs_col;\n"
   "#if USE_DIFFUSETEX\n"
-  "  " VS_IN " vec2 vs_tex;\n"
-  "  " VS_OUT " vec2 fs_tex;\n"
+  "  VS_IN vec2 vs_tex;\n"
+  "  VS_OUT vec2 fs_tex;\n"
   "#endif\n"
-  VS_OUT " vec4 fs_col;\n"
+  "VS_OUT vec4 fs_col;\n"
   "void main() {\n"
   "#if USE_DIFFUSETEX\n"
   "  fs_tex = vs_tex;\n"
@@ -548,16 +555,16 @@ static const char ubervert[] = {
 static const char uberfrag[] = {
   "#if USE_DIFFUSETEX\n"
   "  uniform sampler2D u_diffuse;\n"
-  "  " PS_IN " vec2 fs_tex;\n"
+  "  PS_IN vec2 fs_tex;\n"
   "#endif\n"
   "#if USE_FOG\n"
   "  uniform vec4 u_fogcolor;\n"
   "  uniform vec2 u_fogstartend;\n"
-  "  " PS_IN " float fs_fogz;\n"
+  "  PS_IN float fs_fogz;\n"
   "#endif\n"
   "uniform float u_overbright;\n"
-  PS_IN " vec4 fs_col;\n"
-  IF_NOT_EMSCRIPTEN("out vec4 rt_c;\n")
+  "PS_IN vec4 fs_col;\n"
+  IF_NOT_WEBGL("out vec4 rt_c;\n")
   "void main() {\n"
   "  vec4 col;\n"
   "#if USE_DIFFUSETEX\n"
@@ -571,8 +578,7 @@ static const char uberfrag[] = {
   "  col.xyz = mix(col.xyz,u_fogcolor.xyz,factor);\n"
   "#endif\n"
   "  col.xyz *= u_overbright;\n"
-  IF_NOT_EMSCRIPTEN("  rt_c = col;\n")
-  IF_EMSCRIPTEN("  gl_FragColor = col;\n")
+  SWITCH_WEBGL("gl_FragColor = col;\n", "rt_c = col;\n")
   "}\n"
 };
 
@@ -588,10 +594,10 @@ static const char watervert[] = { // use DIFFUSETEX
   "uniform mat4 u_mvp;\n"
   "uniform vec2 u_duv, u_dxy;\n"
   "uniform float u_hf, u_delta;\n"
-  VS_IN " vec2 vs_pos, vs_tex;\n"
-  VS_IN " vec4 vs_col;\n"
-  VS_OUT " vec2 fs_tex;\n"
-  VS_OUT " vec4 fs_col;\n"
+  "VS_IN  vec2 vs_pos, vs_tex;\n"
+  "VS_IN vec4 vs_col;\n"
+  "VS_OUT vec2 fs_tex;\n"
+  "VS_OUT vec4 fs_col;\n"
   "float dx(float x) { return x+sin(x*2.0+u_delta/1000.0)*0.04; }\n"
   "float dy(float x) { return x+sin(x*2.0+u_delta/900.0+PI/5.0)*0.05; }\n"
   "void main() {\n"
@@ -656,9 +662,9 @@ static void compileshader(shader &shader, const char *vert, const char *frag, u3
   if (shader.rules&DIFFUSETEX)
     OGL(BindAttribLocation, shader.program, TEX0, "vs_tex");
   OGL(BindAttribLocation, shader.program, COL, "vs_col");
-#if !defined(EMSCRIPTEN)
+#if !defined(__WEBGL__)
   OGL(BindFragDataLocation, shader.program, 0, "rt_col");
-#endif // EMSCRIPTEN
+#endif // __WEBGL__
 }
 
 static void buildshader(shader &shader, const char *vert, const char *frag, u32 rules) {
@@ -673,13 +679,13 @@ static void buildubershader(shader &shader, u32 rules) {
 
 static const char gridvert[] = {
   "uniform mat4 u_mvp;\n"
-  VS_IN " vec3 vs_pos;\n"
-  VS_IN " vec4 vs_col;\n"
-  VS_IN " vec2 vs_tex;\n"
-  VS_IN " vec2 vs_lm;\n"
-  VS_OUT " vec4 fs_col;\n"
-  VS_OUT " vec2 fs_tex;\n"
-  VS_OUT " vec2 fs_lm;\n"
+  "VS_IN vec3 vs_pos;\n"
+  "VS_IN vec4 vs_col;\n"
+  "VS_IN vec2 vs_tex;\n"
+  "VS_IN vec2 vs_lm;\n"
+  "VS_OUT vec4 fs_col;\n"
+  "VS_OUT vec2 fs_tex;\n"
+  "VS_OUT vec2 fs_lm;\n"
   "void main() {\n"
   "  fs_tex = vs_tex;\n"
   "  fs_col = vs_col;\n"
@@ -691,15 +697,14 @@ static const char gridfrag[] = {
   "uniform sampler2D u_diffuse;\n"
   "uniform sampler2D u_lm;\n"
   "uniform vec2 u_rlmdim;\n"
-  PS_IN " vec2 fs_tex;\n"
-  PS_IN " vec4 fs_col;\n"
-  PS_IN " vec2 fs_lm;\n"
-  IF_NOT_EMSCRIPTEN("out vec4 rt_c;\n")
+  "PS_IN vec2 fs_tex;\n"
+  "PS_IN vec4 fs_col;\n"
+  "PS_IN vec2 fs_lm;\n"
+  IF_NOT_WEBGL("out vec4 rt_c;\n")
   "void main() {\n"
   "  vec4 lm = texture2D(u_lm, fs_lm);\n"
   "  vec4 col = lm*texture2D(u_diffuse, fs_tex);\n"
-  IF_NOT_EMSCRIPTEN("  rt_c = col;\n")
-  IF_EMSCRIPTEN("  gl_FragColor = col;\n")
+  SWITCH_WEBGL("gl_FragColor = col;\n", "rt_c = col;\n")
   "}\n"
 };
 static struct gridshader : shader {
@@ -1108,7 +1113,7 @@ void drawelements(int mode, int count, int type, const void *indices) {
   OGL(DrawElements, mode, count, type, indices);
 }
 
-#if !defined (EMSCRIPTEN)
+#if !defined (__WEBGL__)
 #define GL_PROC(FIELD,NAME,PROTOTYPE) PROTOTYPE FIELD = NULL;
 #include "GL/ogl100.hxx"
 #include "GL/ogl110.hxx"
@@ -1118,10 +1123,10 @@ void drawelements(int mode, int count, int type, const void *indices) {
 #include "GL/ogl200.hxx"
 #include "GL/ogl300.hxx"
 #undef GL_PROC
-#endif // EMSCRIPTEN
+#endif // __WEBGL__
 
 void init(int w, int h) {
-#if !defined(EMSCRIPTEN)
+#if !defined(__WEBGL__)
 // on Windows, we directly load from OpenGL 1.1 functions
 #if defined(__WIN32__)
   #define GL_PROC(FIELD,NAME,PROTOTYPE) FIELD = (PROTOTYPE) NAME;
@@ -1151,17 +1156,17 @@ void init(int w, int h) {
 #include "GL/ogl300.hxx"
 
 #undef GL_PROC
-#endif
+#endif // !__WEBGL__
 
   OGL(Viewport, 0, 0, w, h);
   loopi(int(ARRAY_ELEM_N(generatedids))) generatedids[i] = 0;
   loopi(int(TEX_NUM)) bindedtexture[i] = 0;
 
-#if defined (EMSCRIPTEN)
+#if defined (__WEBGL__)
   OGL(ClearDepthf,1.f);
 #else
   OGL(ClearDepth,1.f);
-#endif
+#endif // __WEBGL__
   enablev(GL_DEPTH_TEST, GL_CULL_FACE);
   OGL(DepthFunc, GL_LESS);
   OGL(CullFace, GL_FRONT);
@@ -1338,7 +1343,7 @@ void drawframe(int w, int h, float curfps) {
   rr::renderspheres(game::curtime());
   rr::renderents();
   enablev(GL_CULL_FACE);
-  IF_NOT_EMSCRIPTEN(OGL(PolygonMode, GL_FRONT_AND_BACK, wireframe?GL_LINE:GL_FILL));
+  IF_NOT_WEBGL(OGL(PolygonMode, GL_FRONT_AND_BACK, wireframe?GL_LINE:GL_FILL));
   drawgrid();
   disablev(GL_CULL_FACE);
 

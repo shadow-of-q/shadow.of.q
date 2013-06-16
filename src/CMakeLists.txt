@@ -8,12 +8,12 @@ set (CLIENT_SRC
   console.cpp
   editing.cpp
   entities.cpp
-  ogl.cpp
   main.cpp
   math.cpp
   menu.cpp
   monster.cpp
   network.cpp
+  ogl.cpp
   physics.cpp
   renderer.cpp
   renderextras.cpp

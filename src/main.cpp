@@ -3,9 +3,9 @@
 #include <enet/enet.h>
 #include <time.h>
 
-#if !defined(EMSCRIPTEN)
+#if !defined(__JAVASCRIPT__)
 #include <xmmintrin.h>
-#endif // EMSCRIPTEN
+#endif // __JAVASCRIPT__
 
 namespace cube {
 
@@ -31,7 +31,7 @@ void cleanup(char *msg) { // single program exit point;
       MessageBox(NULL, msg, "cube fatal error", MB_OK|MB_SYSTEMMODAL);
 #else
       printf("%s",msg);
-#endif
+#endif // __WIN32__
     }
   }
   SDL_Quit();
@@ -52,7 +52,7 @@ int scr_w = 800;
 int scr_h = 600;
 
 void screenshot(void) {
-#if !defined(EMSCRIPTEN)
+#if !defined(__JAVASCRIPT__)
   SDL_Surface *image;
   SDL_Surface *temp;
   int idx;
@@ -70,7 +70,7 @@ void screenshot(void) {
     }
     SDL_FreeSurface(image);
   }
-#endif // EMSCRIPTEN
+#endif // __JAVASCRIPT__
 }
 
 COMMAND(screenshot, ARG_NONE);
@@ -90,10 +90,10 @@ static void main_loop(void) {
   int millis = SDL_GetTicks()*gamespeed/100;
   if (millis-game::lastmillis()>200) game::setlastmillis(millis-200);
   else if (millis-game::lastmillis()<1) game::setlastmillis(millis-1);
-#if !defined(EMSCRIPTEN)
+#if !defined(__JAVASCRIPT__)
   if (millis-game::lastmillis()<minmillis)
     SDL_Delay(minmillis-(millis-game::lastmillis()));
-#endif
+#endif // __JAVASCRIPT__
   game::updateworld(millis);
   if (!demo::playing())
     server::slice((int)time(NULL), 0);
@@ -141,15 +141,16 @@ static int installbasetex(int num, const char *name) {
 }
 
 static int main(int argc, char **argv) {
-  IF_EMSCRIPTEN(emscripten_hide_mouse());
   bool dedicated = false;
   int fs = SDL_FULLSCREEN, par = 0, uprate = 0, maxcl = 4;
   const char *sdesc = "", *ip = "", *passwd = "";
   const char *master = NULL;
 
-#if !defined(EMSCRIPTEN)
+#if !defined(__JAVASCRIPT__)
   // flush to zero and no denormals
   _mm_setcsr(_mm_getcsr() | (1<<15) | (1<<6));
+#else
+  emscripten_hide_mouse();
 #endif
 
   initendiancheck();
@@ -248,11 +249,11 @@ static int main(int argc, char **argv) {
   log("mainloop");
 #undef log
 
-#if defined(EMSCRIPTEN)
+#if defined(__JAVASCRIPT__)
   emscripten_set_main_loop(main_loop, 0, 1);
 #else
   for(;;) main_loop();
-#endif
+#endif // __JAVASCRIPT__
 
   quit();
   return 1;

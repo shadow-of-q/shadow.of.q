@@ -187,7 +187,7 @@ static void readmatrices(void) {
 static float depthcorrect(float d) { return (d<=1/256.0f) ? d*256 : d; }
 
 void readdepth(int w, int h) {
-#if !defined(EMSCRIPTEN)
+#if !defined(__WEBGL__)
   OGL (ReadPixels, w/2, h/2, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &cursordepth);
 #else
   cursordepth = 1.f;

@@ -3,14 +3,6 @@
 #include <cstdlib>
 #include <new>
 
-#if defined(EMSCRIPTEN)
-#define IF_EMSCRIPTEN(X) X
-#define IF_NOT_EMSCRIPTEN(X)
-#else
-#define IF_EMSCRIPTEN(X)
-#define IF_NOT_EMSCRIPTEN(X) X
-#endif // EMSCRIPTEN
-
 /*-------------------------------------------------------------------------
  - cpu architecture
  -------------------------------------------------------------------------*/
@@ -70,9 +62,9 @@
 #  endif
 #endif
 
-// detect emscripten which is considered as an operating system
+// detecting emscripten means that we are running javascript
 #if defined(EMSCRIPTEN)
-#  define __EMSCRIPTEN__
+#  define __JAVASCRIPT__
 #endif
 
 // try to detect other Unix systems
@@ -104,6 +96,11 @@
 // clang compiler
 #ifdef __clang__
 #define __CLANG__
+#endif
+
+//emscripten compiler
+#if defined(EMSCRIPTEN)
+#define __EMSCRIPTEN__
 #endif
 
 /*-------------------------------------------------------------------------
@@ -201,7 +198,7 @@ typedef              short s16;
 typedef unsigned     short u16;
 typedef               char s8;
 typedef unsigned      char u8;
-#endif
+#endif // __MSVC__
 template <u32 sz> struct ptrtype {};
 template <> struct ptrtype<4> { typedef u32 value; };
 template <> struct ptrtype<8> { typedef u64 value; };
@@ -246,7 +243,6 @@ void meminit(void);
 void *memalloc(size_t sz, const char *filename, int linenum);
 void *memrealloc(void *ptr, size_t sz, const char *filename, int linenum);
 void memfree(void *);
-#if 1
 template <typename T, typename... Args>
 INLINE T *memconstructa(s32 n, const char *filename, int linenum, Args&&... args) {
   void *ptr = (void*) memalloc(n*sizeof(T)+DEFAULT_ALIGNMENT, filename, linenum);
@@ -280,14 +276,7 @@ template <typename T> INLINE void memdestroya(T *array) {
 #define NEWA(X,N,...) memconstructa<X>(N,__FILE__,__LINE__,__VA_ARGS__)
 #define SAFE_DELETE(X) do { if (X) memdestroy(X); X = NULL; } while (0)
 #define SAFE_DELETEA(X) do { if (X) memdestroya(X); X = NULL; } while (0)
-#else
-#define MALLOC(SZ) cube::memalloc(SZ, __FILE__, __LINE__)
-#define REALLOC(PTR, SZ) cube::memrealloc(PTR, SZ, __FILE__, __LINE__)
-#define FREE(PTR) cube::memfree(PTR)
-#define NEW new (__FILE__, __LINE__)
-#define SAFE_DELETE(X) do { if (X) delete X; X = NULL; } while (0)
-#define SAFE_DELETEA(X) do { if (X) delete[] X; X = NULL; } while (0)
-#endif
+
 void fatal(const char *s, const char *o = "");
 void keyrepeat(bool on);
 
@@ -295,14 +284,4 @@ static const int KB = 1024;
 static const int MB = KB*KB;
 
 } // namespace cube
-#if 0
-INLINE void *operator new (size_t sz, const char *filename, int linenum) {
-  return cube::memalloc(sz, filename, linenum);
-}
-INLINE void *operator new[] (size_t sz, const char *filename, int linenum) {
-  return cube::memalloc(sz, filename, linenum);
-}
-INLINE void operator delete[](void *ptr) { return cube::memfree(ptr); }
-INLINE void operator delete  (void *ptr) { return cube::memfree(ptr); }
-#endif
 

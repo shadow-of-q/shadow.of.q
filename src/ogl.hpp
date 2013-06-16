@@ -2,7 +2,19 @@
 #include "tools.hpp"
 #include "math.hpp"
 #include "renderer.hpp"
-#if defined(EMSCRIPTEN)
+
+#if defined(__JAVASCRIPT__)
+#define __WEBGL__
+#define IF_WEBGL(X) X
+#define IF_NOT_WEBGL(X)
+#define SWITCH_WEBGL(X,Y) X
+#else
+#define IF_WEBGL(X)
+#define IF_NOT_WEBGL(X) X
+#define SWITCH_WEBGL(X,Y) Y
+#endif //__JAVASCRIPT__
+
+#if defined(__WEBGL__)
 #include "GLES2/gl2.h"
 #else
 #include "GL/gl3.h"
@@ -12,7 +24,7 @@ namespace cube {
 namespace ogl {
 
 // we instantiate all GL functions here
-#if !defined(EMSCRIPTEN)
+#if !defined(__WEBGL__)
 #define GL_PROC(FIELD,NAME,PROTOTYPE) extern PROTOTYPE FIELD;
 #include "GL/ogl100.hxx"
 #include "GL/ogl110.hxx"
@@ -22,10 +34,10 @@ namespace ogl {
 #include "GL/ogl200.hxx"
 #include "GL/ogl300.hxx"
 #undef GL_PROC
-#endif // EMSCRIPTEN
+#endif // __WEBGL__
 
 // OGL debug macros
-#if !defined(EMSCRIPTEN)
+#if !defined(__WEBGL__)
 #if !defined(NDEBUG)
 #define OGL(NAME, ...) \
   do { \
@@ -41,7 +53,7 @@ namespace ogl {
   #define OGL(NAME, ...) do {cube::ogl::NAME(__VA_ARGS__);} while(0)
   #define OGLR(RET, NAME, ...) do {RET=cube::ogl::NAME(__VA_ARGS__);} while(0)
 #endif // NDEBUG
-#else // EMSCRIPTEN
+#else // __WEBGL__
 #if !defined(NDEBUG)
 #define OGL(NAME, ...) \
   do { \
@@ -61,7 +73,7 @@ namespace ogl {
   #define OGL(NAME, ...) do {gl##NAME(__VA_ARGS__);} while(0)
   #define OGLR(RET, NAME, ...) do {RET=gl##NAME(__VA_ARGS__);} while(0)
 #endif // NDEBUG
-#endif // EMSCRIPTEN
+#endif // __WEBGL__
 
 // maximum number of textures in a map
 static const s32 MAXMAPTEX = 256;
