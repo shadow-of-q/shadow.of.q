@@ -34,7 +34,7 @@ bool netmapstart(void);
 // return our client id in the game
 int getclientnum(void);
 // outputs name and team in the given file
-void writeclientinfo(FILE *f);
+void writeclientinfo(filehandle f);
 // request map change, server may ignore
 void changemap(const char *name);
 

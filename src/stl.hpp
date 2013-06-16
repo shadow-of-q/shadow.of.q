@@ -1,6 +1,8 @@
 #pragma once
 #include "math.hpp"
 #include "tools.hpp"
+#include <cstring>
+#include <cstdarg>
 
 namespace cube {
 
@@ -99,21 +101,12 @@ typedef char string[_MAXDEFSTR];
 INLINE void strn0cpy(char *d, const char *s, size_t m) { strncpy(d,s,m); d[(m)-1] = 0; }
 INLINE void strcpy_s(char *d, const char *s) { strn0cpy(d,s,_MAXDEFSTR); }
 INLINE void strcat_s(char *d, const char *s) { size_t n = strlen(d); strn0cpy(d+n,s,_MAXDEFSTR-n); }
-INLINE void formatstring(char *d, const char *fmt, va_list v) {
-  _vsnprintf(d, _MAXDEFSTR, fmt, v);
-  d[_MAXDEFSTR-1] = 0;
-}
+void formatstring(char *d, const char *fmt, va_list v);
 
 struct sprintf_s_f {
+  INLINE sprintf_s_f(char *str): d(str) {};
+  void operator()(const char* fmt, ...);
   char *d;
-  sprintf_s_f(char *str): d(str) {};
-  void operator()(const char* fmt, ...) {
-    va_list v;
-    va_start(v, fmt);
-    _vsnprintf(d, _MAXDEFSTR, fmt, v);
-    va_end(v);
-    d[_MAXDEFSTR-1] = 0;
-  }
 };
 
 #define sprintf_s(d) sprintf_s_f((char *)d)

@@ -20,6 +20,14 @@ template<typename T> struct vec4;
 #define sw41(A) sw42(A,x) sw42(A,y) sw42(A,z) sw42(A,w)
 #define sw40 sw41(x) sw41(y) sw41(z) sw41(w)
 
+#if defined(__WIN32__)
+  #undef min
+  #undef max
+#if defined(__MSVC__)
+  INLINE bool finite (float x) {return _finite(x) != 0;}
+#endif
+#endif
+
 // polymorphic constant values
 #define CONSTANT_TYPE(TYPE,VALUE,NUM)\
 static const struct TYPE {\

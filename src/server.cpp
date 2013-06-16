@@ -353,7 +353,7 @@ void slice(int seconds, unsigned int timeout) {
     if (numplayers>maxclients)
       disconnect_client(lastconnect, "maxclients reached");
   }
-#ifndef WIN32
+#if !defined(__WIN32__)
   fflush(stdout);
 #endif
 }
@@ -387,7 +387,7 @@ void init(bool dedicated, int uprate, const char *sdesc, const char *ip, const c
   resetserverifempty();
 
   if (isdedicated) { // do not return, this becomes main loop
-#ifdef WIN32
+#if defined(__WIN32__)
     SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);
 #endif
     printf("dedicated server started, waiting for clients...\nCtrl-C to exit\n\n");

@@ -27,7 +27,7 @@ void cleanup(char *msg) { // single program exit point;
     ogl::clean();
     SDL_ShowCursor(1);
     if (msg) {
-#ifdef WIN32
+#if defined(__WIN32__)
       MessageBox(NULL, msg, "cube fatal error", MB_OK|MB_SYSTEMMODAL);
 #else
       printf("%s",msg);

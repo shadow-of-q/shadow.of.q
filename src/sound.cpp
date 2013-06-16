@@ -76,7 +76,7 @@ static void updatechanvol(int chan, const vec3f *loc) {
     vol -= (int)(dist*3*soundvol/255);  // simple mono distance attenuation
     if (stereo && (v.x != 0 || v.y != 0)) {
       // relative angle of sound along X-Y axis
-      const float yaw = -atan2(v.x, v.y) - game::player1->yaw*(PI / 180.0f);
+      const float yaw = -atan2(v.x, v.y) - game::player1->yaw*(float(pi) / 180.0f);
       // range is from 0 (left) to 255 (right)
       pan = int(255.9f*(0.5*sin(yaw)+0.5f));
     }

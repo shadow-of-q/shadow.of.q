@@ -66,8 +66,8 @@ static void newteam(const char *name) {
 }
 COMMANDN(team, newteam, ARG_1STR);
 
-void writeclientinfo(FILE *f) {
-  fprintf(f, "name \"%s\"\nteam \"%s\"\n",
+void writeclientinfo(filehandle f) {
+  fprintf((FILE*) f, "name \"%s\"\nteam \"%s\"\n",
     game::player1->name, game::player1->team);
 }
 

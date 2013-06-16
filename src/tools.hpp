@@ -1,4 +1,8 @@
 #pragma once
+#include <cassert>
+#include <cstdlib>
+#include <new>
+
 #if defined(EMSCRIPTEN)
 #define IF_EMSCRIPTEN(X) X
 #define IF_NOT_EMSCRIPTEN(X)
@@ -7,7 +11,106 @@
 #define IF_NOT_EMSCRIPTEN(X) X
 #endif // EMSCRIPTEN
 
+/*-------------------------------------------------------------------------
+ - cpu architecture
+ -------------------------------------------------------------------------*/
+
+// detect 32 or 64 platform
+#if defined(__x86_64__) || defined(__ia64__) || defined(_M_X64)
+#define __X86_64__
+#else
+#define __X86__
+#endif
+
+/*-------------------------------------------------------------------------
+ - operating system
+ -------------------------------------------------------------------------*/
+
+// detect linux platform
+#if defined(linux) || defined(__linux__) || defined(__LINUX__)
+#  if !defined(__LINUX__)
+#     define __LINUX__
+#  endif
+#  if !defined(__UNIX__)
+#     define __UNIX__
+#  endif
+#endif
+
+// detect freebsd platform
+#if defined(__FreeBSD__) || defined(__FREEBSD__)
+#  if !defined(__FREEBSD__)
+#     define __FREEBSD__
+#  endif
+#  if !defined(__UNIX__)
+#     define __UNIX__
+#  endif
+#endif
+
+// detect windows 95/98/nt/2000/xp/vista/7 platform
+#if (defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)) && !defined(__CYGWIN__)
+#  if !defined(__WIN32__)
+#     define __WIN32__
+#  endif
+#endif
+
+// detect cygwin platform
+#if defined(__CYGWIN__)
+#  if !defined(__UNIX__)
+#     define __UNIX__
+#  endif
+#endif
+
+// detect mac os x platform
+#if defined(__APPLE__) || defined(MACOSX) || defined(__MACOSX__)
+#  if !defined(__MACOSX__)
+#     define __MACOSX__
+#  endif
+#  if !defined(__UNIX__)
+#     define __UNIX__
+#  endif
+#endif
+
+// detect emscripten which is considered as an operating system
+#if defined(EMSCRIPTEN)
+#  define __EMSCRIPTEN__
+#endif
+
+// try to detect other Unix systems
+#if defined(__unix__) || defined (unix) || defined(__unix) || defined(_unix)
+#  if !defined(__UNIX__)
+#     define __UNIX__
+#  endif
+#endif
+
+/*-------------------------------------------------------------------------
+ - compiler
+ -------------------------------------------------------------------------*/
+
+// gcc compiler
+#ifdef __GNUC__
+// #define __GNUC__
+#endif
+
+// intel compiler
+#ifdef __INTEL_COMPILER
+#define __ICC__
+#endif
+
+// visual compiler
 #ifdef _MSC_VER
+#define __MSVC__
+#endif
+
+// clang compiler
+#ifdef __clang__
+#define __CLANG__
+#endif
+
+/*-------------------------------------------------------------------------
+ - macros
+ -------------------------------------------------------------------------*/
+
+#ifdef __MSVC__
 #undef NOINLINE
 #define NOINLINE        __declspec(noinline)
 #define INLINE          __forceinline
@@ -31,96 +134,6 @@
 
 #define DEFAULT_ALIGNMENT 8
 #define DEFAULT_ALIGNED ALIGNED(DEFAULT_ALIGNMENT)
-
-#ifdef __GNUC__
-#define gamma __gamma
-#endif
-
-#define _USE_MATH_DEFINES
-#include <cmath>
-
-#ifdef __GNUC__
-#undef gamma
-#endif
-
-#include <cstring>
-#include <cstdio>
-#include <cstdlib>
-#include <cstdarg>
-#include <climits>
-#include <cassert>
-#include <cfloat>
-#ifdef __GNUC__
-#include <new>
-#else
-#include <new.h>
-#endif
-#if defined(_MSC_VER)
-#include <malloc.h>
-#endif
-
-#define ASSERT assert
-
-namespace cube {
-
-/*-------------------------------------------------------------------------
- - Standard types
- -------------------------------------------------------------------------*/
-#if defined(__MSVC__)
-typedef          __int64 s64;
-typedef unsigned __int64 u64;
-typedef          __int32 s32;
-typedef unsigned __int32 u32;
-typedef          __int16 s16;
-typedef unsigned __int16 u16;
-typedef          __int8  s8;
-typedef unsigned __int8  u8;
-#else
-typedef          long long s64;
-typedef unsigned long long u64;
-typedef                int s32;
-typedef unsigned       int u32;
-typedef              short s16;
-typedef unsigned     short u16;
-typedef               char s8;
-typedef unsigned      char u8;
-#endif
-
-template <u32 sz> struct ptrtype {};
-template <> struct ptrtype<4> { typedef u32 value; };
-template <> struct ptrtype<8> { typedef u64 value; };
-typedef typename ptrtype<sizeof(void*)>::value uintptr;
-
-/*-------------------------------------------------------------------------
- - Various useful macros, helper classes or functions
- -------------------------------------------------------------------------*/
-#if defined(WIN32)
-  #undef min
-  #undef max
-#if defined(_MSC_VER)
-  INLINE bool finite (float x) {return _finite(x) != 0;}
-#endif
-#endif
-
-#define rnd(max) (rand()%(max))
-#define rndreset() (srand(1))
-#define rndtime() {loopi(lastmillis()()&0xF) rnd(i+1);}
-#define loop(v,m) for(int v = 0; v<(m); v++)
-#define loopi(m) loop(i,m)
-#define loopj(m) loop(j,m)
-#define loopk(m) loop(k,m)
-#define loopl(m) loop(l,m)
-#define loopv(v)    for(int i = 0; i<(v).length(); ++i)
-#define loopvj(v)   for(int j = 0; j<(v).length(); ++j)
-#define loopvrev(v) for(int i = (v).length()-1; i>=0; --i)
-
-#ifdef WIN32
-#define PATHDIV '\\'
-#else
-#define __cdecl
-#define _vsnprintf vsnprintf
-#define PATHDIV '/'
-#endif
 
 // concatenation
 #define JOIN(X, Y) _DO_JOIN(X, Y)
@@ -151,9 +164,65 @@ extern void set##NAME(TYPE x);
 #define ARRAY_ELEM_N(X) (sizeof(X) / sizeof(X[0]))
 #define MEMSET(X,V) memset(X,V,sizeof(X));
 #define MEMZERO(X) MEMSET(X,0)
+#define ASSERT assert
 
-#define PI  (3.1415927f)
-#define PI2 (2*PI)
+#if defined(__WIN32__)
+#define PATHDIV '\\'
+#else
+#define __cdecl
+#define _vsnprintf vsnprintf
+#define PATHDIV '/'
+#endif
+
+#if defined(__MSVC__)
+#include <malloc.h>
+#endif
+
+namespace cube {
+
+/*-------------------------------------------------------------------------
+ - Standard types
+ -------------------------------------------------------------------------*/
+#if defined(__MSVC__)
+typedef          __int64 s64;
+typedef unsigned __int64 u64;
+typedef          __int32 s32;
+typedef unsigned __int32 u32;
+typedef          __int16 s16;
+typedef unsigned __int16 u16;
+typedef          __int8  s8;
+typedef unsigned __int8  u8;
+#else
+typedef          long long s64;
+typedef unsigned long long u64;
+typedef                int s32;
+typedef unsigned       int u32;
+typedef              short s16;
+typedef unsigned     short u16;
+typedef               char s8;
+typedef unsigned      char u8;
+#endif
+template <u32 sz> struct ptrtype {};
+template <> struct ptrtype<4> { typedef u32 value; };
+template <> struct ptrtype<8> { typedef u64 value; };
+typedef typename ptrtype<sizeof(void*)>::value uintptr;
+
+typedef void *filehandle;
+
+/*-------------------------------------------------------------------------
+ - Various useful macros, helper classes or functions
+ -------------------------------------------------------------------------*/
+#define rnd(max) (rand()%(max))
+#define rndreset() (srand(1))
+#define rndtime() {loopi(lastmillis()()&0xF) rnd(i+1);}
+#define loop(v,m) for(int v = 0; v<(m); v++)
+#define loopi(m) loop(i,m)
+#define loopj(m) loop(j,m)
+#define loopk(m) loop(k,m)
+#define loopl(m) loop(l,m)
+#define loopv(v)    for(int i = 0; i<(v).length(); ++i)
+#define loopvj(v)   for(int j = 0; j<(v).length(); ++j)
+#define loopvrev(v) for(int i = (v).length()-1; i>=0; --i)
 
 class noncopyable {
 protected:
@@ -177,7 +246,7 @@ void meminit(void);
 void *memalloc(size_t sz, const char *filename, int linenum);
 void *memrealloc(void *ptr, size_t sz, const char *filename, int linenum);
 void memfree(void *);
-
+#if 1
 template <typename T, typename... Args>
 INLINE T *memconstructa(s32 n, const char *filename, int linenum, Args&&... args) {
   void *ptr = (void*) memalloc(n*sizeof(T)+DEFAULT_ALIGNMENT, filename, linenum);
@@ -211,7 +280,14 @@ template <typename T> INLINE void memdestroya(T *array) {
 #define NEWA(X,N,...) memconstructa<X>(N,__FILE__,__LINE__,__VA_ARGS__)
 #define SAFE_DELETE(X) do { if (X) memdestroy(X); X = NULL; } while (0)
 #define SAFE_DELETEA(X) do { if (X) memdestroya(X); X = NULL; } while (0)
-
+#else
+#define MALLOC(SZ) cube::memalloc(SZ, __FILE__, __LINE__)
+#define REALLOC(PTR, SZ) cube::memrealloc(PTR, SZ, __FILE__, __LINE__)
+#define FREE(PTR) cube::memfree(PTR)
+#define NEW new (__FILE__, __LINE__)
+#define SAFE_DELETE(X) do { if (X) delete X; X = NULL; } while (0)
+#define SAFE_DELETEA(X) do { if (X) delete[] X; X = NULL; } while (0)
+#endif
 void fatal(const char *s, const char *o = "");
 void keyrepeat(bool on);
 
@@ -219,4 +295,14 @@ static const int KB = 1024;
 static const int MB = KB*KB;
 
 } // namespace cube
+#if 0
+INLINE void *operator new (size_t sz, const char *filename, int linenum) {
+  return cube::memalloc(sz, filename, linenum);
+}
+INLINE void *operator new[] (size_t sz, const char *filename, int linenum) {
+  return cube::memalloc(sz, filename, linenum);
+}
+INLINE void operator delete[](void *ptr) { return cube::memfree(ptr); }
+INLINE void operator delete  (void *ptr) { return cube::memfree(ptr); }
+#endif
 

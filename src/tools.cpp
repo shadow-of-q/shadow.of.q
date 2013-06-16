@@ -3,9 +3,9 @@
 #if defined(MEMORY_DEBUGGER)
 #include <SDL/SDL_mutex.h>
 #endif // defined(MEMORY_DEBUGGER)
-#include <cstdlib>
+#include <cstdio>
 
-#if !defined(_MSC_VER)
+#if !defined(__MSVC__)
 #include "unistd.h"
 #endif
 

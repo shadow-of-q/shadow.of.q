@@ -145,7 +145,7 @@ void monsteraction(dynent *m) {
   }
 
   const float disttoenemy = distance(m->o, m->enemy->o);
-  m->pitch = atan2(m->enemy->o.z-m->o.z, disttoenemy)*180/PI;
+  m->pitch = atan2(m->enemy->o.z-m->o.z, disttoenemy)*180.f/float(pi);
 
   if (m->blocked) { // special case: if we run into scenery
     m->blocked = false;
@@ -158,7 +158,7 @@ void monsteraction(dynent *m) {
     }
   }
 
-  const float enemyyaw = -float(atan2(m->enemy->o.x - m->o.x, m->enemy->o.y - m->o.y))/PI*180.f+180.f;
+  const float enemyyaw = -atan2(m->enemy->o.x - m->o.x, m->enemy->o.y - m->o.y)/float(pi)*180.f+180.f;
 
   switch (m->monsterstate) {
     case M_PAIN:

@@ -1,4 +1,6 @@
 #include "stl.hpp"
+#include <cstdio>
+
 namespace cube {
 static int islittleendian_ = 1;
 void initendiancheck(void) { islittleendian_ = *((char *)&islittleendian_); }
@@ -15,6 +17,17 @@ char *newstring(const char *s, const char *filename, int linenum) {
 }
 char *newstringbuf(const char *s, const char *filename, int linenum) {
   return newstring(s, _MAXDEFSTR-1, filename, linenum);
+}
+void formatstring(char *d, const char *fmt, va_list v) {
+  _vsnprintf(d, _MAXDEFSTR, fmt, v);
+  d[_MAXDEFSTR-1] = 0;
+}
+void sprintf_s_f::operator()(const char* fmt, ...) {
+  va_list v;
+  va_start(v, fmt);
+  _vsnprintf(d, _MAXDEFSTR, fmt, v);
+  va_end(v);
+  d[_MAXDEFSTR-1] = 0;
 }
 
 char *path(char *s) {

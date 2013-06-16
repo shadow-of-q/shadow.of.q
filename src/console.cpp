@@ -2,7 +2,7 @@
 #include <ctype.h>
 #include <SDL/SDL.h>
 
-#ifndef WIN32
+#if !defined(__WIN32__)
 #include <X11/Xlib.h>
 #include <SDL/SDL_syswm.h>
 #endif
@@ -68,7 +68,7 @@ static void line(const char *sf, bool highlight) {
   } else
     strcpy_s(cl.cref, sf);
   puts(cl.cref);
-#ifndef WIN32
+#if defined(__WIN32__)
   fflush(stdout);
 #endif
 }
