@@ -12,46 +12,31 @@
 namespace cube {
 
 #if defined(MEMORY_DEBUGGER)
-struct memnode {
-  memnode *prev, *next;
-};
-static memnode memroot = {&memroot, &memroot};
-struct DEFAULT_ALIGNED memblock : memnode {
+struct DEFAULT_ALIGNED memblock : intrusive_list_node {
+  INLINE memblock(size_t sz, const char *file, int linenum) :
+    file(file), linenum(linenum), allocnum(0), size(sz)
+  {rbound() = lbound() = 0xdeadc0de;}
   const char *file;
-  u32 linenum;
-  u32 allocnum;
-  u32 size;
+  u32 linenum, allocnum, size;
   u32 bound;
   INLINE u32 &rbound(void) {return (&bound)[size/sizeof(u32)+1];}
   INLINE u32 &lbound(void) {return bound;}
 };
+
+static intrusive_list<memblock> *memlist = NULL;
 static SDL_mutex *memmutex = NULL;
 static u32 memallocnum = 0;
 static bool memfirstalloc = true;
 
-static void meminitblock(memblock *block, size_t sz, const char *file, int linenum) {
-  block->file = file;
-  block->linenum = linenum;
-  block->allocnum = 0;
-  block->size = sz;
-  block->next = block->prev = NULL;
-  block->rbound() = block->lbound() = 0xdeadc0de;
-}
-static void memlinknode(memnode *node, memnode *next) {
+static void memlinkblock(memblock *node) {
   if (memmutex) SDL_LockMutex(memmutex);
-  ((memblock*)node)->allocnum = memallocnum++;
-  node->prev = next->prev;
-  node->prev->next = node;
-  next->prev = node;
-  node->next = next;
+  node->allocnum = memallocnum++;
+  memlist->push_back(node);
   if (memmutex) SDL_UnlockMutex(memmutex);
 }
-static void memunlinknode(memnode *node) {
+static void memunlinkblock(memblock *node) {
   if (memmutex) SDL_LockMutex(memmutex);
-  ((memblock*)node)->allocnum = memallocnum++;
-  node->prev->next = node->next;
-  node->next->prev = node->prev;
-  node->next = node->prev = node;
+  unlink(node);
   if (memmutex) SDL_UnlockMutex(memmutex);
 }
 
@@ -66,18 +51,21 @@ static void memcheckbounds(memblock *node) {
   }
 }
 static void memoutputalloc(void) {
-  memnode *node = memroot.next;
   size_t sz = 0;
-  while (node != &memroot) {
-    MEMALLOC(unfreed, (memblock*)node);
-    fprintf(stderr, "unfreed allocation: %s\n", unfreed);
-    sz += ((memblock*)node)->size;
-    node = node->next;
+  if (memlist != NULL) {
+    for (auto it = memlist->begin(); it != memlist->end(); ++it) {
+      MEMALLOC(unfreed, it);
+      fprintf(stderr, "unfreed allocation: %s\n", unfreed);
+      sz += it->size;
+    }
+    if (sz > 0) fprintf(stderr, "total unfreed: %fKB \n", float(sz)/1000.f);
+    delete memlist; 
   }
-  fprintf(stderr, "total unfreed: %fKB \n", float(sz)/1000.f);
 }
+
 static void memonfirstalloc(void) {
   if (memfirstalloc) {
+    memlist = new intrusive_list<memblock>();
     atexit(memoutputalloc);
     memfirstalloc = false;
   }
@@ -89,9 +77,9 @@ void *memalloc(size_t sz, const char *filename, int linenum) {
   memonfirstalloc();
   if (sz) {
     sz = ALIGN(sz, DEFAULT_ALIGNMENT);
-    auto block = (memblock*) malloc(sz+sizeof(memblock)+sizeof(u32));
-    meminitblock(block, sz, filename, linenum);
-    memlinknode(block, &memroot);
+    auto ptr = malloc(sz+sizeof(memblock)+sizeof(u32));
+    auto block = new (ptr) memblock(sz, filename, linenum);
+    memlinkblock(block);
     return (void*) (block+1);
   } else
     return NULL;
@@ -102,7 +90,7 @@ void memfree(void *ptr) {
   if (ptr) {
     auto block = (memblock*)((char*)ptr-sizeof(memblock));
     memcheckbounds(block);
-    memunlinknode(block);
+    memunlinkblock(block);
     free(block);
   }
 }
@@ -112,13 +100,13 @@ void *memrealloc(void *ptr, size_t sz, const char *filename, int linenum) {
   auto block = (memblock*)((char*)ptr-sizeof(memblock));
   if (ptr) {
     memcheckbounds(block);
-    memunlinknode(block);
+    memunlinkblock(block);
   }
   if (sz) {
     sz = ALIGN(sz, DEFAULT_ALIGNMENT);
-    block = (memblock*) realloc(block, sz+sizeof(memblock)+sizeof(u32));
-    meminitblock(block, sz, filename, linenum);
-    memlinknode(block, &memroot);
+    auto ptr = realloc(block, sz+sizeof(memblock)+sizeof(u32));
+    block = new (ptr) memblock(sz, filename, linenum);
+    memlinkblock(block);
     return (void*) (block+1);
   } else if (ptr)
     free(block);

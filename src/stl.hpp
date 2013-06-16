@@ -494,8 +494,8 @@ struct intrusive_list_node {
 };
 void append(intrusive_list_node *node, intrusive_list_node *prev);
 void prepend(intrusive_list_node *node, intrusive_list_node *next);
-void link(intrusive_list_node* node, intrusive_list_node* nextNode);
-void unlink(intrusive_list_node* node);
+void link(intrusive_list_node *node, intrusive_list_node *next);
+void unlink(intrusive_list_node *node);
 
 template<typename pointer, typename reference>
 struct intrusive_list_iterator {
