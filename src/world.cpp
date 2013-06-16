@@ -133,10 +133,10 @@ static string cgzname, bakname, pcfname, mcfname;
 
 struct deletegrid {
   template <typename G> void operator()(G &g, vec3i) const {
-    if (uintptr_t(&g)!=uintptr_t(&root)) {
+    if (uintptr(&g)!=uintptr(&root)) {
       auto ptr= &g;
-	  SAFE_DELETE(ptr);
-	}
+      SAFE_DELETE(ptr);
+    }
   }
 };
 static void empty(void) {
@@ -395,14 +395,10 @@ isecres castray(const ray &ray) {
 
 VAR(usebvh,0,0,1);
 
-bvh::intersector *buildbvh(void) {
-  console::out("bvh: starting to build data structure");
-
-  // prepare all triangles
-  auto start = SDL_GetTicks();
-  vector<bvh::primitive> bvhprims;
-  u32 boxnum = 0, trinum = 0;
-  const auto addcube = [&] (const brickcube &c, vec3i xyz) {
+namespace {
+struct addcube {
+  INLINE addcube(vector<bvh::primitive> &prims) : prims(&prims), trinum(0), boxnum(0) {}
+  void operator () (const brickcube &c, const vec3i &xyz) const {
     if (c.mat == EMPTY) return;
 
     // figure out if the cube is visible and which faces are visible
@@ -415,38 +411,99 @@ bvh::intersector *buildbvh(void) {
 
     // figure out if the cube is unchanged (i.e. not deformed)
     vec3f vertices[8];
+    vec3<s8> displacements[8];
     bool anydeformed = false;
     loopk(8) {
       const auto &c = world::getcube(xyz+cubeiverts[k]);
-      vertices[k] = vec3f(c.p)/255.f;
+      displacements[k] = c.p;
+      vertices[k] = vec3f(xyz)+cubefverts[k]+vec3f(c.p)/255.f;
       if (any(c.p != vec3<s8>(zero)))
         anydeformed = true;
     }
 
+    // fast path: it is an unchanged cube
+    if (!anydeformed) {
+      boxnum++;
+      prims->add(bvh::primitive(aabb(vec3f(xyz), vec3f(xyz)+vec3f(one))));
+      return;
+    }
+
+    // we figure out if this is still a box. we loop over the faces
+    // and see if they have been pushed or pulled in the same way
+    anydeformed = false;
+    loopi(6) {
+      const auto dir = i/2;
+      const auto idx = cubequads[i];
+      const auto first = displacements[idx[0]][dir];
+      loopj(3) {
+        const auto curr = displacements[idx[j+1]][dir];
+        if (curr != first) {
+          anydeformed = true;
+          break;
+        }
+      }
+      if (anydeformed) break;
+    }
+
+    // deformed but still a box
+    if (!anydeformed) {
+      aabb box(FLT_MAX, -FLT_MAX);
+      boxnum++;
+      loopi(8) {
+        box.pmin = min(box.pmin, vertices[i]);
+        box.pmax = max(box.pmax, vertices[i]);
+      }
+      prims->add(bvh::primitive(box));
+      return;
+    }
+
     // we have a deformed cube. we must output the individual faces
-    if (anydeformed) loopk(6) {
+    loopk(6) {
       if (!visible[k]) continue;
       const int idx0 = 2*k+0, idx1 = 2*k+1;
       const vec3i tris[] = {cubetris[idx0], cubetris[idx1]};
       loopi(2) {
         vec3f v[3];
-        loopj(3) {
-          const auto global = xyz+cubeiverts[tris[i][j]];
-          v[j] = vec3f(global)+vertices[tris[i][j]];
-        }
+        loopj(3) v[j] = vertices[tris[i][j]];
         trinum++;
-        bvhprims.add(bvh::primitive(v[0],v[1],v[2]));
+        prims->add(bvh::primitive(v[0],v[1],v[2]));
       }
-    } else {
-      boxnum++;
-      bvhprims.add(bvh::primitive(aabb(vec3f(xyz), vec3f(xyz)+vec3f(one))));
     }
-  };
-  forallcubes(addcube);
+  }
+  vector<bvh::primitive> *prims;
+  mutable u32 trinum, boxnum;
+};
+}
+
+VAR(twolevelbvh, 0, 1, 1);
+
+bvh::intersector *buildbvh(void) {
+  console::out("bvh: starting to build data structure");
+  auto start = SDL_GetTicks();
+  vector<bvh::primitive> bvhprims;
+
+  // build one bvh per brick
+  u32 boxnum = 0, trinum = 0;
+  if (twolevelbvh) {
+    forallbricks([&](lvl1grid &b, vec3i org) {
+      vector<bvh::primitive> prims;
+      auto functor = addcube(prims);
+      b.forallcubes(functor, org);
+      if (prims.length() > 0) {
+        auto prim = bvh::primitive(bvh::create(&prims[0], prims.length()));
+        bvhprims.add(prim);
+      }
+      boxnum += functor.boxnum;
+      trinum += functor.trinum;
+    });
+  }
+  // build one bvh only
+  else
+    forallcubes(addcube(bvhprims));
+
   console::out("bvh: %i generated primitives with %i boxes and %i triangles (%i ms elapsed)",
     bvhprims.length(), boxnum, trinum, SDL_GetTicks()-start);
 
-  start = SDL_GetTicks();
   if (bvhprims.length() > 0) {
     auto isec = bvh::create(&bvhprims[0], bvhprims.length());
     console::out("bvh: data structure created (%i ms elapsed)", SDL_GetTicks()-start);

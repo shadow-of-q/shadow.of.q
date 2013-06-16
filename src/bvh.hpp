@@ -20,7 +20,7 @@ bool occluded(const struct intersector&, const struct ray&);
 // opaque intersector data structure
 struct intersector *create(const struct primitive*, int n);
 void destroy(struct intersector*);
-aabb getaabb(const struct intersector&);
+aabb getaabb(const struct intersector*);
 
 // May be either a triangle, a bounding box and an intersector
 struct primitive {
@@ -35,7 +35,7 @@ struct primitive {
     v[0]=box.pmin;
     v[1]=box.pmax;
   }
-  INLINE primitive(const intersector &isec) : isec(&isec), type(INTERSECTOR) {
+  INLINE primitive(const intersector *isec) : isec(isec), type(INTERSECTOR) {
     const aabb box = bvh::getaabb(isec);
     v[0]=box.pmin;
     v[1]=box.pmax;

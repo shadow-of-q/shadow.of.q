@@ -58,8 +58,8 @@ struct intersector {
 };
 static_assert(sizeof(intersector::node) == 32,"invalid node size");
 
-aabb getaabb(const struct intersector &isec) {
-  return isec.root[0].box;
+aabb getaabb(const struct intersector *isec) {
+  return isec->root[0].box;
 }
 
 struct centroid {
@@ -396,6 +396,7 @@ void closest(const intersector &bvhtree, const ray &r, hit &hit) {
     for (;;) {
       auto res = slab(node->box, r.org, r.rdir, hit.t);
       if (!res.isec) break;
+    processnode:
       const u32 flag = node->getflag();
       if (flag == intersector::NONLEAF) {
         const s32 second = signs[node->getaxis()];
@@ -415,7 +416,7 @@ void closest(const intersector &bvhtree, const ray &r, hit &hit) {
           break;
         } else {
           node = node->getptr<intersector>()->root;
-          continue;
+          goto processnode;
         }
       }
     }
@@ -432,6 +433,7 @@ bool occluded(const intersector &bvhtree, const ray &r) {
     for (;;) {
       auto res = slab(node->box, r.org, r.rdir, r.tfar);
       if (!res.isec) break;
+    processnode:
       const u32 flag = node->getflag();
       if (flag == intersector::NONLEAF) {
         const u32 offset = node->getoffset();
@@ -446,7 +448,7 @@ bool occluded(const intersector &bvhtree, const ray &r) {
           loopi(n) if (raytriangle<true>(tris[i], r)) return true;
         } else {
           node = node->getptr<intersector>()->root;
-          continue;
+          goto processnode;
         }
         break;
       }

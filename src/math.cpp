@@ -66,8 +66,8 @@ const vec3i cubeiverts[8] = {
   vec3i(1,0,0)/*4*/, vec3i(1,0,1)/*5*/, vec3i(1,1,1)/*6*/, vec3i(1,1,0)/*7*/
 };
 const vec3f cubefverts[8] = {
-  vec3f(0.f,0.f,0.f), vec3f(0.f,1.f,0.f), vec3f(0.f,1.f,1.f), vec3f(0.f,0.f,1.f),
-  vec3f(1.f,0.f,0.f), vec3f(1.f,1.f,0.f), vec3f(1.f,1.f,1.f), vec3f(1.f,0.f,1.f)
+  vec3f(0.f,0.f,0.f)/*0*/, vec3f(0.f,0.f,1.f)/*1*/, vec3f(0.f,1.f,1.f)/*2*/, vec3f(0.f,1.f,0.f)/*3*/,
+  vec3f(1.f,0.f,0.f)/*4*/, vec3f(1.f,0.f,1.f)/*5*/, vec3f(1.f,1.f,1.f)/*6*/, vec3f(1.f,1.f,0.f)/*7*/
 };
 const vec3i cubetris[12] = {
   vec3i(0,1,2), vec3i(0,2,3), vec3i(4,7,6), vec3i(4,6,5), // -x,+x triangles
