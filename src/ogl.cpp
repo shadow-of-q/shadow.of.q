@@ -488,19 +488,19 @@ static u32 loadshader(GLenum type, const char *source, const char *rulestr) {
   return name;
 }
 
-#if !defined(__WEBGL__)
-#define OGL_PROGRAM_HEADER\
-  "#version 130\n"\
-  "#define VS_IN in\n"\
-  "#define VS_OUT out\n"\
-  "#define PS_IN in\n"
-#else
+#if defined(__WEBGL__)
 #define OGL_PROGRAM_HEADER\
   "precision highp float;\n"\
   "#define VS_IN attribute\n"\
   "#define VS_OUT varying\n"\
   "#define PS_IN varying\n"
-#endif
+#else
+#define OGL_PROGRAM_HEADER\
+  "#version 130\n"\
+  "#define VS_IN in\n"\
+  "#define VS_OUT out\n"\
+  "#define PS_IN in\n"
+#endif // __WEBGL__
 
 static u32 loadprogram(const char *vertstr, const char *fragstr, u32 rules) {
   u32 program = 0;

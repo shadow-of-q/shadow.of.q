@@ -11,6 +11,9 @@ namespace cube {
  -------------------------------------------------------------------------*/
 template<class T> INLINE float heapscore(const T &n) { return n; }
 template<class T> INLINE bool compareless(const T &x, const T &y) { return x < y; }
+static struct niltype {} nil MAYBE_UNUSED;
+static struct infype {} inf MAYBE_UNUSED;
+static struct neginfype {} neginf MAYBE_UNUSED;
 
 #ifdef swap
 #undef swap
@@ -479,5 +482,172 @@ template <class T> struct hashtable {
     return NULL;
   }
 };
+
+/*-------------------------------------------------------------------------
+ - intrusive list
+ -------------------------------------------------------------------------*/
+struct intrusive_list_node {
+  INLINE intrusive_list_node(void) { next = prev = this; }
+  INLINE bool in_list(void) const  { return this != next; }
+  intrusive_list_node *next;
+  intrusive_list_node *prev;
+};
+void append(intrusive_list_node *node, intrusive_list_node *prev);
+void prepend(intrusive_list_node *node, intrusive_list_node *next);
+void link(intrusive_list_node* node, intrusive_list_node* nextNode);
+void unlink(intrusive_list_node* node);
+
+template<typename pointer, typename reference>
+struct intrusive_list_iterator {
+  INLINE intrusive_list_iterator(void): m_node(0) {}
+  INLINE intrusive_list_iterator(pointer iterNode) : m_node(iterNode) {}
+  INLINE reference operator*(void) const {
+    GBE_ASSERT(m_node);
+    return *m_node;
+  }
+  INLINE pointer operator->(void) const { return m_node; }
+  INLINE pointer node(void) const { return m_node; }
+  INLINE intrusive_list_iterator& operator++(void) {
+    m_node = static_cast<pointer>(m_node->next);
+    return *this;
+  }
+  INLINE intrusive_list_iterator& operator--(void) {
+    m_node = static_cast<pointer>(m_node->prev);
+    return *this;
+  }
+  INLINE intrusive_list_iterator operator++(int) {
+    intrusive_list_iterator copy(*this);
+    ++(*this);
+    return copy;
+  }
+  INLINE intrusive_list_iterator operator--(int) {
+    intrusive_list_iterator copy(*this);
+    --(*this);
+    return copy;
+  }
+  INLINE bool operator== (const intrusive_list_iterator& rhs) const {
+    return rhs.m_node == m_node;
+  }
+  INLINE bool operator!= (const intrusive_list_iterator& rhs) const {
+    return !(rhs == *this);
+  }
+private:
+  pointer m_node;
+};
+
+struct intrusive_list_base {
+public:
+  typedef size_t size_type;
+  INLINE void pop_back(void) { unlink(m_root.prev); }
+  INLINE void pop_front(void) { unlink(m_root.next); }
+  INLINE bool empty(void) const  { return !m_root.in_list(); }
+  size_type size(void) const;
+protected:
+  intrusive_list_base(void);
+  INLINE ~intrusive_list_base(void) {}
+  intrusive_list_node m_root;
+private:
+  intrusive_list_base(const intrusive_list_base&);
+  intrusive_list_base& operator=(const intrusive_list_base&);
+};
+
+template<class T> struct intrusive_list : public intrusive_list_base {
+  typedef T node_type;
+  typedef T value_type;
+  typedef intrusive_list_iterator<T*, T&> iterator;
+  typedef intrusive_list_iterator<const T*, const T&> const_iterator;
+
+  intrusive_list(void) : intrusive_list_base() {
+    intrusive_list_node* testNode((T*)0);
+    static_cast<void>(sizeof(testNode));
+  }
+
+  void push_back(value_type* v) { link(v, &m_root); }
+  void push_front(value_type* v) { link(v, m_root.next); }
+
+  iterator begin(void)  { return iterator(upcast(m_root.next)); }
+  iterator end(void)    { return iterator(upcast(&m_root)); }
+  iterator rbegin(void) { return iterator(upcast(m_root.prev)); }
+  iterator rend(void)   { return iterator(upcast(&m_root)); }
+  const_iterator begin(void) const  { return const_iterator(upcast(m_root.next)); }
+  const_iterator end(void) const    { return const_iterator(upcast(&m_root)); }
+  const_iterator rbegin(void) const { return const_iterator(upcast(m_root.prev)); }
+  const_iterator rend(void) const   { return const_iterator(upcast(&m_root)); }
+
+  INLINE value_type *front(void) { return upcast(m_root.next); }
+  INLINE value_type *back(void)  { return upcast(m_root.prev); }
+  INLINE const value_type *front(void) const { return upcast(m_root.next); }
+  INLINE const value_type *back(void) const  { return upcast(m_root.prev); }
+
+  iterator insert(iterator pos, value_type* v) {
+    link(v, pos.node());
+    return iterator(v);
+  }
+  iterator erase(iterator it) {
+    iterator it_erase(it);
+    ++it;
+    unlink(it_erase.node());
+    return it;
+  }
+  iterator erase(iterator first, iterator last) {
+    while (first != last) first = erase(first);
+    return first;
+  }
+
+  INLINE void clear(void) { erase(begin(), end()); }
+  INLINE void fastclear(void) { m_root.next = m_root.prev = &m_root; }
+  static void remove(value_type* v) { unlink(v); }
+private:
+  static INLINE node_type* upcast(intrusive_list_node* n) {
+    return static_cast<node_type*>(n);
+  }
+  static INLINE const node_type* upcast(const intrusive_list_node* n) {
+    return static_cast<const node_type*>(n);
+  }
+};
+
+/*-------------------------------------------------------------------------
+ - reference counted object
+ -------------------------------------------------------------------------*/
+struct refcount {
+  INLINE refcount(void) : refcounter(0) {}
+  virtual ~refcount(void) {}
+  INLINE void refinc(void) { refcounter++; }
+  INLINE bool refdec(void) { return !(--refcounter); }
+  atomic refcounter;
+};
+
+template<typename T> struct ref {
+  INLINE ref(void) : ptr(NULL) {}
+  INLINE ref(const ref& input) : ptr(input.ptr) { if (ptr) ptr->refinc(); }
+  INLINE ref(T* const input) : ptr(input) { if (ptr) ptr->refinc(); }
+  INLINE ~ref(void) { if (ptr && ptr->refdec()) SAFE_DELETE(ptr); }
+  INLINE operator bool(void) const       { return ptr != NULL; }
+  INLINE operator T* (void)  const       { return ptr; }
+  INLINE const T& operator* (void) const { return *ptr ;}
+  INLINE const T* operator->(void) const { return  ptr;}
+  INLINE T& operator* (void) {return *ptr;}
+  INLINE T* operator->(void) {return  ptr;}
+  INLINE ref &operator= (const ref &input);
+  INLINE ref &operator= (niltype);
+  template<typename U> INLINE ref<U> cast(void) { return ref<U>((U*)(ptr)); }
+  template<typename U> INLINE const ref<U> cast(void) const { return ref<U>((U*)(ptr)); }
+  T* const ptr;
+};
+
+template <typename T>
+INLINE ref<T> &ref<T>::operator= (const ref<T> &input) {
+  if (input.ptr) input.ptr->refInc();
+  if (ptr && ptr->refDec()) SAFE_DELETE(ptr);
+  *(T**)&ptr = input.ptr;
+  return *this;
+}
+template <typename T>
+INLINE ref<T> &ref<T>::operator= (niltype) {
+  if (ptr && ptr->refDec()) SAFE_DELETE(ptr);
+  *(T**)&ptr = NULL;
+  return *this;
+}
+
 } // namespace cube
 

@@ -475,7 +475,7 @@ struct addcube {
 };
 }
 
-VAR(twolevelbvh, 0, 1, 1);
+VAR(twolevelbvh, 0, 0, 1);
 
 bvh::intersector *buildbvh(void) {
   console::out("bvh: starting to build data structure");

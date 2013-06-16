@@ -42,7 +42,7 @@ static const struct TYPE {\
   INLINE operator u16(void) const {return u16(NUM);}\
   INLINE operator s8 (void) const {return s8 (NUM);}\
   INLINE operator u8 (void) const {return u8 (NUM);}\
-} VALUE;
+} VALUE MAYBE_UNUSED;
 CONSTANT_TYPE(zerotype,zero,0);
 CONSTANT_TYPE(onetype,one,1);
 CONSTANT_TYPE(twotype,two,2);

@@ -108,6 +108,7 @@
  -------------------------------------------------------------------------*/
 
 #ifdef __MSVC__
+#include <intrin.h>
 #undef NOINLINE
 #define NOINLINE        __declspec(noinline)
 #define INLINE          __forceinline
@@ -116,8 +117,16 @@
 #define ALIGNED(...)    __declspec(align(__VA_ARGS__))
 //#define __FUNCTION__  __FUNCTION__
 #define DEBUGBREAK      __debugbreak()
-#define alloca _alloca
+#define COMPILER_WRITE_BARRIER       _WriteBarrier()
+#define COMPILER_READ_WRITE_BARRIER  _ReadWriteBarrier()
+#if _MSC_VER >= 1400
+#pragma intrinsic(_ReadBarrier)
+#define COMPILER_READ_BARRIER        _ReadBarrier()
 #else
+#define COMPILER_READ_BARRIER        _ReadWriteBarrier()
+#endif // _MSC_VER >= 1400
+#define alloca _alloca
+#else // __MSVC__
 #undef NOINLINE
 #undef INLINE
 #define NOINLINE        __attribute__((noinline))
@@ -127,8 +136,12 @@
 #define ALIGNED(...)    __attribute__((aligned(__VA_ARGS__)))
 #define __FUNCTION__    __PRETTY_FUNCTION__
 #define DEBUGBREAK      asm ("int $3")
-#endif
+#define COMPILER_READ_WRITE_BARRIER asm volatile("" ::: "memory");
+#define COMPILER_WRITE_BARRIER COMPILER_READ_WRITE_BARRIER
+#define COMPILER_READ_BARRIER COMPILER_READ_WRITE_BARRIER
+#endif // __MSVC__
 
+// alignment rules
 #define DEFAULT_ALIGNMENT 8
 #define DEFAULT_ALIGNED ALIGNED(DEFAULT_ALIGNMENT)
 
@@ -139,6 +152,12 @@
 
 // align X on A
 #define ALIGN(X,A) (((X) % (A)) ? ((X) + (A) - ((X) % (A))) : (X))
+
+#ifdef __GNUC__
+  #define MAYBE_UNUSED __attribute__((used))
+#else
+  #define MAYBE_UNUSED
+#endif
 
 // useful for repetitive calls to same functions
 #define MAKE_VARIADIC(NAME)\
@@ -282,6 +301,57 @@ void keyrepeat(bool on);
 
 static const int KB = 1024;
 static const int MB = KB*KB;
+
+/*-------------------------------------------------------------------------
+ - atomics
+ -------------------------------------------------------------------------*/
+#if defined(__MSVC__)
+INLINE s32 atomic_add(volatile s32* m, const s32 v) {
+  return _InterlockedExchangeAdd((volatile long*)m,v);
+}
+INLINE s32 atomic_cmpxchg(volatile s32* m, const s32 v, const s32 c) {
+  return _InterlockedCompareExchange((volatile long*)m,v,c);
+}
+#elif defined(__JAVASCRIPT__)
+INLINE s32 atomic_add(s32 volatile* value, s32 input) {
+  const s32 initial = value;
+  *value += input;
+  return initial;
+}
+INLINE s32 atomic_cmpxchg(volatile s32* m, const s32 v, const s32 c) {
+  const s32 initial = *m;
+  if (*m == c) *m = v;
+  return initial;
+}
+#else
+INLINE s32 atomic_add(s32 volatile* value, s32 input) {
+  asm volatile("lock xadd %0,%1" : "+r"(input), "+m"(*value) : "r"(input), "m"(*value));
+  return input;
+}
+
+INLINE s32 atomic_cmpxchg(s32 volatile* value, const s32 input, s32 comparand) {
+  asm volatile("lock cmpxchg %2,%0" : "=m"(*value), "=a"(comparand) : "r"(input), "m"(*value), "a"(comparand) : "flags");
+  return comparand;
+}
+#endif // __MSVC__
+
+struct atomic : noncopyable {
+public:
+  INLINE atomic(void) {}
+  INLINE atomic(s32 data) : data(data) {}
+  INLINE atomic& operator =(const s32 input) { data = input; return *this; }
+  INLINE operator s32(void) const { return data; }
+public:
+  INLINE friend s32 operator+= (atomic& value, s32 input) { return atomic_add(&value.data, input) + input; }
+  INLINE friend s32 operator++ (atomic& value) { return atomic_add(&value.data,  1) + 1; }
+  INLINE friend s32 operator-- (atomic& value) { return atomic_add(&value.data, -1) - 1; }
+  INLINE friend s32 operator++ (atomic& value, int) { return atomic_add(&value.data,  1); }
+  INLINE friend s32 operator-- (atomic& value, int) { return atomic_add(&value.data, -1); }
+  INLINE friend s32 cmpxchg    (atomic& value, const s32 v, const s32 c) { return atomic_cmpxchg(&value.data,v,c); }
+
+private:
+  volatile s32 data;
+};
 
 } // namespace cube
 
