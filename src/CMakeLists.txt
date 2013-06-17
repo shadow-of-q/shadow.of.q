@@ -27,6 +27,7 @@ set (CLIENT_SRC
   serverutil.cpp
   sound.cpp
   stl.cpp
+  task.cpp
   tools.cpp
   weapon.cpp
   world.cpp)

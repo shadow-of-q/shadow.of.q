@@ -637,14 +637,14 @@ template<typename T> struct ref {
 
 template <typename T>
 INLINE ref<T> &ref<T>::operator= (const ref<T> &input) {
-  if (input.ptr) input.ptr->refInc();
-  if (ptr && ptr->refDec()) SAFE_DELETE(ptr);
+  if (input.ptr) input.ptr->refinc();
+  if (ptr && ptr->refdec()) SAFE_DELETE(ptr);
   *(T**)&ptr = input.ptr;
   return *this;
 }
 template <typename T>
 INLINE ref<T> &ref<T>::operator= (niltype) {
-  if (ptr && ptr->refDec()) SAFE_DELETE(ptr);
+  if (ptr && ptr->refdec()) SAFE_DELETE(ptr);
   *(T**)&ptr = NULL;
   return *this;
 }

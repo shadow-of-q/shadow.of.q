@@ -188,8 +188,6 @@ template <u32 axis> INLINE partition sweep(compiler &c, int first, int last) {
   const auto harea = box.halfarea();
   part.cost *= sahintersectioncost;
   part.cost += sahtraversalcost * harea;
-
-  // we want at most maxprimitivenum
   if (primnum > maxprimitivenum) return part;
 
   // test the last partition where all primitives are inside one node

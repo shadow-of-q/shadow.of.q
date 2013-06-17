@@ -40,9 +40,9 @@ static void memunlinkblock(memblock *node) {
   if (memmutex) SDL_UnlockMutex(memmutex);
 }
 
-#define MEMALLOC(S,B)\
-  sprintf_sd(S)("file: %s, line %i, size %i bytes, alloc, %i", (B)->file, (B)->linenum, (B)->size, (B)->allocnum)
-
+#define MEMOUT(S,B)\
+  sprintf_sd(S)("file: %s, line %i, size %i bytes, alloc, %i",\
+                (B)->file, (B)->linenum, (B)->size, (B)->allocnum)
 static void memcheckbounds(memblock *node) {
   if (node->lbound() != 0xdeadc0de || node->rbound() != 0xdeadc0de) {
     fprintf(stderr, "memory corruption detected (alloc %i)\n", node->allocnum);
@@ -54,7 +54,7 @@ static void memoutputalloc(void) {
   size_t sz = 0;
   if (memlist != NULL) {
     for (auto it = memlist->begin(); it != memlist->end(); ++it) {
-      MEMALLOC(unfreed, it);
+      MEMOUT(unfreed, it);
       fprintf(stderr, "unfreed allocation: %s\n", unfreed);
       sz += it->size;
     }
@@ -70,7 +70,7 @@ static void memonfirstalloc(void) {
     memfirstalloc = false;
   }
 }
-#undef MEMALLOC
+#undef MEMOUT
 
 void meminit(void) { memmutex = SDL_CreateMutex(); }
 void *memalloc(size_t sz, const char *filename, int linenum) {
