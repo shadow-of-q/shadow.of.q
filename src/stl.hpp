@@ -609,22 +609,14 @@ private:
 /*-------------------------------------------------------------------------
  - reference counted object
  -------------------------------------------------------------------------*/
-struct refcount {
-  INLINE refcount(void) : refcounter(0) {}
-  virtual ~refcount(void) {}
-  INLINE void refinc(void) { refcounter++; }
-  INLINE bool refdec(void) { return !(--refcounter); }
-  atomic refcounter;
-};
-
 template<typename T> struct ref {
   INLINE ref(void) : ptr(NULL) {}
-  INLINE ref(const ref& input) : ptr(input.ptr) { if (ptr) ptr->refinc(); }
-  INLINE ref(T* const input) : ptr(input) { if (ptr) ptr->refinc(); }
-  INLINE ~ref(void) { if (ptr && ptr->refdec()) SAFE_DELETE(ptr); }
+  INLINE ref(const ref &input) : ptr(input.ptr) { if (ptr) ptr->acquire(); }
+  INLINE ref(T* const input) : ptr(input) { if (ptr) ptr->acquire(); }
+  INLINE ~ref(void) { if (ptr) ptr->release();  }
   INLINE operator bool(void) const       { return ptr != NULL; }
   INLINE operator T* (void)  const       { return ptr; }
-  INLINE const T& operator* (void) const { return *ptr ;}
+  INLINE const T& operator* (void) const { return *ptr; }
   INLINE const T* operator->(void) const { return  ptr;}
   INLINE T& operator* (void) {return *ptr;}
   INLINE T* operator->(void) {return  ptr;}
@@ -632,19 +624,32 @@ template<typename T> struct ref {
   INLINE ref &operator= (niltype);
   template<typename U> INLINE ref<U> cast(void) { return ref<U>((U*)(ptr)); }
   template<typename U> INLINE const ref<U> cast(void) const { return ref<U>((U*)(ptr)); }
-  T* const ptr;
+  T* ptr;
+};
+
+struct refcount {
+  INLINE refcount(void) : refcounter(0) {}
+  virtual ~refcount(void) {}
+  INLINE void acquire(void) { refcounter++; }
+  INLINE void release(void) {
+    if (--refcounter == 0) {
+      auto ptr = this;
+      SAFE_DELETE(ptr);
+    }
+  }
+  atomic refcounter;
 };
 
 template <typename T>
 INLINE ref<T> &ref<T>::operator= (const ref<T> &input) {
-  if (input.ptr) input.ptr->refinc();
-  if (ptr && ptr->refdec()) SAFE_DELETE(ptr);
+  if (input.ptr) input.ptr->acquire();
+  if (ptr) ptr->release();
   *(T**)&ptr = input.ptr;
   return *this;
 }
 template <typename T>
 INLINE ref<T> &ref<T>::operator= (niltype) {
-  if (ptr && ptr->refdec()) SAFE_DELETE(ptr);
+  if (ptr) ptr->release();
   *(T**)&ptr = NULL;
   return *this;
 }

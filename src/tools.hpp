@@ -10,7 +10,7 @@
 // detect 32 or 64 platform
 #if defined(__x86_64__) || defined(__ia64__) || defined(_M_X64)
 #define __X86_64__
-#else
+#elif !defined(EMSCRIPTEN)
 #define __X86__
 #endif
 
@@ -104,7 +104,7 @@
 #endif
 
 /*-------------------------------------------------------------------------
- - macros
+ - macros / extra includes
  -------------------------------------------------------------------------*/
 
 #ifdef __MSVC__
@@ -141,9 +141,24 @@
 #define COMPILER_READ_BARRIER COMPILER_READ_WRITE_BARRIER
 #endif // __MSVC__
 
+#if defined(__SSE__)
+#include <xmmintrin.h>
+#define IF_SSE(X) X
+#else
+#define IF_SSE(X)
+#endif
+#if defined(__SSE2__)
+#include <emmintrin.h>
+#define IF_SSE2(X) X
+#else
+#define IF_SSE2(X)
+#endif
+
 // alignment rules
 #define DEFAULT_ALIGNMENT 8
 #define DEFAULT_ALIGNED ALIGNED(DEFAULT_ALIGNMENT)
+#define CACHE_LINE_ALIGNMENT 64
+#define CACHE_LINE_ALIGNED ALIGNED(CACHE_LINE_ALIGNMENT)
 
 // concatenation
 #define JOIN(X, Y) _DO_JOIN(X, Y)
@@ -303,7 +318,7 @@ static const int KB = 1024;
 static const int MB = KB*KB;
 
 /*-------------------------------------------------------------------------
- - atomics
+ - atomics / barriers / locks
  -------------------------------------------------------------------------*/
 #if defined(__MSVC__)
 INLINE s32 atomic_add(volatile s32* m, const s32 v) {
@@ -335,22 +350,72 @@ INLINE s32 atomic_cmpxchg(s32 volatile* value, const s32 input, s32 comparand) {
 }
 #endif // __MSVC__
 
+#if defined(__X86__) || defined(__X86_64__) || defined(__JAVASCRIPT__)
+template <typename T>
+INLINE T loadacquire(volatile T *ptr) {
+  COMPILER_READ_WRITE_BARRIER;
+  T x = *ptr;
+  COMPILER_READ_WRITE_BARRIER;
+  return x;
+}
+template <typename T>
+INLINE void storerelease(volatile T *ptr, T x) {
+  COMPILER_READ_WRITE_BARRIER;
+  *ptr = x;
+  COMPILER_READ_WRITE_BARRIER;
+}
+#else
+#error "unknown platform"
+#endif
+
 struct atomic : noncopyable {
 public:
   INLINE atomic(void) {}
   INLINE atomic(s32 data) : data(data) {}
   INLINE atomic& operator =(const s32 input) { data = input; return *this; }
   INLINE operator s32(void) const { return data; }
-public:
-  INLINE friend s32 operator+= (atomic& value, s32 input) { return atomic_add(&value.data, input) + input; }
-  INLINE friend s32 operator++ (atomic& value) { return atomic_add(&value.data,  1) + 1; }
-  INLINE friend s32 operator-- (atomic& value) { return atomic_add(&value.data, -1) - 1; }
-  INLINE friend s32 operator++ (atomic& value, int) { return atomic_add(&value.data,  1); }
-  INLINE friend s32 operator-- (atomic& value, int) { return atomic_add(&value.data, -1); }
-  INLINE friend s32 cmpxchg    (atomic& value, const s32 v, const s32 c) { return atomic_cmpxchg(&value.data,v,c); }
-
+  INLINE friend void storerelease(atomic &value, s32 x) { storerelease(&value.data, x); }
+  INLINE friend s32 operator+=   (atomic &value, s32 input) { return atomic_add(&value.data, input) + input; }
+  INLINE friend s32 operator++   (atomic &value) { return atomic_add(&value.data,  1) + 1; }
+  INLINE friend s32 operator--   (atomic &value) { return atomic_add(&value.data, -1) - 1; }
+  INLINE friend s32 operator++   (atomic &value, s32) { return atomic_add(&value.data,  1); }
+  INLINE friend s32 operator--   (atomic &value, s32) { return atomic_add(&value.data, -1); }
+  INLINE friend s32 cmpxchg      (atomic &value, s32 v, s32 c) { return atomic_cmpxchg(&value.data,v,c); }
 private:
   volatile s32 data;
+};
+
+struct spinlock : public noncopyable {
+  INLINE spinlock(void) : lock(0) {}
+  INLINE void writelock(void) {
+    while (cmpxchg(lock, WRITE_LOCK, 0)) IF_SSE(_mm_pause());
+  }
+  INLINE void readlock(void) {
+    for (;;) {
+      s32 prev;
+      do {
+        IF_SSE(_mm_pause());
+        prev = lock;
+      } while (prev & WRITE_LOCK);
+      if (cmpxchg(lock, prev, prev+1) == prev)
+        break;
+    }
+  }
+  INLINE void writeunlock(void) { storerelease(lock,0); }
+  INLINE void readunlock(void)  { --lock; }
+private:
+  static const u32 WRITE_LOCK = 0x80000000;
+  atomic lock;
+};
+struct scopedreadlock {
+  scopedreadlock(spinlock &lock) : lock(lock) { lock.readlock(); }
+  ~scopedreadlock(void) { lock.readunlock(); }
+  spinlock &lock;
+};
+struct scopedwritelock {
+  scopedwritelock(void) : lock(lock) { lock.writelock(); }
+  ~scopedwritelock(void) { lock.writeunlock(); }
+  spinlock &lock;
 };
 
 } // namespace cube
