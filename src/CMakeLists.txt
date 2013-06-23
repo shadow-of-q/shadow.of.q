@@ -51,3 +51,13 @@ set (SERVER_SRC
 add_executable (cube_server ${SERVER_SRC})
 target_link_libraries (cube_server enet ${SDL_LIBRARY})
 
+if (TEST_TASKS)
+  set (TEST_TASK_SRC
+    math.cpp
+    stl.cpp
+    tools.cpp
+    task.cpp
+    testtasks.cpp)
+  add_executable (testtask ${TEST_TASK_SRC})
+endif (TEST_TASKS)
+

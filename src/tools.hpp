@@ -119,6 +119,7 @@
 #define DEBUGBREAK      __debugbreak()
 #define COMPILER_WRITE_BARRIER       _WriteBarrier()
 #define COMPILER_READ_WRITE_BARRIER  _ReadWriteBarrier()
+#define MAYALIAS
 #if _MSC_VER >= 1400
 #pragma intrinsic(_ReadBarrier)
 #define COMPILER_READ_BARRIER        _ReadBarrier()
@@ -139,6 +140,7 @@
 #define COMPILER_READ_WRITE_BARRIER asm volatile("" ::: "memory");
 #define COMPILER_WRITE_BARRIER COMPILER_READ_WRITE_BARRIER
 #define COMPILER_READ_BARRIER COMPILER_READ_WRITE_BARRIER
+#define MAYALIAS __attribute__((__may_alias__))
 #endif // __MSVC__
 
 #if defined(__SSE__)
@@ -168,6 +170,7 @@
 // align X on A
 #define ALIGN(X,A) (((X) % (A)) ? ((X) + (A) - ((X) % (A))) : (X))
 
+#define OFFSETOF(STR,F) (uintptr(&((STR*)0)->F))
 #ifdef __GNUC__
   #define MAYBE_UNUSED __attribute__((used))
 #else

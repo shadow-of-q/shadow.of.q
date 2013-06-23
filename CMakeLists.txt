@@ -6,8 +6,7 @@ set (CUBE_CMAKE_DIR "${CUBE_SOURCE_DIR}/cmake")
 set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CUBE_CMAKE_DIR}")
 
 set (MEMORY_DEBUGGER false CACHE bool "activate the memory debugger")
-set (CUBE_USE_BLOB false CACHE bool "compile everything from one big file")
-set (COMPILER "gcc" CACHE INT "compiler to choose on Linux (gcc or clang)")
+set (TEST_TASKS false CACHE bool "compile the tests for the tasking system")
 
 if (NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
