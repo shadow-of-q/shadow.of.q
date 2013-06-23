@@ -387,39 +387,5 @@ public:
 private:
   volatile s32 data;
 };
-
-struct spinlock : public noncopyable {
-  INLINE spinlock(void) : lock(0) {}
-  INLINE void writelock(void) {
-    while (cmpxchg(lock, WRITE_LOCK, 0)) IF_SSE(_mm_pause());
-  }
-  INLINE void readlock(void) {
-    for (;;) {
-      s32 prev;
-      do {
-        IF_SSE(_mm_pause());
-        prev = lock;
-      } while (prev & WRITE_LOCK);
-      if (cmpxchg(lock, prev, prev+1) == prev)
-        break;
-    }
-  }
-  INLINE void writeunlock(void) { storerelease(lock,0); }
-  INLINE void readunlock(void)  { --lock; }
-private:
-  static const u32 WRITE_LOCK = 0x80000000;
-  atomic lock;
-};
-struct scopedreadlock {
-  scopedreadlock(spinlock &lock) : lock(lock) { lock.readlock(); }
-  ~scopedreadlock(void) { lock.readunlock(); }
-  spinlock &lock;
-};
-struct scopedwritelock {
-  scopedwritelock(void) : lock(lock) { lock.writelock(); }
-  ~scopedwritelock(void) { lock.writeunlock(); }
-  spinlock &lock;
-};
-
 } // namespace cube
 
