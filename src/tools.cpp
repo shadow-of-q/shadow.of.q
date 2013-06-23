@@ -31,6 +31,7 @@ static bool memfirstalloc = true;
 static void memlinkblock(memblock *node) {
   if (memmutex) SDL_LockMutex(memmutex);
   node->allocnum = memallocnum++;
+  // if (node->allocnum == 0) DEBUGBREAK;
   memlist->push_back(node);
   if (memmutex) SDL_UnlockMutex(memmutex);
 }
@@ -41,7 +42,7 @@ static void memunlinkblock(memblock *node) {
 }
 
 #define MEMOUT(S,B)\
-  sprintf_sd(S)("file: %s, line %i, size %i bytes, alloc, %i",\
+  sprintf_sd(S)("file: %s, line %i, size %i bytes, alloc %i",\
                 (B)->file, (B)->linenum, (B)->size, (B)->allocnum)
 static void memcheckbounds(memblock *node) {
   if (node->lbound() != 0xdeadc0de || node->rbound() != 0xdeadc0de) {

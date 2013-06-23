@@ -13,8 +13,9 @@ namespace tasking {
 class CACHE_LINE_ALIGNED task : public noncopyable, public refcount {
 public:
   task(const char *name, u32 elem=1, u32 waiter=0, u32 queue=0, u16 policy=0);
-  void starts(ref<task>&);
-  void ends(ref<task>&);
+  virtual ~task(void);
+  void starts(task&);
+  void ends(task&);
   void wait(void);
   void scheduled(void);
   virtual void run(int elt);

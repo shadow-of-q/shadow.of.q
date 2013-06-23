@@ -57,7 +57,8 @@ if (TEST_TASKS)
     stl.cpp
     tools.cpp
     task.cpp
-    testtasks.cpp)
+    utests/task.cpp)
   add_executable (testtask ${TEST_TASK_SRC})
+  target_link_libraries (testtask ${SDL_LIBRARY})
 endif (TEST_TASKS)
 
