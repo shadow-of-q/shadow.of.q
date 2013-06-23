@@ -2,13 +2,13 @@
 #include "tools.hpp"
 #include "stl.hpp"
 
-// tasking system that supports waitable task with input / output dependencies
+// tasking system that supports waitable tasks with input and output
+// dependencies
 namespace cube {
-
 namespace tasking {
   void init(const u32 *queueinfo, u32 n);
   void clean(void);
-};
+} // namespace tasking
 
 class CACHE_LINE_ALIGNED task : public noncopyable, public refcount {
 public:
@@ -18,7 +18,7 @@ public:
   void ends(task&);
   void wait(void);
   void scheduled(void);
-  virtual void run(int elt);
+  virtual void run(int);
   virtual void finish(void);
   static const u32 LO_PRIO = 0u;
   static const u32 HI_PRIO = 1u;

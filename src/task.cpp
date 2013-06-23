@@ -220,7 +220,7 @@ void clean(void) {
 task::task(const char *name, u32 n, u32 waiternum, u32 queue, u16 policy) {
   new (opaque) tasking::internal(name,n,waiternum,queue,policy);
 }
-task::~task(void) {}
+task::~task(void) { tasking::inner(this).~internal(); }
 
 void task::run(int elt) {}
 void task::finish(void) {}
