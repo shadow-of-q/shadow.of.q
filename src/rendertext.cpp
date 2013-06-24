@@ -103,7 +103,7 @@ static const short char_coords[96][4] = {
 typedef u16 indextype;
 static const indextype twotriangles[] = {0,1,2,0,2,3};
 
-int text_width(const char *str) {
+int textwidth(const char *str) {
   int x = 0;
   for (int i = 0; str[i] != 0; i++) {
     int c = str[i];
@@ -118,12 +118,12 @@ int text_width(const char *str) {
   return x;
 }
 
-void draw_textf(const char *fstr, int left, int top, int gl_num, ...) {
+void drawtextf(const char *fstr, int left, int top, int gl_num, ...) {
   sprintf_sdlv(str, gl_num, fstr);
-  draw_text(str, left, top, gl_num);
+  drawtext(str, left, top, gl_num);
 }
 
-void draw_text(const char *str, int left, int top, int gl_num) {
+void drawtext(const char *str, int left, int top, int gl_num) {
   typedef array<float,4> arrayf4;
   OGL(BlendFunc, GL_ONE, GL_ONE);
   ogl::bindgametexture(GL_TEXTURE_2D, gl_num);
@@ -191,7 +191,7 @@ static void drawenvboxface(float s0, float t0, int x0, int y0, int z0,
   ogl::xtraverts += 4;
 }
 
-void draw_envbox(int t, int w) {
+void drawenvbox(int t, int w) {
   OGL(DepthMask, GL_FALSE);
   ogl::bindshader(ogl::DIFFUSETEX);
   ogl::setattribarray()(ogl::POS0, ogl::TEX0);

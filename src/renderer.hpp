@@ -14,10 +14,10 @@ static const int PIXELTAB = VIRTW / 12; // tabulation size in pixels
 void clean(void);
 
 // rendertext
-void draw_text(const char *str, int left, int top, int gl_num);
-void draw_textf(const char *fstr, int left, int top, int gl_num, ...);
-int text_width(const char *str);
-void draw_envbox(int t, int fogdist);
+void drawtext(const char *str, int left, int top, int gl_num);
+void drawtextf(const char *fstr, int left, int top, int gl_num, ...);
+int textwidth(const char *str);
+void drawenvbox(int t, int fogdist);
 
 // renderextras
 void line(int x1, int y1, float z1, int x2, int y2, float z2);

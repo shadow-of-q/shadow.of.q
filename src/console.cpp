@@ -96,7 +96,7 @@ void render(void) {
       if (nd==ndraw) break;
     }
   const int h = rr::FONTH;
-  loopj(nd) rr::draw_text(refs[j], h/3, (h/4*5)*(nd-j-1)+h/3, 2);
+  loopj(nd) rr::drawtext(refs[j], h/3, (h/4*5)*(nd-j-1)+h/3, 2);
 }
 
 // turns input to the command line on or off

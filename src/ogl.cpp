@@ -1329,7 +1329,7 @@ void drawframe(int w, int h, float curfps) {
     rotate(game::player1->yaw, yaxis);
     rotate(90.f, vec3f(1.f,0.f,0.f));
     OGL(VertexAttrib3f,COL,1.0f,1.0f,1.0f);
-    rr::draw_envbox(14, fog*4/3);
+    rr::drawenvbox(14, fog*4/3);
   }
   transplayer();
   overbright(2.f);

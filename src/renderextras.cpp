@@ -269,11 +269,11 @@ void drawhud(int w, int h, int curfps, int nquads, int curvert, bool underwater)
   const char *command = console::getcurcommand();
   const char *player = game::playerincrosshair();
   if (command)
-    draw_textf("> %s_", 20, 1570, 2, command);
+    drawtextf("> %s_", 20, 1570, 2, command);
   else if (closeent[0])
-    draw_text(closeent, 20, 1570, 2);
+    drawtext(closeent, 20, 1570, 2);
   else if (player)
-    draw_text(player, 20, 1570, 2);
+    drawtext(player, 20, 1570, 2);
 
   game::renderscores();
   if (!menu::render()) {
@@ -309,11 +309,11 @@ void drawhud(int w, int h, int curfps, int nquads, int curvert, bool underwater)
     ogl::popmatrix();
     ogl::pushmatrix();
     ogl::ortho(0.f,VIRTW*3.f/2.f,VIRTH*3.f/2.f,0.f,-1.f,1.f);
-    draw_textf("pos %d %d %d", 3100, 2320, 2, int(o.x), int(o.y), int(o.z));
-    draw_textf("fps %d", 3000, 2390, 2, curfps);
-    draw_textf("wqd %d", 3000, 2460, 2, nquads);
-    draw_textf("wvt %d", 3000, 2530, 2, curvert);
-    draw_textf("evt %d", 3000, 2600, 2, ogl::xtraverts);
+    drawtextf("pos %d %d %d", 3100, 2320, 2, int(o.x), int(o.y), int(o.z));
+    drawtextf("fps %d", 3000, 2390, 2, curfps);
+    drawtextf("wqd %d", 3000, 2460, 2, nquads);
+    drawtextf("wvt %d", 3000, 2530, 2, curvert);
+    drawtextf("evt %d", 3000, 2600, 2, ogl::xtraverts);
   }
 
   ogl::popmatrix();
@@ -321,9 +321,9 @@ void drawhud(int w, int h, int curfps, int nquads, int curvert, bool underwater)
   if (game::player1->state==CS_ALIVE) {
     ogl::pushmatrix();
     ogl::ortho(0, VIRTW/2, VIRTH/2, 0, -1, 1);
-    draw_textf("%d",  90, 827, 2, game::player1->health);
-    if (game::player1->armour) draw_textf("%d", 390, 827, 2, game::player1->armour);
-    draw_textf("%d", 690, 827, 2, game::player1->ammo[game::player1->gunselect]);
+    drawtextf("%d",  90, 827, 2, game::player1->health);
+    if (game::player1->armour) drawtextf("%d", 390, 827, 2, game::player1->armour);
+    drawtextf("%d", 690, 827, 2, game::player1->ammo[game::player1->gunselect]);
     ogl::popmatrix();
     ogl::pushmatrix();
     ogl::ortho(0.f, float(VIRTW), float(VIRTH), 0.f, -1.f, 1.f);
