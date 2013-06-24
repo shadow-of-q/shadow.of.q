@@ -68,8 +68,9 @@ INLINE task *internal::parent(void) {
 INLINE internal &inner(task *job) { return *(internal*)job->opaque; }
 
 void internal::wait(bool recursivewait) {
+  ASSERT((recursivewait||state >= tasking::SCHEDULED) &&
+         (recursivewait||waiternum > 0));
   auto job = parent();
-  ASSERT(state >= tasking::SCHEDULED && (recursivewait || waiternum > 0));
 
   // execute all starting dependencies
   while (tostart)
@@ -118,9 +119,6 @@ void queue::append(task *job) {
 void queue::terminate(task *job) {
   auto &self = inner(job);
   ASSERT(self.owner == this && self.toend == 0);
-
-  // run the finish function
-  job->finish();
   storerelease(&self.state, u16(DONE));
 
   // go over all tasks that depend on us
@@ -222,8 +220,7 @@ task::task(const char *name, u32 n, u32 waiternum, u32 queue, u16 policy) {
 }
 task::~task(void) { tasking::inner(this).~internal(); }
 
-void task::run(int elt) {}
-void task::finish(void) {}
+void task::run(u32 elt) {}
 
 void task::scheduled(void) {
   auto &self = tasking::inner(this);

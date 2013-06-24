@@ -2,6 +2,7 @@
 #include <SDL/SDL.h>
 #include <zlib.h>
 #include "bvh.hpp"
+#include "task.hpp"
 
 namespace cube {
 namespace world {
@@ -512,6 +513,30 @@ bvh::intersector *buildbvh(void) {
     return NULL;
 }
 
+
+VAR(mtraycast, 0, 0, 1);
+struct raycasttask : public task {
+  raycasttask(bvh::intersector *bvhisec, const camera &cam, int *pixels, u32 w, u32 h) :
+    task("raycasttask", h, 1, 0, UNFAIR), bvhisec(bvhisec), cam(cam), pixels(pixels), w(w), h(h) {}
+  virtual void run(u32 y) {
+    for (u32 x = 0; x < w; ++x) {
+      const int offset = x+w*y;
+      const ray ray = cam.generate(w, h, x, y);
+      bvh::hit hit;
+      closest(*bvhisec, ray, hit);
+      if (hit.is_hit()) {
+        const int d = min(int(hit.t), 255);
+        pixels[offset] = d|(d<<8)|(d<<16)|(0xff<<24);
+      } else
+        pixels[offset] = 0;
+    }
+  }
+  bvh::intersector *bvhisec;
+  const camera &cam;
+  int *pixels;
+  u32 w,h;
+};
+
 void castray(float fovy, float aspect, float farplane) {
   using namespace game;
   const int w = 1024, h = 768;
@@ -523,36 +548,49 @@ void castray(float fovy, float aspect, float farplane) {
   const vec3f cellsize(one), boxorg(zero);
   const aabb box(boxorg, cellsize*vec3f(root.global()));
   bvh::intersector *bvhisec = NULL;
-  if (usebvh) bvhisec = buildbvh();
+  int start = 0;
+  ref<task> isectask = NULL;
 
-  const int start = SDL_GetTicks();
-  for (int y = 0; y < h; ++y) {
-    for (int x = 0; x < w; ++x) {
-      const int offset = x+w*y;
-      const ray ray = cam.generate(w, h, x, y);
-      if (bvhisec) {
-        bvh::hit hit;
-        closest(*bvhisec, ray, hit);
-        if (hit.is_hit()) {
-          const int d = min(int(hit.t), 255);
-          pixels[offset] = d|(d<<8)|(d<<16)|(0xff<<24);
-        } else
-          pixels[offset] = 0;
-      } else {
-        const isecres res = slab(box, ray.org, ray.rdir, ray.tfar);
-        if (!res.isec) {
-          pixels[offset] = 0;
-          continue;
+  if (usebvh) {
+    bvhisec = buildbvh();
+    const u32 threadnum = mtraycast ? 3 : 0;
+    tasking::init(&threadnum, 1);
+    start = SDL_GetTicks();
+    isectask = NEW(raycasttask, bvhisec, cam, pixels, w, h);
+    isectask->scheduled();
+    isectask->wait();
+    tasking::clean();
+  } else {
+    start = SDL_GetTicks();
+    for (int y = 0; y < h; ++y) {
+      for (int x = 0; x < w; ++x) {
+        const int offset = x+w*y;
+        const ray ray = cam.generate(w, h, x, y);
+        if (bvhisec) {
+          bvh::hit hit;
+          closest(*bvhisec, ray, hit);
+          if (hit.is_hit()) {
+            const int d = min(int(hit.t), 255);
+            pixels[offset] = d|(d<<8)|(d<<16)|(0xff<<24);
+          } else
+            pixels[offset] = 0;
+        } else {
+          const isecres res = slab(box, ray.org, ray.rdir, ray.tfar);
+          if (!res.isec) {
+            pixels[offset] = 0;
+            continue;
+          }
+          const auto isec = intersect(&root, box.pmin, ray, res.t);
+          if (isec.isec) {
+            const int d = min(int(isec.t), 255);
+            pixels[offset] = d|(d<<8)|(d<<16)|(0xff<<24);
+          } else
+            pixels[offset] = 0;
         }
-        const auto isec = intersect(&root, box.pmin, ray, res.t);
-        if (isec.isec) {
-          const int d = min(int(isec.t), 255);
-          pixels[offset] = d|(d<<8)|(d<<16)|(0xff<<24);
-        } else
-          pixels[offset] = 0;
       }
     }
   }
+
   const int ms = SDL_GetTicks()-start;
   console::out("\n%i ms, %f ray/s\n", ms, 1000.f*(w*h)/ms);
   writebmp(pixels, w, h, usebvh ? "bvh.bmp" : "grid.bmp");

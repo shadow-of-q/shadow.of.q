@@ -6,12 +6,12 @@ static s32 somenumber = 1024*1024;
 
 struct simpletask : public task {
   simpletask(void) : task("simple", somenumber, 1), x(0) {}
-  void run(int elt) { x++; }
+  void run(u32 elt) { x++; }
   atomic x;
 };
 struct simpletaskhiprio : public task {
   simpletaskhiprio(void) : task("simple", somenumber, 1, 0, task::HI_PRIO), x(0) {}
-  void run(int elt) { x++; }
+  void run(u32 elt) { x++; }
   atomic x;
 };
 
@@ -47,7 +47,7 @@ void testsimpletaskboth(void) {
 
 struct simpletaskwait : public task {
   simpletaskwait(bool waitable) : task("simple", somenumber, waitable?1:0), x(0) {}
-  void run(int elt) { x++; }
+  void run(u32 elt) { x++; }
   atomic x;
 };
 void testsimpledep(void) {
@@ -59,6 +59,22 @@ void testsimpledep(void) {
   jobs[tasknum-1]->wait();
   loopi(tasknum) CHECK(jobs[i]->x == somenumber);
 }
+void testsimpledepwithend(void) {
+  const s32 tasknum = 16;
+  ref<simpletaskwait> jobsstart[tasknum];
+  ref<simpletaskwait> jobsend[2*tasknum];
+
+  loopi(tasknum) jobsstart[i] = NEW(simpletaskwait, i==tasknum-1);
+  loopi(tasknum) jobsend[i] = NEW(simpletaskwait, false);
+
+  loopi(tasknum-1) jobsstart[i]->starts(*jobsstart[i+1]);
+  loopi(tasknum) jobsend[i]->ends(*jobsstart[i]);
+  loopi(tasknum) jobsend[i]->scheduled();
+  loopi(tasknum) jobsstart[i]->scheduled();
+  jobsstart[tasknum-1]->wait();
+  loopi(tasknum) CHECK(jobsstart[i]->x == somenumber);
+  loopi(tasknum) CHECK(jobsend[i]->x == somenumber);
+}
 
 int main(void) {
   const u32 threadnum = 1;
@@ -67,9 +83,12 @@ int main(void) {
   testsimpletaskhiprio();
   testsimpletaskboth();
   testsimpledep();
+  testsimpledepwithend();
   tasking::clean();
   return 0;
 }
+#undef CHECK
+
 } // namespace cube
 
 int main(void) { return cube::main(); }
