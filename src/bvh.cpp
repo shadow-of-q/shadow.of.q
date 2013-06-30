@@ -361,11 +361,11 @@ void destroy(intersector *bvhtree) {
 static const u32 waldmodulo[] = {1,2,0,1};
 
 template <bool occludedonly>
-INLINE bool raytriangle(const waldtriangle &tri, const ray &r, hit *hit = NULL) {
+INLINE bool raytriangle(const waldtriangle &tri, vec3f org, vec3f dir, hit *hit = NULL) {
   const u32 k = tri.k, ku = waldmodulo[k], kv = waldmodulo[k+1];
-  const vec2f dirk(r.dir[ku], r.dir[kv]);
-  const vec2f posk(r.org[ku], r.org[kv]);
-  const float t = (tri.nd-r.org[k]-dot(tri.n,posk))/(r.dir[k]+dot(tri.n,dirk));
+  const vec2f dirk(dir[ku], dir[kv]);
+  const vec2f posk(org[ku], org[kv]);
+  const float t = (tri.nd-org[k]-dot(tri.n,posk))/(dir[k]+dot(tri.n,dirk));
   if (!occludedonly) {
     if (!((hit->t > t) & (t >= 0.f)))
       return false;
@@ -397,11 +397,11 @@ void closest(const intersector &bvhtree, const ray &r, hit &hit) {
     processnode:
       const u32 flag = node->getflag();
       if (flag == intersector::NONLEAF) {
-        const s32 second = signs[node->getaxis()];
-        const s32 first = second^1;
+        const s32 farindex = signs[node->getaxis()];
+        const s32 nearindex = farindex^1;
         const u32 offset = node->getoffset();
-        stack[stacksz++] = node+offset+second;
-        node = node+offset+first;
+        stack[stacksz++] = node+offset+farindex;
+        node = node+offset+nearindex;
       } else {
         if (flag == intersector::FULLLEAF) {
           hit.t = res.t;
@@ -410,7 +410,7 @@ void closest(const intersector &bvhtree, const ray &r, hit &hit) {
         } else if (flag == intersector::TRILEAF) {
           auto tris = node->getptr<waldtriangle>();
           const s32 n = tris->num;
-          loopi(n) raytriangle<false>(tris[i], r, &hit);
+          loopi(n) raytriangle<false>(tris[i], r.org, r.dir, &hit);
           break;
         } else {
           node = node->getptr<intersector>()->root;
@@ -443,7 +443,7 @@ bool occluded(const intersector &bvhtree, const ray &r) {
         else if (flag == intersector::TRILEAF) {
           auto tris = node->getptr<waldtriangle>();
           const s32 n = tris->num;
-          loopi(n) if (raytriangle<true>(tris[i], r)) return true;
+          loopi(n) if (raytriangle<true>(tris[i], r.org, r.dir)) return true;
         } else {
           node = node->getptr<intersector>()->root;
           goto processnode;
@@ -453,6 +453,77 @@ bool occluded(const intersector &bvhtree, const ray &r) {
     }
   }
   return false;
+}
+
+INLINE isecres slabfirst(const aabb &box, const raypacket &p, u32 &first, const packethit &hit) {
+  for (; first < p.raynum; ++first) {
+    const auto res = slab(box, p.org(first), p.rdir(first), hit[first].t);
+    if (res.isec) return res;
+  }
+  return isecres(false);
+}
+
+INLINE void slaball(const aabb &box, const raypacket &p, u32 first, packethit &hit) {
+  for (u32 rayid = first; rayid < p.raynum; ++rayid) {
+    const auto res = slab(box, p.org(rayid), p.rdir(rayid), hit[rayid].t);
+    if (res.isec) {
+      hit[rayid].t = res.t;
+      hit[rayid].id = 0;
+    }
+  }
+}
+
+INLINE void slabfilter(const aabb &box, const raypacket &p, u32 *active, u32 first, const packethit &hit) {
+  for (u32 rayid = first; rayid < p.raynum; ++rayid) {
+    const auto res = slab(box, p.org(rayid), p.rdir(rayid), hit[rayid].t);
+    active[rayid] = res.isec?1:0;
+  }
+}
+
+void closest(const intersector &bvhtree, const raypacket &p, packethit &hit) {
+  const s32 signs[3] = {(p.dir().x>=0.f)&1, (p.dir().y>=0.f)&1, (p.dir().z>=0.f)&1};
+  pair<intersector::node*,u32> stack[64];
+  stack[0] = makepair(bvhtree.root, 0u);
+  u32 stacksz = 1;
+
+  while (stacksz) {
+    const auto elem = stack[--stacksz];
+    auto node = elem.first;
+    auto first = elem.second;
+    for (;;) {
+      const auto res = slabfirst(node->box, p, first, hit);
+      if (!res.isec) break;
+    processnode:
+      const u32 flag = node->getflag();
+      if (flag == intersector::NONLEAF) {
+        const s32 farindex = signs[node->getaxis()];
+        const s32 nearindex = farindex^1;
+        const u32 offset = node->getoffset();
+        stack[stacksz++] = makepair(node+offset+farindex, first);
+        node = node+offset+nearindex;
+      } else {
+        if (flag == intersector::FULLLEAF) {
+          hit[first].t = res.t;
+          hit[first].id = 0;
+          slaball(node->box, p, first+1, hit);
+          break;
+        } else if (flag == intersector::TRILEAF) {
+          auto tris = node->getptr<waldtriangle>();
+          const s32 n = tris->num;
+          u32 active[raypacket::MAXRAYNUM];
+          active[first] = 1;
+          slabfilter(node->box, p, active, first+1, hit);
+          loopi(n)
+            for (u32 j=first;j<p.raynum;++j)
+              if (active[j]) raytriangle<false>(tris[i], p.org(j), p.dir(j), hit+j);
+          break;
+        } else {
+          node = node->getptr<intersector>()->root;
+          goto processnode;
+        }
+      }
+    }
+  }
 }
 
 } // namespace bvh

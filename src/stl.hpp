@@ -95,6 +95,20 @@ template<class T> struct isclass {
   enum { yes = sizeof(test<T>(0)) == 1 ? 1 : 0, no = yes^1 };
 };
 
+template <typename T0, typename T1> struct pair {
+  INLINE pair(void) {}
+  INLINE pair(const T0 &t0, const T1 &t1) : first(t0), second(t1) {}
+  INLINE pair(const pair &other) : first(other.first), second(other.second) {}
+  INLINE pair &operator= (const pair &other) {
+    first=other.first;
+    second=other.second;
+    return *this;
+  }
+  T0 first; T1 second;
+};
+template <typename T0, typename T1>
+INLINE pair<T0,T1> makepair(const T0 &t0, const T1 &t1) { return pair<T0,T1>(t0,t1); }
+
 /*-------------------------------------------------------------------------
  - easy safe strings
  -------------------------------------------------------------------------*/

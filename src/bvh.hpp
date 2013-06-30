@@ -4,18 +4,22 @@
 namespace cube {
 namespace bvh {
 
-// hit point when tracing inside a bvh
+// hit point when tracing a ray inside a bvh
 struct hit {
   float t,u,v;
   u32 id;
-  INLINE hit(void) : t(FLT_MAX), u(0), v(0), id(~0u) {}
-  INLINE hit(float tmax) : t(tmax), u(0), v(0), id(~0x0u) {}
+  INLINE hit(float tmax=FLT_MAX) : t(tmax), id(~0x0u) {}
   INLINE bool is_hit(void) const { return id != ~0x0u; }
 };
+
+// hit points when tracing a ray packet inside a bvh
+typedef hit packethit[raypacket::MAXRAYNUM];
 
 // ray tracing routines (visiblity and shadow rays)
 void closest(const struct intersector&, const struct ray&, struct hit&);
 bool occluded(const struct intersector&, const struct ray&);
+void closest(const struct intersector&, const struct raypacket&, struct hit&);
+bool occluded(const struct intersector&, const struct raypacket&);
 
 // opaque intersector data structure
 struct intersector *create(const struct primitive*, int n);

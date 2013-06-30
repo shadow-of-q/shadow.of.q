@@ -758,6 +758,41 @@ struct ray {
   float tnear, tfar;
 };
 
+struct CACHE_LINE_ALIGNED raypacket {
+  static const u32 MAXRAYNUM     = 256;
+  static const u32 COMMONORG     = 1<<0;
+  static const u32 COMMONDIR     = 1<<1;
+  static const u32 INTERVALARITH = 1<<2;
+  static const u32 CORNERRAYS    = 1<<3;
+  INLINE void setorg(vec3f org, u32 rayid) {
+    orgx[rayid] = org.x;
+    orgy[rayid] = org.y;
+    orgz[rayid] = org.z;
+  }
+  INLINE void setdir(vec3f dir, u32 rayid) {
+    dirx[rayid] = dir.x;
+    diry[rayid] = dir.y;
+    dirz[rayid] = dir.z;
+    rdirx[rayid] = rcp(dir.x);
+    rdiry[rayid] = rcp(dir.y);
+    rdirz[rayid] = rcp(dir.z);
+  }
+  INLINE vec3f org(u32 rayid=0) const {
+    return vec3f(orgx[rayid], orgy[rayid], orgz[rayid]);
+  }
+  INLINE vec3f dir(u32 rayid=0) const {
+    return vec3f(dirx[rayid], diry[rayid], dirz[rayid]);
+  }
+  INLINE vec3f rdir(u32 rayid=0) const {
+    return vec3f(rdirx[rayid],rdiry[rayid],rdirz[rayid]);
+  }
+  array<float,MAXRAYNUM> orgx,  orgy,  orgz;
+  array<float,MAXRAYNUM> dirx,  diry,  dirz;
+  array<float,MAXRAYNUM> rdirx, rdiry, rdirz;
+  u32 raynum;
+  u32 flags;
+};
+
 struct camera {
   camera(vec3f org, vec3f up, vec3f view, float fov, float ratio);
   INLINE ray generate(int w, int h, int x, int y) const {
@@ -785,7 +820,7 @@ struct aabb {
   vec3f pmin, pmax;
 };
 struct isecres {
-  INLINE isecres(bool isec = false, float t = 0.f) : t(t), isec(isec) {}
+  INLINE isecres(bool isec, float t = FLT_MAX) : t(t), isec(isec) {}
   float t;
   bool isec;
 };
