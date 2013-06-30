@@ -253,6 +253,11 @@ typedef void *filehandle;
 #define loopv(v)    for(int i = 0; i<(v).length(); ++i)
 #define loopvj(v)   for(int j = 0; j<(v).length(); ++j)
 #define loopvrev(v) for(int i = (v).length()-1; i>=0; --i)
+#define range(v,m,M) for(auto v = m; v<(M); ++v)
+#define rangei(m,M) range(i,m,M)
+#define rangej(m,M) range(j,m,M)
+#define rangek(m,M) range(k,m,M)
+#define rangel(m,M) range(l,m,M)
 
 class noncopyable {
 protected:

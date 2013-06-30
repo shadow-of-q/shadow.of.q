@@ -513,9 +513,8 @@ void closest(const intersector &bvhtree, const raypacket &p, packethit &hit) {
           u32 active[raypacket::MAXRAYNUM];
           active[first] = 1;
           slabfilter(node->box, p, active, first+1, hit);
-          loopi(n)
-            for (u32 j=first;j<p.raynum;++j)
-              if (active[j]) raytriangle<false>(tris[i], p.org(j), p.dir(j), hit+j);
+          loopi(n) rangej(first,p.raynum)
+            if (active[j]) raytriangle<false>(tris[i], p.org(j), p.dir(j), hit+j);
           break;
         } else {
           node = node->getptr<intersector>()->root;
