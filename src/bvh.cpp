@@ -616,6 +616,9 @@ void closest(const intersector &bvhtree, const raypacket &p, packethit &hit) {
   };
 }
 
+#undef CASE
+#undef CASE4
+
 } // namespace bvh
 } // namespace cube
 
