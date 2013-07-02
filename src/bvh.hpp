@@ -16,9 +16,9 @@ struct hit {
 typedef hit packethit[raypacket::MAXRAYNUM];
 
 // ray tracing routines (visiblity and shadow rays)
-void closest(const struct intersector&, const struct ray&, struct hit&);
+void closest(const struct intersector&, const struct ray&, hit&);
 bool occluded(const struct intersector&, const struct ray&);
-void closest(const struct intersector&, const struct raypacket&, struct hit&);
+void closest(const struct intersector&, const struct raypacket&, packethit&);
 bool occluded(const struct intersector&, const struct raypacket&);
 
 // opaque intersector data structure

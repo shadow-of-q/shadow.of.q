@@ -385,6 +385,7 @@ INLINE bool raytriangle(const waldtriangle &tri, vec3f org, vec3f dir, hit *hit 
 
 void closest(const intersector &bvhtree, const ray &r, hit &hit) {
   const s32 signs[3] = {(r.dir.x>=0.f)&1, (r.dir.y>=0.f)&1, (r.dir.z>=0.f)&1};
+  const auto rdir = rcp(r.dir);
   const intersector::node *stack[64];
   stack[0] = bvhtree.root;
   u32 stacksz = 1;
@@ -392,7 +393,7 @@ void closest(const intersector &bvhtree, const ray &r, hit &hit) {
   while (stacksz) {
     const intersector::node *node = stack[--stacksz];
     for (;;) {
-      auto res = slab(node->box, r.org, r.rdir, hit.t);
+      auto res = slab(node->box, r.org, rdir, hit.t);
       if (!res.isec) break;
     processnode:
       const u32 flag = node->getflag();
@@ -423,13 +424,14 @@ void closest(const intersector &bvhtree, const ray &r, hit &hit) {
 
 bool occluded(const intersector &bvhtree, const ray &r) {
   const intersector::node *stack[64];
+  const auto rdir = rcp(r.dir);
   stack[0] = bvhtree.root;
   u32 stacksz = 1;
 
   while (stacksz) {
     const intersector::node *node = stack[--stacksz];
     for (;;) {
-      auto res = slab(node->box, r.org, r.rdir, r.tfar);
+      auto res = slab(node->box, r.org, rdir, r.tfar);
       if (!res.isec) break;
     processnode:
       const u32 flag = node->getflag();
@@ -455,17 +457,21 @@ bool occluded(const intersector &bvhtree, const ray &r) {
   return false;
 }
 
-INLINE isecres slabfirst(const aabb &box, const raypacket &p, u32 &first, const packethit &hit) {
+INLINE isecres slabfirst(const aabb &box, const raypacket &p, const vec3f *rdir, u32 &first, const packethit &hit) {
   for (; first < p.raynum; ++first) {
-    const auto res = slab(box, p.org(first), p.rdir(first), hit[first].t);
+    const auto res = slab(box, p.org(first), rdir[first], hit[first].t);
     if (res.isec) return res;
   }
   return isecres(false);
 }
 
-INLINE void slaball(const aabb &box, const raypacket &p, u32 first, packethit &hit) {
+INLINE isecres slabone(const aabb &box, const raypacket &p, const vec3f *rdir, u32 first, const packethit &hit) {
+  return slab(box, p.org(first), rdir[first], hit[first].t);
+}
+
+INLINE void slaball(const aabb &box, const raypacket &p, const vec3f *rdir, u32 first, packethit &hit) {
   for (u32 rayid = first; rayid < p.raynum; ++rayid) {
-    const auto res = slab(box, p.org(rayid), p.rdir(rayid), hit[rayid].t);
+    const auto res = slab(box, p.org(rayid), rdir[rayid], hit[rayid].t);
     if (res.isec) {
       hit[rayid].t = res.t;
       hit[rayid].id = 0;
@@ -473,25 +479,93 @@ INLINE void slaball(const aabb &box, const raypacket &p, u32 first, packethit &h
   }
 }
 
-INLINE void slabfilter(const aabb &box, const raypacket &p, u32 *active, u32 first, const packethit &hit) {
+INLINE void slabfilter(const aabb &box, const raypacket &p, const vec3f *rdir, u32 *active, u32 first, const packethit &hit) {
   for (u32 rayid = first; rayid < p.raynum; ++rayid) {
-    const auto res = slab(box, p.org(rayid), p.rdir(rayid), hit[rayid].t);
+    const auto res = slab(box, p.org(rayid), rdir[rayid], hit[rayid].t);
     active[rayid] = res.isec?1:0;
   }
 }
 
-void closest(const intersector &bvhtree, const raypacket &p, packethit &hit) {
+INLINE bool cullia(const aabb &box, const raypacket &p) {
+  ASSERT(false && "Not implemented");
+  return false;
+}
+
+INLINE isecres slabfirstco(const aabb &box, const raypacket &p, const vec3f *rdir, u32 &first, const packethit &hit) {
+  const auto pmin = box.pmin - p.org();
+  const auto pmax = box.pmax - p.org();
+  for (; first < p.raynum; ++first) {
+    const auto res = slab(pmin, pmax, rdir[first], hit[first].t);
+    if (res.isec) return res;
+  }
+  return isecres(false);
+}
+
+INLINE isecres slaboneco(const aabb &box, const raypacket &p, const vec3f *rdir, u32 first, const packethit &hit) {
+  const auto pmin = box.pmin - p.org();
+  const auto pmax = box.pmax - p.org();
+  return slab(pmin, pmax, rdir[first], hit[first].t);
+}
+
+INLINE void slaballco(const aabb &box, const raypacket &p, const vec3f *rdir, u32 first, packethit &hit) {
+  const auto pmin = box.pmin - p.org();
+  const auto pmax = box.pmax - p.org();
+  for (u32 rayid = first; rayid < p.raynum; ++rayid) {
+    const auto res = slab(pmin, pmax, rdir[rayid], hit[rayid].t);
+    if (res.isec) {
+      hit[rayid].t = res.t;
+      hit[rayid].id = 0;
+    }
+  }
+}
+
+INLINE void slabfilterco(const aabb &box, const raypacket &p, const vec3f *rdir, u32 *active, u32 first, const packethit &hit) {
+  const auto pmin = box.pmin - p.org();
+  const auto pmax = box.pmax - p.org();
+  for (u32 rayid = first; rayid < p.raynum; ++rayid) {
+    const auto res = slab(pmin, pmax, rdir[rayid], hit[rayid].t);
+    active[rayid] = res.isec?1:0;
+  }
+}
+
+INLINE bool culliaco(const aabb &box, const raypacket &p) {
+  const vec3f pmin = box.pmin - p.org();
+  const vec3f pmax = box.pmax - p.org();
+  const auto txyz = makeinterval(pmin,pmax)*p.iardir;
+  return empty(I(txyz.x,txyz.y,txyz.z,intervalf(0.f,FLT_MAX)));
+}
+
+template <u32 flags>
+NOINLINE void closestinternal(const intersector &bvhtree, const raypacket &p, packethit &hit) {
   const s32 signs[3] = {(p.dir().x>=0.f)&1, (p.dir().y>=0.f)&1, (p.dir().z>=0.f)&1};
   pair<intersector::node*,u32> stack[64];
   stack[0] = makepair(bvhtree.root, 0u);
   u32 stacksz = 1;
+  vec3f rdir[raypacket::MAXRAYNUM];
+  loopi(s32(p.raynum)) rdir[i] = rcp(p.dir(i));
 
   while (stacksz) {
     const auto elem = stack[--stacksz];
     auto node = elem.first;
     auto first = elem.second;
     for (;;) {
-      const auto res = slabfirst(node->box, p, first, hit);
+      isecres res(false);
+      if (flags & raypacket::INTERVALARITH) {
+        if (flags & raypacket::COMMONORG) {
+          res = slaboneco(node->box, p, rdir, first, hit);
+          if (res.isec) goto processnode;
+          if (culliaco(node->box, p)) break;
+        } else {
+          res = slabone(node->box, p, rdir, first, hit);
+          if (res.isec) goto processnode;
+          if (cullia(node->box, p)) break;
+        }
+        ++first;
+      }
+      if (flags & raypacket::COMMONORG)
+        res = slabfirstco(node->box, p, rdir, first, hit);
+      else
+        res = slabfirst(node->box, p, rdir, first, hit);
       if (!res.isec) break;
     processnode:
       const u32 flag = node->getflag();
@@ -505,14 +579,20 @@ void closest(const intersector &bvhtree, const raypacket &p, packethit &hit) {
         if (flag == intersector::FULLLEAF) {
           hit[first].t = res.t;
           hit[first].id = 0;
-          slaball(node->box, p, first+1, hit);
+          if (flags & raypacket::COMMONORG)
+            slaballco(node->box, p, rdir, first+1, hit);
+          else
+            slaball(node->box, p, rdir, first+1, hit);
           break;
         } else if (flag == intersector::TRILEAF) {
           auto tris = node->getptr<waldtriangle>();
           const s32 n = tris->num;
           u32 active[raypacket::MAXRAYNUM];
           active[first] = 1;
-          slabfilter(node->box, p, active, first+1, hit);
+          if (flags & raypacket::COMMONORG)
+            slabfilterco(node->box, p, rdir, active, first+1, hit);
+          else
+            slabfilter(node->box, p, rdir, active, first+1, hit);
           loopi(n) rangej(first,p.raynum)
             if (active[j]) raytriangle<false>(tris[i], p.org(j), p.dir(j), hit+j);
           break;
@@ -523,6 +603,17 @@ void closest(const intersector &bvhtree, const raypacket &p, packethit &hit) {
       }
     }
   }
+}
+#define CASE(X) case X: closestinternal<X>(bvhtree, p, hit); break;
+#define CASE4(X) CASE(X) CASE(X+1) CASE(X+2) CASE(X+3)
+
+void closest(const intersector &bvhtree, const raypacket &p, packethit &hit) {
+  switch (p.flags) {
+    CASE4(0)
+    CASE4(4)
+    CASE4(8)
+    CASE4(12)
+  };
 }
 
 } // namespace bvh

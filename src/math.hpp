@@ -4,31 +4,13 @@
 #include <cfloat>
 
 namespace cube {
+#define TINLINE template <typename T> INLINE
+#define UINLINE template <typename U> INLINE
+#define op operator
 
 /*-------------------------------------------------------------------------
- - 3D graphics related linear algebra (vectors, matrices)
+ - useful constants
  -------------------------------------------------------------------------*/
-template<typename T> struct vec2;
-template<typename T> struct vec3;
-template<typename T> struct vec4;
-
-// macros shared for swizzle declarations and definitions
-#define sw21(A) sw22(A,x) sw22(A,y)
-#define sw20 sw21(x) sw21(y)
-#define sw31(A) sw32(A,x) sw32(A,y) sw32(A,z)
-#define sw30 sw31(x) sw31(y) sw31(z)
-#define sw41(A) sw42(A,x) sw42(A,y) sw42(A,z) sw42(A,w)
-#define sw40 sw41(x) sw41(y) sw41(z) sw41(w)
-
-#if defined(__WIN32__)
-  #undef min
-  #undef max
-#if defined(__MSVC__)
-  INLINE bool finite (float x) {return _finite(x) != 0;}
-#endif
-#endif
-
-// polymorphic constant values
 #define CONSTANT_TYPE(TYPE,VALUE,NUM)\
 static const struct TYPE {\
   INLINE TYPE(void) {}\
@@ -49,24 +31,9 @@ CONSTANT_TYPE(twotype,two,2);
 CONSTANT_TYPE(pitype,pi,3.14159265358979323846);
 #undef CONSTANT_TYPE
 
-// make the code terser
-#define op operator
-#define v2 vec2<T>
-#define v3 vec3<T>
-#define v4 vec4<T>
-#define m33 mat3x3<T>
-#define m43 mat4x3<T>
-#define m44 mat4x4<T>
-#define v2arg const vec2<T>&
-#define v3arg const vec3<T>&
-#define v4arg const vec4<T>&
-#define m33arg const mat3x3<T>&
-#define m43arg const mat4x3<T>&
-#define m44arg const mat4x4<T>&
-#define TINLINE template <typename T> INLINE
-#define UINLINE template <typename U> INLINE
-
-// all useful math functions
+/*-------------------------------------------------------------------------
+ - scalar math
+ -------------------------------------------------------------------------*/
 INLINE int abs    (int x)   {return ::abs(x);}
 INLINE float sign (float x) {return x<0?-1.0f:1.0f;}
 INLINE float rcp  (float x) {return 1.0f/x;}
@@ -114,6 +81,43 @@ TINLINE T deg2rad (T x) {return x * T(1.74532925199432957692e-2);}
 TINLINE T rad2deg (T x) {return x * T(5.72957795130823208768e1);}
 TINLINE T sin2cos (T x) {return sqrt(max(T(zero),T(one)-x*x));}
 TINLINE T cos2sin (T x) {return sin2cos(x);}
+
+/*-------------------------------------------------------------------------
+ - 3D graphics related linear algebra (vectors, matrices)
+ -------------------------------------------------------------------------*/
+template<typename T> struct vec2;
+template<typename T> struct vec3;
+template<typename T> struct vec4;
+
+// macros shared for swizzle declarations and definitions
+#define sw21(A) sw22(A,x) sw22(A,y)
+#define sw20 sw21(x) sw21(y)
+#define sw31(A) sw32(A,x) sw32(A,y) sw32(A,z)
+#define sw30 sw31(x) sw31(y) sw31(z)
+#define sw41(A) sw42(A,x) sw42(A,y) sw42(A,z) sw42(A,w)
+#define sw40 sw41(x) sw41(y) sw41(z) sw41(w)
+
+#if defined(__WIN32__)
+  #undef min
+  #undef max
+#if defined(__MSVC__)
+  INLINE bool finite (float x) {return _finite(x) != 0;}
+#endif
+#endif
+
+// make the code terser
+#define v2 vec2<T>
+#define v3 vec3<T>
+#define v4 vec4<T>
+#define m33 mat3x3<T>
+#define m43 mat4x3<T>
+#define m44 mat4x4<T>
+#define v2arg const vec2<T>&
+#define v3arg const vec3<T>&
+#define v4arg const vec4<T>&
+#define m33arg const mat3x3<T>&
+#define m43arg const mat4x3<T>&
+#define m44arg const mat4x4<T>&
 
 template<typename T> struct vec2 {
   enum {channeln = 2};
@@ -709,6 +713,52 @@ typedef vec4<int> vec4i;
 typedef vec4<float> vec4f;
 typedef vec4<double> vec4d;
 
+/*-------------------------------------------------------------------------
+ - bare minimum interval arithmetic
+ -------------------------------------------------------------------------*/
+template <typename T> struct interval {
+  INLINE interval(void) {}
+  INLINE interval(T m, T M) : m(m), M(M) {}
+  INLINE interval(zerotype) : m(zero), M(zero) {}
+  INLINE interval(onetype) : m(one), M(one) {}
+  T m, M;
+};
+
+#define itvarg const interval<T>&
+#define itv interval<T>
+TINLINE itv op- (itvarg x)  {return itv(-x.M,-x.m);}
+TINLINE itv op+ (itvarg x)  {return itv(+x.m,+x.M);}
+TINLINE itv op+ (itvarg x, itvarg y) {return itv(x.m+y.m,x.M+y.M);}
+TINLINE itv op- (itvarg x, itvarg y) {return itv(x.m+(-y.m),x.M+(-y.M));}
+TINLINE itv op* (itvarg x, itvarg y) {
+  return itv(min(x.m*y.m, x.M*y.m, x.M*y.M, x.m*y.M),
+             max(x.m*y.m, x.M*y.m, x.M*y.M, x.m*y.M));
+}
+TINLINE itv rcp (itvarg x) {return itv(rcp(x.M),rcp(x.m));}
+TINLINE itv U(itvarg x, itvarg y) {return itv(min(x.m,y.m),max(x.M,y.M)); }
+TINLINE itv U(itvarg x, itvarg y, itvarg z) {return U(U(x,y),z);}
+TINLINE itv U(itvarg x, itvarg y, itvarg z, itvarg w) {return U(U(x,y,z),w);}
+TINLINE itv I(itvarg x, itvarg y) {return itv(max(x.m,y.m),min(x.M,y.M)); }
+TINLINE itv I(itvarg x, itvarg y, itvarg z) {return I(I(x,y),z);}
+TINLINE itv I(itvarg x, itvarg y, itvarg z, itvarg w) {return I(I(x,y),I(z,w));}
+TINLINE bool empty(itvarg x) {return x.m > x.M;}
+TINLINE vec4<itv> makeinterval(vec4<T> m, vec4<T> M) {
+  return vec4<itv>(itv(m.x,M.x), itv(m.y,M.y), itv(m.z,M.z), itv(m.w,M.w));
+}
+TINLINE vec3<itv> makeinterval(vec3<T> m, vec3<T> M) {
+  return vec3<itv>(itv(m.x,M.x), itv(m.y,M.y), itv(m.z,M.z));
+}
+TINLINE vec2<itv> makeinterval(vec2<T> m, vec2<T> M) {
+  return vec2<itv>(itv(m.x,M.x), itv(m.y,M.y));
+}
+#undef itvarg
+#undef itv
+
+typedef interval<float> intervalf;
+typedef interval<int> intervali;
+typedef vec3<intervalf> interval3f;
+typedef vec3<intervali> interval3i;
+
 #undef TINLINE
 #undef UINLINE
 #undef op
@@ -753,8 +803,8 @@ extern const vec2i cubeedges[12]; // edges indices
 struct ray {
   INLINE ray(void) {}
   INLINE ray(vec3f org, vec3f dir, float near = 0.f, float far = FLT_MAX)
-    : org(org), dir(dir), rdir(rcp(dir)), tnear(near), tfar(far) {}
-  vec3f org, dir, rdir;
+    : org(org), dir(dir), tnear(near), tfar(far) {}
+  vec3f org, dir;
   float tnear, tfar;
 };
 
@@ -764,6 +814,7 @@ struct CACHE_LINE_ALIGNED raypacket {
   static const u32 COMMONDIR     = 1<<1;
   static const u32 INTERVALARITH = 1<<2;
   static const u32 CORNERRAYS    = 1<<3;
+  INLINE raypacket(void) : raynum(0), flags(0) {}
   INLINE void setorg(vec3f org, u32 rayid) {
     orgx[rayid] = org.x;
     orgy[rayid] = org.y;
@@ -773,9 +824,6 @@ struct CACHE_LINE_ALIGNED raypacket {
     dirx[rayid] = dir.x;
     diry[rayid] = dir.y;
     dirz[rayid] = dir.z;
-    rdirx[rayid] = rcp(dir.x);
-    rdiry[rayid] = rcp(dir.y);
-    rdirz[rayid] = rcp(dir.z);
   }
   INLINE vec3f org(u32 rayid=0) const {
     return vec3f(orgx[rayid], orgy[rayid], orgz[rayid]);
@@ -783,12 +831,9 @@ struct CACHE_LINE_ALIGNED raypacket {
   INLINE vec3f dir(u32 rayid=0) const {
     return vec3f(dirx[rayid], diry[rayid], dirz[rayid]);
   }
-  INLINE vec3f rdir(u32 rayid=0) const {
-    return vec3f(rdirx[rayid],rdiry[rayid],rdirz[rayid]);
-  }
-  array<float,MAXRAYNUM> orgx,  orgy,  orgz;
-  array<float,MAXRAYNUM> dirx,  diry,  dirz;
-  array<float,MAXRAYNUM> rdirx, rdiry, rdirz;
+  array<float,MAXRAYNUM> orgx, orgy, orgz;
+  array<float,MAXRAYNUM> dirx, diry, dirz;
+  interval3f iaorg, iadir, iardir;
   u32 raynum;
   u32 flags;
 };
@@ -828,12 +873,16 @@ INLINE bool intersect(const aabb &b0, const aabb &b1) {
   return !(any(b0.pmin > b1.pmax)| any(b1.pmin > b0.pmax));
 }
 
-INLINE isecres slab(const aabb &box, vec3f org, vec3f rdir, float t) {
-  const vec3f l1 = (box.pmin-org)*rdir;
-  const vec3f l2 = (box.pmax-org)*rdir;
+INLINE isecres slab(vec3f pmin, vec3f pmax, vec3f rdir, float t) {
+  const vec3f l1 = pmin*rdir;
+  const vec3f l2 = pmax*rdir;
   const float tfar = reducemin(max(l1,l2));
   const float tnear = reducemax(min(l1,l2));
   return isecres((tfar >= tnear) & (tfar >= 0.f) & (tnear < t), max(0.f,tnear));
+}
+
+INLINE isecres slab(const aabb &box, vec3f org, vec3f rdir, float t) {
+  return slab(box.pmin-org,box.pmax-org, rdir, t);
 }
 
 } // namespace cube

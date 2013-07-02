@@ -342,15 +342,16 @@ template <typename G>
 INLINE isecres intersect(const G *grid, const vec3f &boxorg, const ray &ray, float t) {
   if (grid == NULL) return isecres(false);
   const vec3b signs = ray.dir > vec3f(zero);
+  const vec3f rdir = rcp(ray.dir);
   const vec3f cellsize = grid->subcuben();
   const vec3i step = select(signs, vec3i(one), -vec3i(one));
   const vec3i out = select(signs, grid->local(), -vec3i(one));
-  const vec3f delta = abs(ray.rdir*cellsize);
+  const vec3f delta = abs(rdir*cellsize);
   const vec3f entry = ray.org+t*ray.dir;
   vec3i xyz = min(vec3i((entry-boxorg)/cellsize), grid->local()-vec3i(one));
   const vec3f floorentry = vec3f(xyz)*cellsize+boxorg;
   const vec3f exit = floorentry + select(signs, cellsize, vec3f(zero));
-  vec3f tmax = vec3f(t)+(exit-entry)*ray.rdir;
+  vec3f tmax = vec3f(t)+(exit-entry)*rdir;
   tmax = select(ray.dir==vec3f(zero),vec3f(FLT_MAX),tmax);
 
   for (;;) {
@@ -389,7 +390,8 @@ INLINE isecres intersect(const G *grid, const vec3f &boxorg, const ray &ray, flo
 isecres castray(const ray &ray) {
   const vec3f cellsize(one), boxorg(zero);
   const aabb box(boxorg, cellsize*vec3f(root.global()));
-  const isecres res = slab(box, ray.org, ray.rdir, ray.tfar);
+  const vec3f rdir = rcp(ray.dir);
+  const isecres res = slab(box, ray.org, rdir, ray.tfar);
   if (!res.isec) return res;
   return intersect(&root, box.pmin, ray, res.t);
 }
@@ -515,6 +517,7 @@ bvh::intersector *buildbvh(void) {
 
 
 VAR(mtraycast, 0, 0, 1);
+#if 0
 struct raycasttask : public task {
   raycasttask(bvh::intersector *bvhisec, const camera &cam, int *pixels, u32 w, u32 h) :
     task("raycasttask", h, 1, 0, UNFAIR), bvhisec(bvhisec), cam(cam), pixels(pixels), w(w), h(h) {}
@@ -536,10 +539,60 @@ struct raycasttask : public task {
   int *pixels;
   u32 w,h;
 };
+#else
+#define TILESIZE 16
+struct raycasttask : public task {
+  raycasttask(bvh::intersector *bvhisec, const camera &cam, int *pixels, vec2i dim, vec2i tile) :
+    task("raycasttask", tile.x*tile.y, 1, 0, UNFAIR), bvhisec(bvhisec), cam(cam), pixels(pixels), dim(dim), tile(tile)
+  {}
+  virtual void run(u32 tileID) {
+    const vec2i tilexy(tileID%tile.x, tileID/tile.x);
+    const vec2i screen = TILESIZE * tilexy;
+    raypacket p;
+    vec3f mindir(FLT_MAX), maxdir(-FLT_MAX);
+    for (u32 y = 0; y < TILESIZE; ++y)
+    for (u32 x = 0; x < TILESIZE; ++x) {
+      const ray ray = cam.generate(dim.x, dim.y, screen.x+x, screen.y+y);
+      const int idx = x+y*TILESIZE;
+      p.setdir(ray.dir, idx);
+      p.setorg(cam.org, idx);
+      mindir = min(mindir, ray.dir);
+      maxdir = max(maxdir, ray.dir);
+    }
+    p.raynum = TILESIZE*TILESIZE;
+    p.flags = raypacket::COMMONORG;
+    if (all(mindir*maxdir > vec3f(zero))) {
+      p.iadir = makeinterval(mindir, maxdir);
+      p.iardir = rcp(p.iadir);
+      p.iaorg = makeinterval(cam.org, cam.org);
+      p.flags |= raypacket::INTERVALARITH;
+    }
+
+    bvh::packethit hit;
+    closest(*bvhisec, p, hit);
+    for (u32 y = 0; y < TILESIZE; ++y)
+    for (u32 x = 0; x < TILESIZE; ++x) {
+      const int offset = (screen.x+x)+dim.x*(screen.y+y);
+      const int idx = x+y*TILESIZE;
+      if (hit[idx].is_hit()) {
+        const int d = min(int(hit[idx].t), 255);
+        pixels[offset] = d|(d<<8)|(d<<16)|(0xff<<24);
+      } else
+        pixels[offset] = 0;
+    }
+  }
+  bvh::intersector *bvhisec;
+  const camera &cam;
+  int *pixels;
+  vec2i dim;
+  vec2i tile;
+};
+
+#endif
 
 void castray(float fovy, float aspect, float farplane) {
   using namespace game;
-  const int w = 1024, h = 768;
+  const int w = 1024, h = 1024;
   int *pixels = (int*)MALLOC(w*h*sizeof(int));
   const mat3x3f r = mat3x3f::rotate(vec3f(0.f,0.f,1.f),game::player1->yaw)*
                     mat3x3f::rotate(vec3f(0.f,1.f,0.f),game::player1->roll)*
@@ -556,9 +609,18 @@ void castray(float fovy, float aspect, float farplane) {
     const u32 threadnum = mtraycast ? 3 : 0;
     tasking::init(&threadnum, 1);
     start = SDL_GetTicks();
+#if 0
     isectask = NEW(raycasttask, bvhisec, cam, pixels, w, h);
     isectask->scheduled();
     isectask->wait();
+#else
+    const vec2i dim(w,h);
+    const vec2i tile = dim/TILESIZE;
+    isectask = NEW(raycasttask, bvhisec, cam, pixels, dim, tile);
+    isectask->scheduled();
+    isectask->wait();
+#endif
+
     tasking::clean();
   } else {
     start = SDL_GetTicks();
@@ -575,7 +637,8 @@ void castray(float fovy, float aspect, float farplane) {
           } else
             pixels[offset] = 0;
         } else {
-          const isecres res = slab(box, ray.org, ray.rdir, ray.tfar);
+          const vec3f rdir = rcp(ray.dir);
+          const isecres res = slab(box, ray.org, rdir, ray.tfar);
           if (!res.isec) {
             pixels[offset] = 0;
             continue;
