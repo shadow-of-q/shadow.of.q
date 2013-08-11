@@ -1,7 +1,7 @@
 #pragma once
-#include "tools.hpp"
-#include "math.hpp"
 #include "renderer.hpp"
+#include "base/tools.hpp"
+#include "base/math.hpp"
 
 #if defined(__JAVASCRIPT__)
 #define __WEBGL__

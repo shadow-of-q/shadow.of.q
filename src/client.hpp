@@ -1,6 +1,6 @@
 #pragma once
 #include "entities.hpp"
-#include "tools.hpp"
+#include "base/tools.hpp"
 
 namespace cube {
 namespace client {

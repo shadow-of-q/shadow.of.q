@@ -286,13 +286,13 @@ INLINE T *memconstructa(s32 n, const char *filename, int linenum, Args&&... args
   void *ptr = (void*) memalloc(n*sizeof(T)+DEFAULT_ALIGNMENT, filename, linenum);
   *(s32*)ptr = n;
   T *array = (T*)((char*)ptr+DEFAULT_ALIGNMENT);
-  loopi(n) new (array+i) T(args...);
+  loopi(n) new ((void*)(array+i)) T(args...);
   return array;
 }
 template <typename T, typename... Args>
 INLINE T *memconstruct(const char *filename, int linenum, Args&&... args) {
   T *ptr = (T*) memalloc(sizeof(T), filename, linenum);
-  new (ptr) T(args...);
+  new ((void*)(ptr)) T(args...);
   return ptr;
 }
 template <typename T> INLINE void memdestroy(T *ptr) {

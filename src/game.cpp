@@ -16,6 +16,7 @@ GLOBAL_VAR(mode, gamemode, int);
 GLOBAL_VAR(nextmode, nextmode_, int);
 GLOBAL_VAR(curtime, curtime_, int);
 GLOBAL_VAR(lastmillis, lastmillis_, int);
+COMMANDN(millis, lastmillis, ARG_1EXP);
 
 VARP(sensitivity, 0, 10, 10000);
 VARP(sensitivityscale, 1, 1, 10000);

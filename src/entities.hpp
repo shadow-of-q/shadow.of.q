@@ -1,7 +1,7 @@
 #pragma once
 #include "sound.hpp"
-#include "tools.hpp"
-#include "stl.hpp"
+#include "base/tools.hpp"
+#include "base/stl.hpp"
 
 namespace cube {
 namespace game {

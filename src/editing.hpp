@@ -1,6 +1,6 @@
 #pragma once
-#include "math.hpp"
 #include "world.hpp"
+#include "base/math.hpp"
 
 namespace cube {
 namespace edit {

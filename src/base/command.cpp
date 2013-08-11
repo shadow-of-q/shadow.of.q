@@ -1,4 +1,17 @@
-#include "cube.hpp"
+#include <cstdio>
+#include "tools.hpp"
+#include "stl.hpp"
+#include "command.hpp"
+
+namespace cube {
+namespace console {
+void out(const char*, ...);
+void writebinds(FILE *f);
+}
+namespace client {
+void writeclientinfo(filehandle);
+}
+}
 
 namespace cube {
 namespace cmd {
@@ -293,7 +306,7 @@ void exec(const char *cfgfile) {
 }
 
 void writecfg(void) {
-  FILE *f = fopen("config.cfg", "w");
+  auto f = fopen("config.cfg", "w");
   if (!f) return;
   fprintf(f, "// automatically written on exit, do not modify\n"
              "// delete this file to have defaults.cfg overwrite these settings\n"
@@ -368,7 +381,6 @@ static int equal(int a, int b) { return (int)(a==b); } COMMANDN(=, equal, ARG_2E
 static int lt(int a, int b)    { return (int)(a<b); }  COMMANDN(<, lt, ARG_2EXP);
 static int gt(int a, int b)    { return (int)(a>b); }  COMMANDN(>, gt, ARG_2EXP);
 static int rndn(int a)         { return a>0 ? rnd(a) : 0; }  COMMANDN(rnd, rndn, ARG_1EXP);
-static int explastmillis(void) { return game::lastmillis(); }  COMMANDN(millis, explastmillis, ARG_1EXP);
 static int strcmpa(char *a, char *b) { return strcmp(a,b)==0; }  COMMANDN(strcmp, strcmpa, ARG_2EST);
 
 } // namespace cmd

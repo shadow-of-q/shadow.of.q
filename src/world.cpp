@@ -1,8 +1,8 @@
-#include "cube.hpp"
 #include <SDL/SDL.h>
 #include <zlib.h>
+#include "cube.hpp"
 #include "bvh.hpp"
-#include "task.hpp"
+#include "base/task.hpp"
 
 namespace cube {
 namespace world {
@@ -621,7 +621,6 @@ void castray(float fovy, float aspect, float farplane) {
     isectask->wait();
 #endif
 
-    tasking::clean();
   } else {
     start = SDL_GetTicks();
     for (int y = 0; y < h; ++y) {
@@ -659,6 +658,7 @@ void castray(float fovy, float aspect, float farplane) {
   writebmp(pixels, w, h, usebvh ? "bvh.bmp" : "grid.bmp");
   FREE(pixels);
   if (bvhisec) bvh::destroy(bvhisec);
+  if (usebvh) tasking::clean();
 }
 
 } // namespace world

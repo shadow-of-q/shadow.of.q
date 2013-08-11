@@ -801,6 +801,7 @@ static void buildlmuv(surfaceparamctx &ctx, vec3i xyz, vec3i idx) {
 }
 
 static bvh::intersector *bvhisec = NULL; // XXX naughty global
+static int raynum = 0;
 
 static void buildlmdata(surfaceparamctx &ctx, vec3i xyz, vec3i idx) {
   if (!world::visibleface(xyz, ctx.face)) return;
@@ -828,6 +829,7 @@ static void buildlmdata(surfaceparamctx &ctx, vec3i xyz, vec3i idx) {
       isec = occluded(*bvhisec, r);
     } else
       isec = world::castray(r).isec;
+    ++raynum;
     const float lum = (isec?0.f:1.f) * max(dot(ldir,normalize(n)),0.f);
     const u32 qlum = u32(clamp(255.f*lum, 0.f, 255.f));
     l[i*ctx.lmuv.dim.x+j] = qlum | (qlum<<8) | (qlum<<16) | 0xff000000;
@@ -1031,7 +1033,12 @@ static void buildbrick(world::lvl1grid &b, vec3i org) {
 static void buildgrid(void) {
   if (world::root.dirty==0 && !forcebuild) return;
   ldir = normalize(vec3f(float(ldirx), float(ldiry), float(ldirz)));
+  const auto start = SDL_GetTicks();
+  raynum = 0;
   forallbricks(buildbrick);
+  const auto end = SDL_GetTicks();
+  console::out("%f Mrays in %d msec. %f Mrays/s",
+    raynum/1e6f, end-start, float(raynum) / float(end-start) * 1000.f);
   forcebuild = 0;
   world::root.dirty = 0;
   if (bvhisec) bvh::destroy(bvhisec);

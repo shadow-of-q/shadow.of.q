@@ -1,7 +1,7 @@
 #pragma once
-#define SAVEGAMEVERSION 4 // bump if dynent/netprotocol changes or any other savegame/demo data
+#include "base/tools.hpp"
 
-#include "tools.hpp"
+#define SAVEGAMEVERSION 4 // bump if dynent/netprotocol changes or any other savegame/demo data
 
 namespace cube {
 namespace demo {

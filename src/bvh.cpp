@@ -2,12 +2,12 @@
 #include <cstring>
 #include <cfloat>
 #include <cmath>
-#include "tools.hpp"
-#include "stl.hpp"
 #include "bvh.hpp"
-#include "math.hpp"
-#include "command.hpp"
 #include "console.hpp"
+#include "base/command.hpp"
+#include "base/math.hpp"
+#include "base/stl.hpp"
+#include "base/tools.hpp"
 
 namespace cube {
 namespace bvh {

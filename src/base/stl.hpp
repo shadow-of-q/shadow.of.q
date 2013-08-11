@@ -3,8 +3,142 @@
 #include "tools.hpp"
 #include <cstring>
 #include <cstdarg>
+#define STL_DEBUG 0
 
 namespace cube {
+
+/*-------------------------------------------------------------------------
+ - type traits
+ -------------------------------------------------------------------------*/
+template<typename T> struct is_integral { enum { value = false }; };
+template<typename T> struct is_floating_point { enum { value = false }; };
+
+#define MAKE_INTEGRAL(TYPE) template<> struct is_integral<TYPE> { enum { value = true }; }
+MAKE_INTEGRAL(char);
+MAKE_INTEGRAL(unsigned char);
+MAKE_INTEGRAL(bool);
+MAKE_INTEGRAL(short);
+MAKE_INTEGRAL(unsigned short);
+MAKE_INTEGRAL(int);
+MAKE_INTEGRAL(unsigned int);
+MAKE_INTEGRAL(long);
+MAKE_INTEGRAL(unsigned long);
+MAKE_INTEGRAL(wchar_t);
+#undef MAKE_INTEGRAL
+
+template<> struct is_floating_point<float> { enum { value = true }; };
+template<> struct is_floating_point<double> { enum { value = true }; };
+template<typename T> struct is_pointer { enum { value = false }; };
+template<typename T> struct is_pointer<T*> { enum { value = true }; };
+template<typename T> struct is_pod { enum { value = false }; };
+template<typename T> struct is_fundamental {
+  enum {
+    value = is_integral<T>::value || is_floating_point<T>::value
+  };
+};
+template<typename T> struct has_trivial_constructor {
+  enum {
+    value = is_fundamental<T>::value || is_pointer<T>::value || is_pod<T>::value
+  };
+};
+template<typename T> struct has_trivial_copy {
+  enum {
+    value = is_fundamental<T>::value || is_pointer<T>::value || is_pod<T>::value
+  };
+};
+
+template<typename T> struct has_trivial_assign {
+  enum {
+    value = is_fundamental<T>::value || is_pointer<T>::value || is_pod<T>::value
+  };
+};
+template<typename T> struct has_trivial_destructor {
+  enum {
+    value = is_fundamental<T>::value || is_pointer<T>::value || is_pod<T>::value
+  };
+};
+template<typename T> struct has_cheap_compare {
+  enum {
+    value = has_trivial_copy<T>::value && sizeof(T) <= 4
+  };
+};
+
+/*-------------------------------------------------------------------------
+ - iterators
+ -------------------------------------------------------------------------*/
+struct input_iterator_tag {};
+struct output_iterator_tag {};
+struct forward_iterator_tag: public input_iterator_tag {};
+struct bidirectional_iterator_tag: public forward_iterator_tag {};
+struct random_access_iterator_tag: public bidirectional_iterator_tag {};
+
+template<typename IterT> struct iterator_traits {
+   typedef typename IterT::iterator_category iterator_category;
+};
+template<typename T> struct iterator_traits<T*> {
+   typedef random_access_iterator_tag iterator_category;
+};
+
+namespace internal {
+  template<typename TIter, typename TDist>
+  INLINE void distance(TIter first, TIter last, TDist& dist, cube::random_access_iterator_tag) {
+    dist = TDist(last - first);
+  }
+  template<typename TIter, typename TDist>
+  INLINE void distance(TIter first, TIter last, TDist& dist, cube::input_iterator_tag) {
+    dist = 0;
+    while (first != last) {
+      ++dist;
+      ++first;
+    }
+  }
+  template<typename TIter, typename TDist>
+  INLINE void advance(TIter& iter, TDist d, cube::random_access_iterator_tag) {
+    iter += d;
+  }
+  template<typename TIter, typename TDist>
+  INLINE void advance(TIter& iter, TDist d, cube::bidirectional_iterator_tag)
+  {
+    if (d >= 0)
+      while (d--) ++iter;
+    else
+      while (d++) --iter;
+  }
+  template<typename TIter, typename TDist>
+  INLINE void advance(TIter& iter, TDist d, cube::input_iterator_tag) {
+    ASSERT(d >= 0);
+    while (d--) ++iter;
+  }
+} // namespace internal
+
+/*-------------------------------------------------------------------------
+ - allocator concept
+ -------------------------------------------------------------------------*/
+class allocator {
+public:
+  explicit allocator(const char* name = "DEFAULT"):  m_name(name) {}
+  ~allocator(void) {}
+  void *allocate(u32 bytes, int flags = 0);
+  void *allocate_aligned(u32 bytes, u32 alignment, int flags = 0);
+  void deallocate(void* ptr, u32 bytes);
+  const char *get_name(void) const { return m_name; }
+
+private:
+  const char *m_name;
+};
+
+INLINE bool operator==(const allocator&, const allocator&) {
+  return true;
+}
+INLINE bool operator!=(const allocator& lhs, const allocator& rhs) {
+  return !(lhs == rhs);
+}
+INLINE void* allocator::allocate(u32 bytes, int) {
+  return memalloc(bytes, __FILE__, __LINE__);
+}
+INLINE void allocator::deallocate(void* ptr, u32) {
+  memfree(ptr);
+}
 
 /*-------------------------------------------------------------------------
  - algorithms, helper classes and functions
@@ -14,6 +148,7 @@ template<class T> INLINE bool compareless(const T &x, const T &y) { return x < y
 static struct niltype {} nil MAYBE_UNUSED;
 static struct infype {} inf MAYBE_UNUSED;
 static struct neginfype {} neginf MAYBE_UNUSED;
+template<int TVal> struct int_to_type { enum { value = TVal }; };
 
 #ifdef swap
 #undef swap
@@ -104,10 +239,51 @@ template <typename T0, typename T1> struct pair {
     second=other.second;
     return *this;
   }
-  T0 first; T1 second;
+  T0 first;
+  T1 second;
+};
+template<typename T0, typename T1> struct is_pod<pair<T0, T1> > {
+  enum { value = (is_pod<T0>::value || is_fundamental<T0>::value) && 
+    (is_pod<T1>::value || is_fundamental<T1>::value) };
 };
 template <typename T0, typename T1>
 INLINE pair<T0,T1> makepair(const T0 &t0, const T1 &t1) { return pair<T0,T1>(t0,t1); }
+
+/*-------------------------------------------------------------------------
+ - fast growing pool allocation
+ -------------------------------------------------------------------------*/
+template <typename T> class growingpool {
+public:
+  growingpool(void) : current(NEW(growingpoolelem, 1)) {}
+  ~growingpool(void) { SAFE_DELETE(current); }
+  T *allocate(void) {
+    if (current->allocated == current->maxelemnum) {
+      growingpoolelem *elem = NEW(growingpoolelem, 2*current->maxelemnum);
+      elem->next = current;
+      current = elem;
+    }
+    T *data = current->data + current->allocated++;
+    return data;
+  }
+private:
+  // chunk of elements to allocate
+  struct growingpoolelem {
+    growingpoolelem(size_t elemnum) {
+      data = NEWAE(T, elemnum);
+      next = NULL;
+      maxelemnum = elemnum;
+      allocated = 0;
+    }
+    ~growingpoolelem(void) {
+      SAFE_DELETEA(data);
+      SAFE_DELETE(next);
+    }
+    T *data;
+    growingpoolelem *next;
+    size_t allocated, maxelemnum;
+  };
+  growingpoolelem *current;
+};
 
 /*-------------------------------------------------------------------------
  - easy safe strings
@@ -139,6 +315,9 @@ char *newstringbuf(const char *s, const char *filename, int linenum);
 #define NEWSTRING(...) newstring(__VA_ARGS__, __FILE__, __LINE__)
 #define NEWSTRINGBUF(S) newstringbuf(S, __FILE__, __LINE__)
 
+bool strequal(const char *s1, const char *s2);
+bool contains(const char *haystack, const char *needle);
+char *tokenize(char *s1, const char *s2, char **lasts);
 char *path(char *s);
 char *loadfile(char *fn, int *size);
 void endianswap(void *, int, int);
@@ -203,11 +382,11 @@ template <class T> struct databuf {
     len = max(len-n, 0);
   }
 
-  bool empty() const { return len==0; }
-  int length() const { return len; }
-  int remaining() const { return maxlen-len; }
-  bool overread() const { return (flags&OVERREAD)!=0; }
-  bool overwrote() const { return (flags&OVERWROTE)!=0; }
+  bool empty(void) const { return len==0; }
+  int length(void) const { return len; }
+  int remaining(void) const { return maxlen-len; }
+  bool overread(void) const { return (flags&OVERREAD)!=0; }
+  bool overwrote(void) const { return (flags&OVERWROTE)!=0; }
 
   void forceoverread(void) {
     len = maxlen;
@@ -268,7 +447,8 @@ template <class T> struct vector {
       v.ulen = 0;
     }
   }
-
+  INLINE T *begin(void) { return buf; }
+  INLINE T *end(void) { return buf+ulen; }
   INLINE bool inrange(size_t i) const { return i<size_t(ulen); }
   INLINE bool inrange(int i) const { return i>=0 && i<ulen; }
 
@@ -279,6 +459,7 @@ template <class T> struct vector {
 
   INLINE int capacity(void) const { return alen; }
   INLINE int length(void) const { return ulen; }
+  INLINE int size(void) const { return ulen; }
   INLINE T &operator[](int i) { ASSERT(i>=0 && i<ulen); return buf[i]; }
   INLINE const T &operator[](int i) const { ASSERT(i >= 0 && i<ulen); return buf[i]; }
   INLINE void disown(void) { buf = NULL; alen = ulen = 0; }
@@ -343,7 +524,7 @@ template <class T> struct vector {
     return e;
   }
 
-  T removeunordered(int i) {
+  T removeunocubered(int i) {
     T e = buf[i];
     ulen--;
     if (ulen>0) buf[i] = buf[ulen];
@@ -429,7 +610,7 @@ template <class T> struct vector {
   }
 
   T removeheap(void) {
-    T e = removeunordered(0);
+    T e = removeunocubered(0);
     if (ulen) downheap(0);
     return e;
   }

@@ -1,9 +1,9 @@
 #pragma once
 #include "entities.hpp"
-#include "tools.hpp"
-#include "math.hpp"
 #include "bvh.hpp"
 #include "ogl.hpp"
+#include "base/tools.hpp"
+#include "base/math.hpp"
 
 namespace cube {
 namespace world {

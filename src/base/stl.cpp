@@ -30,6 +30,34 @@ void sprintf_s_f::operator()(const char* fmt, ...) {
   d[_MAXDEFSTR-1] = 0;
 }
 
+char* tokenize(char *s1, const char *s2, char **lasts) {
+ char *ret;
+ if (s1 == NULL)
+   s1 = *lasts;
+ while(*s1 && strchr(s2, *s1))
+   ++s1;
+ if(*s1 == '\0')
+   return NULL;
+ ret = s1;
+ while(*s1 && !strchr(s2, *s1))
+   ++s1;
+ if(*s1)
+   *s1++ = '\0';
+ *lasts = s1;
+ return ret;
+}
+
+bool strequal(const char *s1, const char *s2) {
+  if (strcmp(s1, s2) == 0) return true;
+  return false;
+}
+
+bool contains(const char *haystack, const char *needle) {
+  if (strstr(haystack, needle) == NULL) return false;
+  return true;
+}
+
+
 char *path(char *s) {
   for (char *t = s; (t = strpbrk(t, "/\\")) != 0; *t++ = PATHDIV);
   return s;

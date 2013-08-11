@@ -1,5 +1,5 @@
-#include "tools.hpp"
 #include "network.hpp"
+#include "base/tools.hpp"
 
 // all network traffic is in 32bit ints, which are then compressed using the
 // following simple scheme (assumes that most values are small).

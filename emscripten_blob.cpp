@@ -2,14 +2,12 @@
 
 #include "src/bvh.cpp"
 #include "src/client.cpp"
-#include "src/command.cpp"
 #include "src/console.cpp"
 #include "src/demo.cpp"
 #include "src/editing.cpp"
 #include "src/entities.cpp"
 #include "src/game.cpp"
 #include "src/main.cpp"
-#include "src/math.cpp"
 #include "src/menu.cpp"
 #include "src/network.cpp"
 #include "src/monster.cpp"
@@ -25,9 +23,12 @@
 #include "src/serverms.cpp"
 #include "src/serverutil.cpp"
 #include "src/sound.cpp"
-#include "src/tools.cpp"
 #include "src/weapon.cpp"
 #include "src/world.cpp"
+
+#include "src/base/command.cpp"
+#include "src/base/math.cpp"
+#include "src/base/tools.cpp"
 
 #include "enet/callbacks.c"
 #include "enet/host.c"

@@ -1,18 +1,22 @@
 include_directories(../include)
 include_directories(../enet/include)
 set (CLIENT_SRC
+  base/command.cpp
+  base/stl.cpp
+  base/task.cpp
+  base/tools.cpp
+  base/math.cpp
   game.cpp
   bvh.cpp
   client.cpp
-  command.cpp
   console.cpp
   editing.cpp
   entities.cpp
   main.cpp
-  math.cpp
   menu.cpp
   monster.cpp
   network.cpp
+  obj.cpp
   ogl.cpp
   physics.cpp
   renderer.cpp
@@ -26,9 +30,6 @@ set (CLIENT_SRC
   serverms.cpp
   serverutil.cpp
   sound.cpp
-  stl.cpp
-  task.cpp
-  tools.cpp
   weapon.cpp
   world.cpp)
 
@@ -41,22 +42,22 @@ target_link_libraries (cube_client
   ${ZLIB_LIBRARY})
 
 set (SERVER_SRC
-  math.cpp
+  base/math.cpp
+  base/stl.cpp
+  base/tools.cpp
   network.cpp
   server.cpp
   serverms.cpp
-  standalone.cpp
-  stl.cpp
-  tools.cpp)
+  standalone.cpp)
 add_executable (cube_server ${SERVER_SRC})
 target_link_libraries (cube_server enet ${SDL_LIBRARY})
 
 if (TEST_TASKS)
   set (TEST_TASK_SRC
-    math.cpp
-    stl.cpp
-    tools.cpp
-    task.cpp
+    base/math.cpp
+    base/stl.cpp
+    base/tools.cpp
+    base/task.cpp
     utests/task.cpp)
   add_executable (testtask ${TEST_TASK_SRC})
   target_link_libraries (testtask ${SDL_LIBRARY})
