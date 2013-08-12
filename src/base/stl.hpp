@@ -62,6 +62,11 @@ template<typename T> struct has_cheap_compare {
     value = has_trivial_copy<T>::value && sizeof(T) <= 4
   };
 };
+template<class T> struct isclass {
+  template<class C> static char test(void (C::*)(void));
+  template<class C> static int test(...);
+  enum { yes = sizeof(test<T>(0)) == 1 ? 1 : 0, no = yes^1 };
+};
 
 /*-------------------------------------------------------------------------
  - iterators
@@ -224,12 +229,6 @@ template<class T> INLINE void quicksort(T *buf, int n) {
   quicksort(buf, buf+n, compareless<T>);
 }
 
-template<class T> struct isclass {
-  template<class C> static char test(void (C::*)(void));
-  template<class C> static int test(...);
-  enum { yes = sizeof(test<T>(0)) == 1 ? 1 : 0, no = yes^1 };
-};
-
 template <typename T0, typename T1> struct pair {
   INLINE pair(void) {}
   INLINE pair(const T0 &t0, const T1 &t1) : first(t0), second(t1) {}
@@ -324,7 +323,7 @@ void endianswap(void *, int, int);
 int islittleendian(void);
 void initendiancheck(void);
 void writebmp(const int *data, int w, int h, const char *name);
-
+#if 0
 /*-------------------------------------------------------------------------
  - data buffer
  -------------------------------------------------------------------------*/
@@ -416,7 +415,7 @@ template <class T> struct vector {
 
   vector<T> &operator=(const vector<T> &v) {
     shrink(0);
-    if (v.length() > alen) growbuf(v.length());
+    if (v.size() > alen) growbuf(v.size());
     loopv(v) add(v[i]);
     return *this;
   }
@@ -497,7 +496,7 @@ template <class T> struct vector {
   }
 
   INLINE void advance(int sz) { ulen += sz; }
-  INLINE void addbuf(const databuf<T> &p) { advance(p.length()); }
+  INLINE void addbuf(const databuf<T> &p) { advance(p.size()); }
 
   T *pad(int n) {
     T *buf = reserve(n).buf;
@@ -622,7 +621,7 @@ template <class T> struct vector {
 };
 typedef vector<char *> cvector;
 typedef vector<int> ivector;
-
+#endif
 /*-------------------------------------------------------------------------
  - hash map
  -------------------------------------------------------------------------*/
@@ -848,6 +847,5 @@ INLINE ref<T> &ref<T>::operator= (niltype) {
   *(T**)&ptr = NULL;
   return *this;
 }
-
 } // namespace cube
 

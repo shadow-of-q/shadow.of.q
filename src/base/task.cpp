@@ -1,4 +1,5 @@
 #include "task.hpp"
+#include "vector.hpp"
 #include <SDL/SDL_thread.h>
 
 namespace cube {
@@ -191,7 +192,7 @@ int queue::threadfunc(void *data) {
 queue::queue(u32 threadnum) : terminatethreads(false) {
   mutex = SDL_CreateMutex();
   cond = SDL_CreateCond();
-  loopi(s32(threadnum)) threads.add(SDL_CreateThread(threadfunc, this));
+  loopi(s32(threadnum)) threads.push_back(SDL_CreateThread(threadfunc, this));
 }
 
 queue::~queue(void) {
@@ -205,13 +206,13 @@ queue::~queue(void) {
 }
 
 void init(const u32 *queueinfo, u32 n) {
-  queues.pad(n);
+  queues.resize(n);
   loopi(s32(n)) queues[i] = NEW(queue, queueinfo[i]);
 }
 
 void clean(void) {
   loopv(queues) SAFE_DELETE(queues[i]);
-  vector<queue*>().move(queues);
+  queues.resize(0);
 }
 } // namespace tasking
 

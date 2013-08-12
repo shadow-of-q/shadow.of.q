@@ -207,13 +207,13 @@ void mapmodel(char *rad, char *h, char *zoff, char *snap, char *name) {
 
 void mapmodelreset(void) {
   if (mdllookup) ENUMERATE(mdllookup, mdl, SAFE_DELETE(*mdl));
-  mapmodels.setsize(0);
+  mapmodels.resize(0);
   modelnum = 0;
   SAFE_DELETE(mdllookup);
 }
 
 game::mapmodelinfo &getmminfo(int i) {
-  return i<mapmodels.length() ? mapmodels[i]->mmi : *(game::mapmodelinfo*) NULL;
+  return i<mapmodels.size() ? mapmodels[i]->mmi : *(game::mapmodelinfo*) NULL;
 }
 
 COMMAND(mapmodel, ARG_5STR);

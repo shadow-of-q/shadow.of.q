@@ -3,6 +3,7 @@
 #include "base/tools.hpp"
 #include "base/stl.hpp"
 #include "base/map.hpp"
+#include "base/vector.hpp"
 
 #include <cstring>
 #include <cstdlib>
@@ -320,16 +321,16 @@ bool obj::load(const char *filename) {
   }
 
   // sort triangle by material and create the material groups
-  tris.sort(cmp);
+  quicksort(tris.begin(), tris.end(), cmp);
   vector<matgroup> matgrp;
   int curr = tris[0].m;
   matgrp.add(matgroup(0,0,curr));
   loopv(tris) if (tris[i].m != curr) {
     curr = tris[i].m;
-    matgrp.last().last = (int) (i-1);
+    matgrp.back().last = (int) (i-1);
     matgrp.add(matgroup((int)i,0,curr));
   }
-  matgrp.last().last = tris.size() - 1;
+  matgrp.back().last = tris.size() - 1;
 
   // we replace the undefined material by the default one if needed
   if (tris[0].m == -1) {

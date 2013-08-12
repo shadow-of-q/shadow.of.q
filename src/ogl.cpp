@@ -442,7 +442,7 @@ static void buildsphere(float radius, int slices, int stacks) {
     }
   }
 
-  const size_t sz = sizeof(arrayf5) * v.length();
+  const size_t sz = sizeof(arrayf5) * v.size();
   genbuffers(1, &spherevbo);
   ogl::bindbuffer(ARRAY_BUFFER, spherevbo);
   OGL(BufferData, GL_ARRAY_BUFFER, sz, &v[0][0], GL_STATIC_DRAW);
@@ -932,7 +932,7 @@ static void buildfacemesh(brickmeshctx &ctx, vec3i xyz, vec3i idx) {
     //  if (id == 0xffff) {
         const vec3f pos = world::getpos(global);
         const vec2f tex = chan==0?pos.yz():(chan==1?pos.xz():pos.xy());
-        // id = ctx.vbo.length();
+        // id = ctx.vbo.size();
         v[j] = pos.xzy();
         t[j] = tex;
         l[j] = vec2f(ctx.lmuv.get(idx,corners[i][j],ctx.face))/vec2f(ctx.lmuv.dim);
@@ -948,7 +948,7 @@ static void buildfacemesh(brickmeshctx &ctx, vec3i xyz, vec3i idx) {
       continue;
     loopj(3) {
       if (isnew[j]) {
-        ctx.set(locals[j], ctx.vbo.length());
+        ctx.set(locals[j], ctx.vbo.size());
         ctx.vbo.add(array<float,10>(v[j],t[j],c[j],l[j]));
       }
       ctx.ibo.add(ctx.get(locals[j]));
@@ -959,7 +959,7 @@ static void buildfacemesh(brickmeshctx &ctx, vec3i xyz, vec3i idx) {
 
 static void radixsortibo(brickmeshctx &ctx) {
   const s32 bitn=8, bucketn=1<<bitn, passn=2, mask=bucketn-1;
-  const auto len = ctx.ibo.length();
+  const auto len = ctx.ibo.size();
   u16 histo[bucketn];
   vector<u16> copytex(len), copyibo(len);
   vector<u16> *pptex[] = {&ctx.tex, &copytex};
@@ -991,13 +991,13 @@ static void buildgridmesh(world::lvl1grid &b, const lightmapuv &lmuv, vec3i org)
     ctx.clear(i);
     loopxyz(0, b.size(), buildfacemesh(ctx, org+xyz, xyz));
   }
-  if (ctx.vbo.length() == 0 || ctx.ibo.length() == 0) {
+  if (ctx.vbo.size() == 0 || ctx.ibo.size() == 0) {
     if (b.vbo) deletebuffers(1, &b.vbo);
     if (b.ibo) deletebuffers(1, &b.ibo);
     b.vbo = b.ibo = 0;
     return;
   }
-  if (ctx.vbo.length() > 0xffff) fatal("too many vertices in the VBO");
+  if (ctx.vbo.size() > 0xffff) fatal("too many vertices in the VBO");
   radixsortibo(ctx);
   if (b.vbo) deletebuffers(1, &b.vbo);
   if (b.ibo) deletebuffers(1, &b.ibo);
@@ -1005,12 +1005,12 @@ static void buildgridmesh(world::lvl1grid &b, const lightmapuv &lmuv, vec3i org)
   genbuffers(1, &b.ibo);
   ogl::bindbuffer(ogl::ARRAY_BUFFER, b.vbo);
   ogl::bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, b.ibo);
-  OGL(BufferData, GL_ARRAY_BUFFER, ctx.vbo.length()*sizeof(float[10]), &ctx.vbo[0][0], GL_STATIC_DRAW);
-  OGL(BufferData, GL_ELEMENT_ARRAY_BUFFER, ctx.ibo.length()*sizeof(u16), &ctx.ibo[0], GL_STATIC_DRAW);
+  OGL(BufferData, GL_ARRAY_BUFFER, ctx.vbo.size()*sizeof(float[10]), &ctx.vbo[0][0], GL_STATIC_DRAW);
+  OGL(BufferData, GL_ELEMENT_ARRAY_BUFFER, ctx.ibo.size()*sizeof(u16), &ctx.ibo[0], GL_STATIC_DRAW);
   bindbuffer(ogl::ARRAY_BUFFER, 0);
   bindbuffer(ogl::ELEMENT_ARRAY_BUFFER, 0);
-  s32 n=1, tex=ctx.tex[0], len=ctx.ibo.length()-1;
-  b.draws.setsize(0);
+  s32 n=1, tex=ctx.tex[0], len=ctx.ibo.size()-1;
+  b.draws.resize(0);
   loopi(len)
     if (ctx.tex[i+1]!=tex) {
       b.draws.add(vec2i(n,tex));
@@ -1061,7 +1061,7 @@ static void drawgrid(void) {
     OGL(VertexAttribPointer, TEX1, 2, GL_FLOAT, 0, sizeof(float[10]), (const void*) sizeof(float[8]));
     OGL(VertexAttribPointer, POS0, 3, GL_FLOAT, 0, sizeof(float[10]), (const void*) 0);
     u32 offset = 0;
-    loopi(b.draws.length()) {
+    loopi(b.draws.size()) {
       const auto fake = (const void*)(uintptr_t(offset*sizeof(u16)));
       const u32 n = b.draws[i].x;
       const u32 tex = b.draws[i].y;

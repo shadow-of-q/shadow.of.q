@@ -58,9 +58,13 @@ void clean(void) {
 
 static void line(const char *sf, bool highlight) {
   cline cl;
-  cl.cref = conlines.length()>100 ? conlines.pop().cref : NEWSTRINGBUF("");
+  if (conlines.size()>100) {
+    cl.cref = conlines.back().cref;
+    conlines.pop_back();
+  } else
+    cl.cref = NEWSTRINGBUF("");
   cl.outtime = game::lastmillis(); // for how long to keep line on screen
-  conlines.insert(0,cl);
+  conlines.insert(conlines.begin(),cl);
   if (highlight) { // show line in a different colour, for chat etc.
     cl.cref[0] = '\f';
     cl.cref[1] = 0;
@@ -90,7 +94,7 @@ void render(void) {
   int nd = 0;
   char *refs[ndraw];
   loopv(conlines)
-    if (conskip ? i>=conskip-1 || i>=conlines.length()-ndraw :
+    if (conskip ? i>=conskip-1 || i>=conlines.size()-ndraw :
        game::lastmillis()-conlines[i].outtime<20000) {
       refs[nd++] = conlines[i].cref;
       if (nd==ndraw) break;
@@ -113,9 +117,9 @@ COMMAND(mapmsg, ARG_1STR);
 
 static void history(int n) {
   static bool rec = false;
-  if (!rec && n>=0 && n<vhistory.length()) {
+  if (!rec && n>=0 && n<vhistory.size()) {
     rec = true;
-    cmd::execute(vhistory[vhistory.length()-n-1]);
+    cmd::execute(vhistory[vhistory.size()-n-1]);
     rec = false;
   }
 }
@@ -138,7 +142,7 @@ void keypress(int code, bool isdown, int cooked) {
           if (histpos) strcpy_s(commandbuf, vhistory[--histpos]);
           break;
         case SDLK_DOWN:
-          if (histpos<vhistory.length()) strcpy_s(commandbuf, vhistory[histpos++]);
+          if (histpos<vhistory.size()) strcpy_s(commandbuf, vhistory[histpos++]);
           break;
         case SDLK_TAB:
           cmd::complete(commandbuf);
@@ -153,9 +157,9 @@ void keypress(int code, bool isdown, int cooked) {
     } else {
       if (code==SDLK_RETURN) {
         if (commandbuf[0]) {
-          if (vhistory.empty() || strcmp(vhistory.last(), commandbuf))
+          if (vhistory.empty() || strcmp(vhistory.back(), commandbuf))
             vhistory.add(NEWSTRING(commandbuf));  // cap this?
-          histpos = vhistory.length();
+          histpos = vhistory.size();
           if (commandbuf[0]=='/')
             cmd::execute(commandbuf, true);
           else

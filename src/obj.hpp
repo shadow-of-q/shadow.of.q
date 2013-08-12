@@ -8,27 +8,23 @@ namespace cube {
 // processed and merged here)
 struct obj : noncopyable
 {
-  // indexed vertices and material
   struct triangle {
     INLINE triangle(void) {}
     INLINE triangle(vec3i v, int m) : v(v), m(m) {}
     vec3i v;
     int m;
   };
-  // stores position, normal and texture coordinates
   struct vertex {
     INLINE vertex(void) {}
     INLINE vertex(vec3f p, vec3f n, vec2f t) : p(p), n(n), t(t) {}
     vec3f p, n;
     vec2f t;
   };
-  // triangles are grouped by material
   struct matgroup {
     INLINE matgroup(void) {}
     INLINE matgroup(int first, int last, int m) : first(first), last(last), m(m) {}
     int first, last, m;
   };
-  // just a dump of mtl description
   struct material {
     char *name;
     char *mapka;

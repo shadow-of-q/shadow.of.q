@@ -160,7 +160,7 @@ void addmsg(int rel, int num, int type, ...) {
       type, num, msgsizelookup(type));
     fatal(s);
   }
-  if (messages.length()==128) {
+  if (messages.size()==128) {
     console::out("command flood protection (type %d)", type);
     return;
   }
@@ -270,7 +270,7 @@ void c2sinfo(const game::dynent *d) {
       if (msg[1]) packet->flags = ENET_PACKET_FLAG_RELIABLE;
       loopi(msg[0]) putint(p, msg[i+2]);
     }
-    messages.shrink(0);
+    messages.resize(0);
     if (game::lastmillis()-lastping>250) {
       putint(p, SV_PING);
       putint(p, game::lastmillis());
@@ -487,7 +487,7 @@ void localservertoclient(u8 *buf, int len) {
     case SV_ITEMSPAWN: {
       u32 i = getint(p);
       game::setspawn(i, true);
-      if (i>=u32(game::ents.length()))
+      if (i>=u32(game::ents.size()))
         break;
       const auto &e = game::ents[i];
       const vec3f v(float(e.x),float(e.y),float(e.z));
@@ -523,7 +523,7 @@ void localservertoclient(u8 *buf, int len) {
     // Coop edit of ent
     case SV_EDITENT: {
       u32 i = getint(p);
-      while (u32(game::ents.length()) <= i)
+      while (u32(game::ents.size()) <= i)
         game::ents.add().type = game::NOTUSED;
       game::ents[i].type = getint(p);
       game::ents[i].x = getint(p);

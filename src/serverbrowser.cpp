@@ -41,7 +41,8 @@ static int resolverloop(void * data) {
       SDL_UnlockMutex(resolvermutex);
       continue;
     }
-    rt->query = resolverqueries.pop();
+    rt->query = resolverqueries.back();
+    resolverqueries.pop_back();
     rt->starttime = game::lastmillis();
     SDL_UnlockMutex(resolvermutex);
     ENetAddress address = {ENET_HOST_ANY, CUBE_SERVINFO_PORT};
@@ -83,8 +84,8 @@ static void resolverstop(ResolverThread &rt, bool restart) {
 
 static void resolverclear(void) {
   SDL_LockMutex(resolvermutex);
-  resolverqueries.setsize(0);
-  ResolverResults.setsize(0);
+  resolverqueries.resize(0);
+  ResolverResults.resize(0);
   while (SDL_SemTryWait(resolversem) == 0);
   loopv(ResolverThreads) {
     ResolverThread &rt = ResolverThreads[i];
@@ -103,7 +104,8 @@ static void resolverquery(char *name) {
 static bool resolvercheck(char **name, ENetAddress *address) {
   SDL_LockMutex(resolvermutex);
   if (!ResolverResults.empty()) {
-    ResolverResult &rr = ResolverResults.pop();
+    ResolverResult &rr = ResolverResults.back();
+    ResolverResults.pop_back();
     *name = rr.query;
     *address = rr.address;
     SDL_UnlockMutex(resolvermutex);
@@ -132,7 +134,9 @@ const char *getservername(int n) { return servers[n].name; }
 
 void addserver(const char *servername) {
   loopv(servers) if (strcmp(servers[i].name, servername)==0) return;
-  ServerInfo &si = servers.insert(0, ServerInfo());
+  // ServerInfo &si = servers.insert(0, ServerInfo());
+  servers.insert(servers.begin(), ServerInfo());
+  ServerInfo &si = *servers.begin();
   strcpy_s(si.name, servername);
   si.full[0] = 0;
   si.mode = 0;
@@ -217,7 +221,7 @@ void refreshservers(void) {
   checkresolver();
   checkpings();
   if (game::lastmillis() - lastinfo >= 5000) pingservers();
-  servers.sort(sicompare);
+  quicksort(servers.begin(), servers.end(), sicompare);
   int maxmenu = 16;
   loopv(servers) {
     ServerInfo &si = servers[i];
@@ -259,7 +263,7 @@ static void updatefrommaster(void) {
       strstr((char *)reply, "<HTML>"))
     console::out("master server not replying");
   else {
-    servers.setsize(0);
+    servers.resize(0);
     cmd::execute((char *)reply);
   }
   servermenu();

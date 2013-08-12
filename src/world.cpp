@@ -11,7 +11,7 @@ using namespace game;
 const int ssize = 1024;
 
 int findentity(int type, int index) {
-  for (int i = index; i<ents.length(); i++)
+  for (int i = index; i<ents.size(); i++)
     if (ents[i].type==type) return i;
   loopj(index) if (ents[j].type==type) return j;
   return -1;
@@ -112,9 +112,9 @@ entity *newentity(int x, int y, int z, char *what, int v1, int v2, int v3, int v
       e.attr1 = (int)player1->yaw;
     break;
   }
-  client::addmsg(1, 10, SV_EDITENT, ents.length(), type, e.x, e.y, e.z, e.attr1, e.attr2, e.attr3, e.attr4);
+  client::addmsg(1, 10, SV_EDITENT, ents.size(), type, e.x, e.y, e.z, e.attr1, e.attr2, e.attr3, e.attr4);
   ents.add(*((entity *)&e)); // unsafe!
-  return &ents.last();
+  return &ents.back();
 }
 
 static void clearents(char *name) {
@@ -249,7 +249,7 @@ void load(const char *mname) {
     endianswap(&hdr.waterlevel, sizeof(int), 16);
   } else
     hdr.waterlevel = -100000;
-  ents.setsize(0);
+  ents.resize(0);
   loopi(hdr.numents) {
     entity &e = ents.add();
     gzread(f, &e, sizeof(persistent_entity));
@@ -492,8 +492,8 @@ bvh::intersector *buildbvh(void) {
       vector<bvh::primitive> prims;
       auto functor = addcube(prims);
       b.forallcubes(functor, org);
-      if (prims.length() > 0) {
-        auto prim = bvh::primitive(bvh::create(&prims[0], prims.length()));
+      if (prims.size() > 0) {
+        auto prim = bvh::primitive(bvh::create(&prims[0], prims.size()));
         bvhprims.add(prim);
       }
       boxnum += functor.boxnum;
@@ -505,10 +505,10 @@ bvh::intersector *buildbvh(void) {
     forallcubes(addcube(bvhprims));
 
   console::out("bvh: %i generated primitives with %i boxes and %i triangles (%i ms elapsed)",
-    bvhprims.length(), boxnum, trinum, SDL_GetTicks()-start);
+    bvhprims.size(), boxnum, trinum, SDL_GetTicks()-start);
 
-  if (bvhprims.length() > 0) {
-    auto isec = bvh::create(&bvhprims[0], bvhprims.length());
+  if (bvhprims.size() > 0) {
+    auto isec = bvh::create(&bvhprims[0], bvhprims.size());
     console::out("bvh: data structure created (%i ms elapsed)", SDL_GetTicks()-start);
     return isec;
   } else

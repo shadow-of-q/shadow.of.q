@@ -58,14 +58,14 @@ void sort(int start, int num) {
 
 bool render(void) {
   if (vmenu<0) {
-    menustack.setsize(0);
+    menustack.resize(0);
     return false;
   }
   if (vmenu==1)
     browser::refreshservers();
   gmenu &m = menus[vmenu];
   sprintf_sd(title)(vmenu>1 ? "[ %s menu ]" : "%s", m.name);
-  int mdisp = m.items.length();
+  int mdisp = m.items.size();
   int w = 0;
   loopi(mdisp) {
     const int x = rr::textwidth(m.items[i].text);
@@ -102,7 +102,7 @@ void newm(const char *name) {
 COMMANDN(newmenu, newm, ARG_1STR);
 
 void manual(int m, int n, char *text) {
-  if (!n) menus[m].items.setsize(0);
+  if (!n) menus[m].items.resize(0);
   mitem &mi = menus[m].items.add();
   mi.text = text;
   mi.action = empty;
@@ -110,7 +110,7 @@ void manual(int m, int n, char *text) {
 }
 
 void item(char *text, char *action) {
-  gmenu &menu = menus.last();
+  gmenu &menu = menus.back();
   mitem &mi = menu.items.add();
   mi.text = NEWSTRING(text);
   mi.action = action[0] ? NEWSTRING(action) : NEWSTRING(text);
@@ -124,12 +124,15 @@ bool key(int code, bool isdown) {
   if (isdown) {
     if (code==SDLK_ESCAPE) {
       set(-1);
-      if (!menustack.empty()) set(menustack.pop());
+      if (!menustack.empty()) {
+        set(menustack.back());
+        menustack.pop_back();
+      }
       return true;
     }
     else if (code==SDLK_UP || code==-4) menusel--;
     else if (code==SDLK_DOWN || code==-5) menusel++;
-    int n = menus[vmenu].items.length();
+    int n = menus[vmenu].items.size();
     if (menusel<0) menusel = n-1;
     else if (menusel>=n) menusel = 0;
     menus[vmenu].menusel = menusel;

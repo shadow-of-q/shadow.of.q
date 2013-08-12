@@ -78,7 +78,7 @@ void spawnmonster(void) {
 
 void cleanmonsters(void) {
   loopv(monsters) FREE(monsters[i]);
-  monsters.setsize(0);
+  monsters.resize(0);
   numkilled = 0;
   monstertotal = 0;
   spawnremain = 0;

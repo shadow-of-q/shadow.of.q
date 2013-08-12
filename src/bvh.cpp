@@ -8,6 +8,7 @@
 #include "base/math.hpp"
 #include "base/stl.hpp"
 #include "base/tools.hpp"
+#include "base/vector.hpp"
 
 namespace cube {
 namespace bvh {
@@ -109,13 +110,13 @@ void compiler::injection(const primitive *soup, const u32 primnum) {
 
   root = NEWAE(intersector::node,2*primnum+1);
 
-  loopi(3) ids[i].pad(primnum);
-  pos.pad(primnum);
-  tmpids.pad(primnum);
-  centroids.pad(primnum);
-  boxes.pad(primnum);
-  rlboxes.pad(primnum);
-  istri.pad(primnum);
+  loopi(3) ids[i].resize(primnum);
+  pos.resize(primnum);
+  tmpids.resize(primnum);
+  centroids.resize(primnum);
+  boxes.resize(primnum);
+  rlboxes.resize(primnum);
+  istri.resize(primnum);
   n = primnum;
 
   scenebox = aabb(FLT_MAX, -FLT_MAX);
@@ -127,11 +128,11 @@ void compiler::injection(const primitive *soup, const u32 primnum) {
   }
 
   loopi(3) loopj(n) ids[i][j] = j;
-  ids[0].sort(sorter<0>(centroids), 0, primnum);
-  ids[1].sort(sorter<1>(centroids), 0, primnum);
-  ids[2].sort(sorter<2>(centroids), 0, primnum);
+  quicksort(&ids[0][0], &ids[0][0]+primnum, sorter<0>(centroids));
+  quicksort(&ids[1][0], &ids[1][0]+primnum, sorter<1>(centroids));
+  quicksort(&ids[2][0], &ids[2][0]+primnum, sorter<2>(centroids));
   prims = soup;
-  acc.pad(primnum);
+  acc.resize(primnum);
 }
 
 struct partition {
@@ -343,7 +344,7 @@ intersector *create(const primitive *prims, int n) {
   auto tree = NEWE(intersector);
   c.injection(prims, n);
   c.compile();
-  tree->acc.move(c.acc);
+  tree->acc.swap(c.acc);
   tree->root = c.root;
   if (bvhstatitics) {
     console::out("bvh: %d nodes %d leaves", c.nodenum, c.leafnum);

@@ -86,6 +86,7 @@ void editdrag(bool isdown) {
  - undo / redo
  -------------------------------------------------------------------------*/
 struct clone {
+  INLINE clone(void) {}
   INLINE clone(world::brickcube c, vec3i xyz, u32 action = 0, bool onlypos = false) :
     c(c), xyz(xyz), action(action), onlypos(onlypos) {}
   INLINE clone(const clone &other) :
@@ -112,10 +113,10 @@ static void saveundocube(const vec3i &xyz) {
   if (newundoaction) {
     newundoaction=false;
     undoaction++;
-    undobuffer.setsize(undocurr);
+    undobuffer.resize(undocurr);
   }
   const auto copy = clone(world::getcube(xyz), xyz, undoaction);
-  if (undocurr == undobuffer.length())
+  if (undocurr == undobuffer.size())
     undobuffer.add(copy);
   else
     undobuffer[undocurr] = copy;
@@ -142,7 +143,7 @@ static void switchcubes(int which) {
 
 static void undo(void) {
   EDIT
-  if (undocurr == 0 || undobuffer.length() == 0) {
+  if (undocurr == 0 || undobuffer.size() == 0) {
     console::out("nothing to undo");
     return;
   }
@@ -159,14 +160,14 @@ COMMAND(undo, ARG_NONE);
 
 static void redo(void) {
   EDIT
-  if (undocurr == undobuffer.length()) {
+  if (undocurr == undobuffer.size()) {
     console::out("nothing to redo");
     return;
   }
   const int action = undobuffer[undocurr].action;
   for (;;) {
     switchcubes(undocurr);
-    if (++undocurr == undobuffer.length() || undobuffer[undocurr].action != action)
+    if (++undocurr == undobuffer.size() || undobuffer[undocurr].action != action)
       break;
   }
 }
@@ -179,7 +180,7 @@ static vector<clone> copies;
 
 static void copy(void) {
   EDITSEL
-  copies.setsize(0);
+  copies.resize(0);
   const vec3i m = min(cubestart, cubeend);
   const vec3i M = max(cubestart, cubeend);
   loopxyz(m,M+vec3i(two),copies.add(clone(world::getcube(xyz),xyz-m,0,any(xyz>M))));
@@ -238,7 +239,7 @@ static void drawselgrid(void) {
   }
   ogl::bindshader(ogl::COLOR);
   OGL(VertexAttrib3fv, ogl::COL, &red.x);
-  ogl::immdraw(GL_LINES, 3, 0, 0, lines.length(), &lines[0].x);
+  ogl::immdraw(GL_LINES, 3, 0, 0, lines.size(), &lines[0].x);
 }
 
 static void drawselectedcorners(void) {
@@ -255,7 +256,7 @@ static void drawselectedcorners(void) {
   loopxyz(grid.start, grid.end+vec3i(one), docube(xyz));
   ogl::bindshader(ogl::COLOR);
   OGL(VertexAttrib3fv, ogl::COL, &yellow.x);
-  ogl::immdraw(GL_LINES, 3, 0, 0, lines.length(), &lines[0].x);
+  ogl::immdraw(GL_LINES, 3, 0, 0, lines.size(), &lines[0].x);
 }
 
 static void drawselbox(void) {

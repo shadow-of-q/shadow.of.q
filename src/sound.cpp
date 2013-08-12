@@ -58,7 +58,7 @@ static int registersound(const char *name) {
   loopv(snames) if (strcmp(snames[i], name)==0) return i;
   snames.add(NEWSTRING(name));
   samples.add(NULL);
-  return samples.length()-1;
+  return samples.size()-1;
 }
 
 void clean(void) {
@@ -120,7 +120,7 @@ void play(int n, const vec3f *loc) {
     soundsatonce = 1;
   lastsoundmillis = game::lastmillis();
   if (soundsatonce>5) return;  // avoid bursts of sounds with heavy packetloss
-  if (n<0 || n>=samples.length()) {
+  if (n<0 || n>=samples.size()) {
     console::out("unregistered sound: %d", n);
     return;
   }

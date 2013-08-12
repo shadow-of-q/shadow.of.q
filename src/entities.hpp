@@ -1,5 +1,6 @@
 #pragma once
 #include "sound.hpp"
+#include "base/vector.hpp"
 #include "base/tools.hpp"
 #include "base/stl.hpp"
 
